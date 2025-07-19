@@ -102,3 +102,28 @@ git log --oneline
 
 git commit -am 'commit_3, master' && git push study_fops39 master
 ```
+
+### commit_4, master
+```bash
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . && git commit --amend --no-edit
+
+git push --force study_fops39 master
+
+git merge dev --no-commit
+
+git reset -- commit_commands_history.md
+
+git checkout -- commit_commands_history.md
+
+git commit
+
+git commit -am 'commit_4, master&dev merge' && git push study_fops39 master
+```
