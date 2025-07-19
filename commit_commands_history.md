@@ -48,3 +48,31 @@ git add .
 git diff && git diff --staged
 
 git commit -am 'commit_2' && git push study_fops39 master
+
+### commit 3, dev
+
+git checkout -b dev
+
+git branch -v
+
+cat > 8_1/test.sh << 'EOF'
+#!/bin/bash
+
+# Random Password Generator
+generate_password() {
+    local length=${1:-12}
+    tr -dc 'A-Za-z0-9!@#$%^&*()' < /dev/urandom | head -c "$length"
+    echo
+}
+
+# Вызов функции с длиной пароля (по умолчанию 12)
+generate_password "$@"
+EOF
+
+git status
+
+git diff && git diff --staged
+
+git add .
+
+git commit -am 'commit_3, dev' && git push study_fops39 dev
