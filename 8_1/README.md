@@ -86,7 +86,7 @@
 
 ### Ответ на Задание 3
 
-[ссылка на граф]()
+[ссылка на граф](https://github.com/shoelacevip12/study_fops39/network)
 
 ---
 
