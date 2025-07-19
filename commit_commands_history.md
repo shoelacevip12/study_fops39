@@ -1,4 +1,5 @@
 ### Начало работы
+```bash 
 git init
 
 git add README.md
@@ -8,8 +9,10 @@ touch commit_commands_history
 git config --global user.email "shoelacevip21@gmail.com"
 
 git config --global user.name "shoelacevip12"
+```
 
 ### Форк ДЗ-8_1
+```bash
 git clone https://github.com/netology-code/sys-pattern-homework.git
 
 mkdir  8_1
@@ -21,8 +24,9 @@ rm  -rf sys-pattern-homework
 git diff && git diff --staged
 
 git add .
-
+```
 ### commit_1
+```bash
 git commit -m 'Конфиг без VerConSys не существующий конфиг'
 
 git branch -M master
@@ -38,9 +42,9 @@ git add .
 git commit --amend --no-edit
 
 git push --set-upstream study_fops39 master
-
+```
 ### commit_2
-
+```bash
 echo -e "# Игнорировать все файлы .pyc\n*.pyc\n\n# Игнорировать всю папку cache\ncache/" > \.gitignore
 
 git add .
@@ -48,14 +52,15 @@ git add .
 git diff && git diff --staged
 
 git commit -am 'commit_2' && git push study_fops39 master
-
+```
 ### commit 3, dev
-
+```bash
 git checkout -b dev
 
 git branch -v
 
-```cat > 8_1/test.sh << 'EOF'
+
+cat > 8_1/test.sh << 'EOF'
 #!/bin/bash
 
 # Random Password Generator
@@ -67,7 +72,7 @@ generate_password() {
 
 # Вызов функции с длиной пароля (по умолчанию 12)
 generate_password "$@"
-EOF```
+EOF
 
 git status
 
@@ -76,13 +81,13 @@ git diff && git diff --staged
 git add .
 
 git commit -am 'commit_3, dev' && git push study_fops39 dev
-
+```
 ### commit 4, dev
-
+```bash
 git commit -am 'commit_4, dev' && git push study_fops39 dev
-
+```
 ### commit 5, dev
-
+```bash
 git status
 
 git diff && git diff --staged
@@ -90,9 +95,9 @@ git diff && git diff --staged
 git log --oneline
 
 git commit -am 'commit_5, dev' && git push study_fops39 dev
-
+```
 ### commit 6, dev
-
+```bash
 git status
 
 git diff && git diff --staged
@@ -100,3 +105,22 @@ git diff && git diff --staged
 git log --oneline
 
 git commit -am 'commit_6, fix commit_5, dev' && git push study_fops39 dev
+```
+
+### commit 7, dev
+```bash
+cat >> .gitignore << 'EOF'
+
+# Игнорировать файл истории команд
+commit_commands_history.md
+EOF
+
+git status
+
+git diff && git diff --staged
+
+git log --oneline
+
+git commit -am 'commit_7, fix commit_commands_history.md, dev' && git push study_fops39 dev
+```
+
