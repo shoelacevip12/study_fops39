@@ -7,11 +7,9 @@ generate_password() {
     echo
 }
 
-# Интерактивная доработка
-echo "Random Linux Script"
+# Интерактивная взаимодействие
 echo "-------------------"
-echo "1. Generate Random Password"
-read -r option
-
-# Вызов функции с длиной пароля (по умолчанию 12)
-generate_password "$@"
+echo "Генерация случайного пароля"
+echo -n "Введите длину пароля (по умолчанию 12): "
+read -r length
+echo "Ваш сгенерированный пароль: $(generate_password "$length")";

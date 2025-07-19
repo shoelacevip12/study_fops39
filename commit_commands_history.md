@@ -80,3 +80,13 @@ git commit -am 'commit_3, dev' && git push study_fops39 dev
 ### commit 4, dev
 
 git commit -am 'commit_4, dev' && git push study_fops39 dev
+
+### commit 5, dev
+
+git status
+
+git diff && git diff --staged
+
+git log --oneline
+
+git commit -am 'commit_5, dev' && git push study_fops39 dev
