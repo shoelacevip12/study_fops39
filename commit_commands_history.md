@@ -38,3 +38,13 @@ git add .
 git commit --amend --no-edit
 
 git push --set-upstream study_fops39 master
+
+### commit_2
+
+echo -e "# Игнорировать все файлы .pyc\n*.pyc\n\n# Игнорировать всю папку cache\ncache/" > \.gitignore
+
+git add .
+
+git diff && git diff --staged
+
+git commit -am 'commit_2' && git push study_fops39 master
