@@ -55,7 +55,7 @@ git checkout -b dev
 
 git branch -v
 
-cat > 8_1/test.sh << 'EOF'
+```cat > 8_1/test.sh << 'EOF'
 #!/bin/bash
 
 # Random Password Generator
@@ -67,7 +67,7 @@ generate_password() {
 
 # Вызов функции с длиной пароля (по умолчанию 12)
 generate_password "$@"
-EOF
+EOF```
 
 git status
 
@@ -90,3 +90,13 @@ git diff && git diff --staged
 git log --oneline
 
 git commit -am 'commit_5, dev' && git push study_fops39 dev
+
+### commit 6, dev
+
+git status
+
+git diff && git diff --staged
+
+git log --oneline
+
+git commit -am 'commit_6, fix commit_5, dev' && git push study_fops39 dev
