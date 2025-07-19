@@ -76,3 +76,7 @@ git diff && git diff --staged
 git add .
 
 git commit -am 'commit_3, dev' && git push study_fops39 dev
+
+### commit 4, dev
+
+git commit -am 'commit_4, dev' && git push study_fops39 dev
