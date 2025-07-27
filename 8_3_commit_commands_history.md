@@ -88,3 +88,18 @@ git log --oneline
 
 git commit -am 'commit_5, master' && git push study_fops39 master
 ```
+
+### commit_1, 8_3-gitlab
+```bash
+git checkout -b 8_3-gitlab
+
+git branch -v
+
+git status
+
+git diff && git diff --staged
+
+git add . && git status
+
+git commit -am 'commit_1, 8_3-gitlab' && git push study_fops39 8_3-gitlab
+```
