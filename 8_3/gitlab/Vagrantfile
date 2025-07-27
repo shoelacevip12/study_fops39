@@ -1,0 +1,60 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/bionic64"
+  
+  # Настройка сети для libvirt
+  config.vm.network "private_network", 
+    ip: "192.168.56.10",
+    libvirt__network_name: "vagrant-network",
+    libvirt__dhcp_enabled: false
+  
+  # Конфигурация диска
+  config.vm.disk :disk, 
+    size: "15GB",
+    type: "qcow2",
+    allow_existing: true
+  
+  # Настройки провайдера KVM
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.driver = "kvm"
+    libvirt.memory = 6144
+    libvirt.cpus = 2
+    libvirt.nested = true
+    libvirt.volume_cache = "none"
+    libvirt.disk_bus = "virtio"
+    libvirt.nic_model_type = "virtio"
+    libvirt.network :name => "vagrant-network"
+  end
+  
+  # Триггер для автоматической конвертации box'а
+  config.trigger.before :up do |trigger|
+    trigger.info = "Проверяем наличие box для libvirt..."
+    trigger.run = {inline: <<-SHELL
+      if ! vagrant box list | grep -q '#{config.vm.box}.*libvirt'; then 
+        vagrant box add #{config.vm.box} --provider=libvirt || 
+        (vagrant plugin install --plugin-clean-sources --plugin-source https://rubygems.org vagrant-libvirt vagrant-mutate && 
+         vagrant mutate #{config.vm.box} libvirt); 
+      fi
+    SHELL
+    }
+  end
+  
+  # Provisioning скрипт
+  config.vm.provision "shell", inline: <<-SHELL
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y docker.io docker-compose
+    apt-get install -y curl openssh-server ca-certificates tzdata perl
+    curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh | sudo bash
+    sudo EXTERNAL_URL="http://gitlab.localdomain" apt-get install gitlab-ee
+    docker pull gitlab/gitlab-runner:latest
+    docker pull sonarsource/sonar-scanner-cli:latest
+    docker pull golang:1.17
+    docker pull docker:latest
+    sysctl -w vm.max_map_count=262144
+    echo -e "192.168.56.10\tubuntu-bionic" >> /etc/hosts
+    echo -e "192.168.56.10\tgitlab.localdomain" >> /etc/hosts
+  SHELL
+end

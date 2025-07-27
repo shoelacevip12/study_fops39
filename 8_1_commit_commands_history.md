@@ -1,4 +1,4 @@
-### Начало работы
+# Для домашнего задания 8.1
 ```bash
 git init
 
@@ -24,7 +24,7 @@ git diff && git diff --staged
 
 git add .
 ```
-### commit_1
+### commit_1, master
 ```bash
 git commit -m 'Конфиг без VerConSys не существующий конфиг'
 
@@ -42,7 +42,7 @@ git commit --amend --no-edit
 
 git push --set-upstream study_fops39 master
 ```
-### commit_2
+### commit_2, master
 ```bash
 echo -e "# Игнорировать все файлы .pyc\n*.pyc\n\n# Игнорировать всю папку cache\ncache/" > \.gitignore
 
