@@ -2,59 +2,105 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/bionic64"
+  config.vm.box = "cloud-image/ubuntu-20.04"
   
-  # Настройка сети для libvirt
-  config.vm.network "private_network", 
+  # Временная синхронизация папки для доставки пакета
+  # config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: [".git/", ".vagrant/"]
+
+# Cloud-init конфигурация
+  config.vm.cloud_init do |cloud_init|
+    cloud_init.content_type = "text/cloud-config"
+    cloud_init.inline = <<-EOF
+      package_update: true
+      packages:
+        - docker.io
+        - docker-compose
+        - curl
+        - openssh-server
+        - ca-certificates
+        - tzdata
+        - perl
+        - libatomic1
+        - cloud-guest-utils
+      resize_rootfs: true
+    EOF
+  end
+
+  # Настройка сети
+  config.vm.network "private_network",
     ip: "192.168.56.10",
     libvirt__network_name: "vagrant-network",
-    libvirt__dhcp_enabled: false
-  
+    libvirt__dhcp_enabled: true
+
   # Конфигурация диска
-  config.vm.disk :disk, 
-    size: "15GB",
-    type: "qcow2",
-    allow_existing: true
-  
-  # Настройки провайдера KVM
+  config.vm.disk :disk,
+    size: "17GB",
+    name: "PR",
+    primary: true
+
+  # Конфигурация для libvirt
   config.vm.provider :libvirt do |libvirt|
     libvirt.driver = "kvm"
+    libvirt.uri = 'qemu:///system'
     libvirt.memory = 6144
     libvirt.cpus = 2
     libvirt.nested = true
-    libvirt.volume_cache = "none"
+    libvirt.disk_driver :cache => 'none'
     libvirt.disk_bus = "virtio"
     libvirt.nic_model_type = "virtio"
-    libvirt.network :name => "vagrant-network"
-  end
-  
-  # Триггер для автоматической конвертации box'а
-  config.trigger.before :up do |trigger|
-    trigger.info = "Проверяем наличие box для libvirt..."
-    trigger.run = {inline: <<-SHELL
-      if ! vagrant box list | grep -q '#{config.vm.box}.*libvirt'; then 
-        vagrant box add #{config.vm.box} --provider=libvirt || 
-        (vagrant plugin install --plugin-clean-sources --plugin-source https://rubygems.org vagrant-libvirt vagrant-mutate && 
-         vagrant mutate #{config.vm.box} libvirt); 
-      fi
-    SHELL
-    }
-  end
-  
+end
+
+  # # Конфигурация для QEMU (Apple Silicon)
+  # config.vm.provider :qemu do |qemu|
+  #   qemu.machine = "virt,accel=hvf,highmem=off"
+  #   qemu.cpu = "cortex-a72"
+  #   qemu.smp = 2
+  #   qemu.memory = 6144
+  # end
+
   # Provisioning скрипт
   config.vm.provision "shell", inline: <<-SHELL
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update
-    apt-get install -y docker.io docker-compose
-    apt-get install -y curl openssh-server ca-certificates tzdata perl
-    curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh | sudo bash
-    sudo EXTERNAL_URL="http://gitlab.localdomain" apt-get install gitlab-ee
-    docker pull gitlab/gitlab-runner:latest
-    docker pull sonarsource/sonar-scanner-cli:latest
-    docker pull golang:1.17
-    docker pull docker:latest
-    sysctl -w vm.max_map_count=262144
-    echo -e "192.168.56.10\tubuntu-bionic" >> /etc/hosts
-    echo -e "192.168.56.10\tgitlab.localdomain" >> /etc/hosts
+    sudo cloud-init clean 
+    sudo cloud-init init
+    sudo growpart /dev/vda 1
+    sudo resize2fs /dev/vda1
+    
+    # Копирование пакета GitLab
+    wget --content-disposition -nv -P /tmp \
+    "https://drive.usercontent.google.com/download?id=1ploMBYuV8WBmvV7Lc6Ngy7BeXYPR0N4P&export=download&authuser=0&confirm=t&uuid=b881086c-f5e0-4517-833f-543271291319&at=AN8xHor2sWJTj35mIU3f5GnYGSUK:1753642183746"
+    #sudo cp ~/vagrant/gitlab-ee_18.0.5-ee.0_amd64.deb /tmp/
+    
+    # на всякий, если cloud_init не отработал 
+    sudo apt-get update
+    sudo apt-get install -y docker.io docker-compose curl openssh-server ca-certificates tzdata perl libatomic1
+    sudo apt-get install -f -y  # Автоматическое устранение зависимостей
+
+    # Установка GitLab
+    curl -s https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh | sudo bash
+    sudo dpkg -i /tmp/gitlab-ee_18.0.5-ee.0_amd64.deb
+   
+    # Очистка временных файлов
+    sudo rm -f /tmp/gitlab-ee_18.0.5-ee.0_amd64.deb
+    
+    # Дальнейшие настройки
+    sudo usermod -aG docker vagrant
+    sudo systemctl enable --now docker
+    # sudo systemctl start docker
+        
+    # Загрузка Docker образов
+    sudo docker pull gitlab/gitlab-runner:latest
+    sudo docker pull golang:1.17
+    sudo docker pull docker:latest
+    sudo docker pull sonarsource/sonar-scanner-cli:latest
+
+    # Настройка ядра
+    # echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+    # sudo sysctl -p
+    suddo sysctl vm.max_map_count=262144
+
+    # Обновление hosts файла
+    echo -e "192.168.56.10\tubuntu-focal\tubuntu-focal" >> /etc/hosts
+    echo -e "192.168.56.10\tgitlab.localdomain\tgitlab" >> /etc/hosts
   SHELL
 end
