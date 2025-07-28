@@ -3,15 +3,16 @@
 
 Vagrant.configure("2") do |config|
   config.vm.box = "cloud-image/ubuntu-20.04"
-  
-  # Временная синхронизация папки для доставки пакета
-  # config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: [".git/", ".vagrant/"]
+  config.vm.box_version = "20250624.0.0"
 
 # Cloud-init конфигурация
   config.vm.cloud_init do |cloud_init|
     cloud_init.content_type = "text/cloud-config"
     cloud_init.inline = <<-EOF
+      hostname: gitlab
+      fqdn: gitlab.localdomain
       package_update: true
+      package_upgrade: true
       packages:
         - docker.io
         - docker-compose
@@ -22,21 +23,11 @@ Vagrant.configure("2") do |config|
         - perl
         - libatomic1
         - cloud-guest-utils
-      resize_rootfs: true
+        - apt-transport-https
+        - gnupg
+      final_message: "The system is up, after $UPTIME seconds"
     EOF
   end
-
-  # Настройка сети
-  config.vm.network "private_network",
-    ip: "192.168.56.10",
-    libvirt__network_name: "vagrant-network",
-    libvirt__dhcp_enabled: true
-
-  # Конфигурация диска
-  config.vm.disk :disk,
-    size: "17GB",
-    name: "PR",
-    primary: true
 
   # Конфигурация для libvirt
   config.vm.provider :libvirt do |libvirt|
@@ -47,60 +38,84 @@ Vagrant.configure("2") do |config|
     libvirt.nested = true
     libvirt.disk_driver :cache => 'none'
     libvirt.disk_bus = "virtio"
+    libvirt.default_prefix = "gitlab_"
     libvirt.nic_model_type = "virtio"
+    libvirt.management_network_mode = "route"
 end
-
-  # # Конфигурация для QEMU (Apple Silicon)
-  # config.vm.provider :qemu do |qemu|
-  #   qemu.machine = "virt,accel=hvf,highmem=off"
-  #   qemu.cpu = "cortex-a72"
-  #   qemu.smp = 2
-  #   qemu.memory = 6144
-  # end
 
   # Provisioning скрипт
   config.vm.provision "shell", inline: <<-SHELL
     export DEBIAN_FRONTEND=noninteractive
-    sudo cloud-init clean 
+    sudo apt-get update
+    sudo apt-get install -y cloud-guest-utils cloud-init
+    sudo systemctl enable --now cloud-init
     sudo cloud-init init
-    sudo growpart /dev/vda 1
-    sudo resize2fs /dev/vda1
+    sudo cloud-init clean 
+    
+
+
+    # на всякий, если cloud_init не отработал 
+    sudo apt-get install -y docker.io docker-compose curl openssh-server ca-certificates tzdata perl libatomic1 apt-transport-https gnupg
+    sudo apt-get install -f -y  # Автоматическое устранение зависимостей
+
+    # --- НАЧАЛО: Добавление GPG-ключа GitLab ---
+    # Скачиваем ключ через новый URL и преобразуем формат
+    sudo curl -fsSL "https://packages.gitlab.com/gpg.key" \
+    | sudo gpg --dearmor -o /usr/share/keyrings/gitlab_gitlab-ee-archive-keyring.gpg
+
+    # Добавление репозитория с компонентом 'main'
+    echo "deb [signed-by=/usr/share/keyrings/gitlab_gitlab-ee-archive-keyring.gpg] https://packages.gitlab.com/gitlab/gitlab-ee/ubuntu focal main" \
+        | sudo tee /etc/apt/sources.list.d/gitlab_gitlab-ee.list
+    
+    # Обновление кэша пакетов
+    sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/gitlab_gitlab-ee.list" \
+        -o Dir::Etc::sourceparts="-" \
+        -o APT::Get::List-Cleanup="0"
+    # --- КОНЕЦ: Добавление GPG-ключа GitLab ---
+    
+    # Установка статического hostname
+    sudo hostnamectl set-hostname gitlab.localdomain
     
     # Копирование пакета GitLab
     wget --content-disposition -nv -P /tmp \
     "https://drive.usercontent.google.com/download?id=1ploMBYuV8WBmvV7Lc6Ngy7BeXYPR0N4P&export=download&authuser=0&confirm=t&uuid=b881086c-f5e0-4517-833f-543271291319&at=AN8xHor2sWJTj35mIU3f5GnYGSUK:1753642183746"
-    #sudo cp ~/vagrant/gitlab-ee_18.0.5-ee.0_amd64.deb /tmp/
-    
-    # на всякий, если cloud_init не отработал 
-    sudo apt-get update
-    sudo apt-get install -y docker.io docker-compose curl openssh-server ca-certificates tzdata perl libatomic1
-    sudo apt-get install -f -y  # Автоматическое устранение зависимостей
+
 
     # Установка GitLab
     curl -s https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh | sudo bash
+    sudo apt-get update
     sudo dpkg -i /tmp/gitlab-ee_18.0.5-ee.0_amd64.deb
-   
-    # Очистка временных файлов
-    sudo rm -f /tmp/gitlab-ee_18.0.5-ee.0_amd64.deb
-    
+       
     # Дальнейшие настройки
-    sudo usermod -aG docker vagrant
+    sudo usermod -aG docker vagrant 
     sudo systemctl enable --now docker
-    # sudo systemctl start docker
         
     # Загрузка Docker образов
     sudo docker pull gitlab/gitlab-runner:latest
-    sudo docker pull golang:1.17
     sudo docker pull docker:latest
     sudo docker pull sonarsource/sonar-scanner-cli:latest
+    sudo docker pull golang:1.17
 
     # Настройка ядра
-    # echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
-    # sudo sysctl -p
-    suddo sysctl vm.max_map_count=262144
+    sudo sysctl vm.max_map_count=262144
+    sudo sysctl -p
 
     # Обновление hosts файла
-    echo -e "192.168.56.10\tubuntu-focal\tubuntu-focal" >> /etc/hosts
-    echo -e "192.168.56.10\tgitlab.localdomain\tgitlab" >> /etc/hosts
+    ip_address=$(ip route get 77.88.8.8 2>/dev/null | awk '{print $7; exit}')
+    echo -e "127.0.0.1\tlocalhost" >> /etc/hosts
+    echo -e "127.0.1.1\tgitlab.localdomain\tgitlab" >> /etc/hosts
+    echo -e "$ip_address\tgitlab.localdomain\tgitlab" >> /etc/hosts
+    
+    # Для замены значения external_url и порта  http
+    sudo sed -i -e "s|external_url 'http://gitlab.example.com'|external_url 'http://gitlab.localdomain:8888'|" \
+    -e "s|^# nginx\['listen_port'\] = nil|nginx['listen_port'] = 8888|" /etc/gitlab/gitlab.rb \
+    -e "s|^# nginx['redirect_http_to_https'] = true |nginx['redirect_http_to_https'] = false|"
+    
+    # первая инициализация
+    sudo gitlab-ctl reconfigure
+    sudo cat /etc/gitlab/initial_root_password
+    
+    # Очистка временных файлов
+    sudo rm -f /tmp/gitlab-ee_18.0.5-ee.0_amd64.deb
   SHELL
 end

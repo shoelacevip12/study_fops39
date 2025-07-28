@@ -116,14 +116,6 @@ wget --content-disposition -P 8_3/gitlab "https://drive.usercontent.google.com/d
 
 vagrant plugin install --plugin-clean-sources --plugin-source https://rubygems.org vagrant-qemu
 
-sudo cp 8_3/gitlab/vagrant-network.xml /etc/libvirt/qemu/networks/
-
-sudo virsh net-define /etc/libvirt/qemu/networks/vagrant-network.xml
-
-sudo virsh net-autostart vagrant-network
-
-sudo virsh net-start vagrant-network
-
 sudo virsh net-list --all
 
 cd 8_3/gitlab
@@ -139,5 +131,19 @@ git diff && git diff --staged
 git add . && git status
 
 git commit -am 'commit_2, 8_3-gitlab' && git push study_fops39 8_3-gitlab
+
+```
+
+### commit_3, 8_3-gitlab
+```bash
+git branch -v
+
+git status
+
+git diff && git diff --staged
+
+git add . && git status
+
+git commit -am 'commit_3, 8_3-gitlab' && git push study_fops39 8_3-gitlab
 
 ```
