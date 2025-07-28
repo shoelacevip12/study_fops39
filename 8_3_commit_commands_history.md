@@ -141,3 +141,17 @@ git add . && git status
 git commit -am 'commit_2, 8_3-gitlab' && git push study_fops39 8_3-gitlab
 
 ```
+
+### commit_3, 8_3-gitlab
+```bash
+git branch -v
+
+git status
+
+git diff && git diff --staged
+
+git add . && git status
+
+git commit -am 'commit_3, 8_3-gitlab' && git push study_fops39 8_3-gitlab
+
+```
