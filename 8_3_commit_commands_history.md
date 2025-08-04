@@ -148,7 +148,6 @@ git commit -am 'commit_3, 8_3-gitlab' && git push study_fops39 8_3-gitlab
 
 ```
 
-
 ### commit_4, 8_3-gitlab
 ```bash
 
@@ -184,3 +183,60 @@ git commit -am 'commit_4, 8_3-gitlab' \
 
 ```
 
+### commit_5, 8_3-gitlab
+```bash
+
+cd gited/8_3/gitlab/
+
+vagrant ssh
+
+bash
+
+docker run -ti --rm --name gitlab-runner \
+--network host \
+-v /srv/gitlab-runner/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner:latest register
+
+Enter the GitLab instance URL (for example, https://gitlab.com/):
+*http://gitlab.localdomain:8888*
+Enter the registration token:
+*GR1348941kaqZ8ZXzYXTitSvva1HX*
+Enter a description for the runner:
+[gitlab]: *docker-runner*
+Enter tags for the runner (comma-separated):
+*skv_fops39*
+Enter an executor: instance, shell, parallels, docker-windows, kubernetes, custom, ssh, virtualbox, docker, docker+machine, docker-autoscaler:
+*docker*
+Enter the default Docker image (for example, ruby:3.3):
+*golang:1.17*
+
+sudo sed -i '/volumes = \["\/cache"\]/s/^/#/; /volumes = \["\/cache"\]/a\    volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock"]' /srv/gitlab-runner/config/config.toml
+
+docker run -d --name gitlab-runner --restart always \
+--network host \
+-v /srv/gitlab-runner/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner:latest
+
+docker ps
+
+exit
+
+exit
+
+cd ../..
+
+git branch -v && git remote -v
+
+git status
+
+git diff && git diff --staged
+
+git add . && git status
+
+git commit -am 'commit_5, 8_3-gitlab' \
+&& git push study_fops39_local 8_3-gitlab \
+&& git push study_fops39 8_3-gitlab 
+
+```
