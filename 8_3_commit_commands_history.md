@@ -147,3 +147,40 @@ git add . && git status
 git commit -am 'commit_3, 8_3-gitlab' && git push study_fops39 8_3-gitlab
 
 ```
+
+
+### commit_4, 8_3-gitlab
+```bash
+
+cd gited/8_3/gitlab/
+
+vagrant ssh -- sudo "cat /etc/gitlab/initial_root_password | grep "d: ""
+
+IP=$(vagrant ssh -c "ip a show ens5 \
+| grep 'inet ' \
+| awk '{print \$2}' \
+| cut -d'/' -f1" 2>/dev/null \
+| tr -d '\r')
+
+sudo bash -c "echo -e \"${IP}\tgitlab.localdomain\" >> /etc/hosts"
+
+cd ../..
+
+git branch -v
+
+git remote add study_fops39_local http://gitlab.localdomain:8888/root/skv_8_3_gitlab.git
+
+git remote -v
+
+git status
+
+git diff && git diff --staged
+
+git add . && git status
+
+git commit -am 'commit_4, 8_3-gitlab' \
+&& git push study_fops39_local 8_3-gitlab \
+&& git push study_fops39 8_3-gitlab 
+
+```
+
