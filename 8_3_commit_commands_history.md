@@ -238,5 +238,82 @@ git add . && git status
 git commit -am 'commit_5, 8_3-gitlab' \
 && git push study_fops39_local 8_3-gitlab \
 && git push study_fops39 8_3-gitlab 
+```
 
+### commit_6, 8_3-gitlab
+```bash
+
+cd gited/8_3/gitlab/
+
+vagrant halt
+
+VAGRANT_EXPERIMENTAL="disks" vagrant up --provider=libvirt
+
+vagrant ssh -- docker ps
+
+vagrant rsync
+
+vagrant rsync-auto &
+
+vagrant ssh -- -t 'cd /vagrant \
+&& docker-compose up -d \
+&& sleep 3 \
+&& docker ps'
+
+cd ..
+
+cat >.gitlab-ci.yml<<'EOF'
+stages:
+  - test
+  - test_stte
+  - build
+
+jb_1-test:
+  stage: test
+  image: golang:1.17
+  script:
+   - cd 8_3 
+   - go test .
+  tags: 
+    - skv_fops39
+
+jb_2-stte:
+  stage: test_stte
+  image:
+    name: sonarsource/sonar-scanner-cli
+    entrypoint: [""]
+  variables:
+  script:
+    - cd 8_3
+    - sonar-scanner -Dsonar.projectKey=skv_fops39 -Dsonar.sources=. -Dsonar.host.url=http://gitlab.localdomain:9000 -Dsonar.login=sqp_dd57b0623b16333773a265e234b9fe3e0eb04974
+  tags: 
+    - skv_fops39
+
+jb_build:
+  stage: build
+  image: docker:latest
+  script:
+   - cd 8_3
+   - docker build .
+  tags: 
+    - skv_fops39
+EOF
+
+
+git branch -v \
+&& git remote -v
+
+git status
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_6, 8_3-gitlab' \
+&& git push --set-upstream study_fops39_local 8_3-gitlab \
+&& git push --set-upstream study_fops39 8_3-gitlab
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39_local 8_3-gitlab --force \
+&& git push --set-upstream study_fops39 8_3-gitlab --force
 ```
