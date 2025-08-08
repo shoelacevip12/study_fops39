@@ -43,7 +43,45 @@
  * файл gitlab-ci.yml для своего проекта или вставьте код в соответствующее поле в шаблоне; 
  * скриншоты с успешно собранными сборками.
  
-![](gitlab-build-1.png)![](gitlab-build-2.png)![](gitlab-build-3.png)![](gitlab-build-4.png)
+![](gitlab-build-1.png)![](gitlab-build-2.png)![](gitlab-build-3.png)![](gitlab-build-4.png)![](gitlab-build-5.png)
+```yaml
+stages:
+  - test
+  - test_stte
+  - build
+
+jb_1-test:
+  stage: test
+  image: golang:1.17
+  script:
+   - cd 8_3 
+   - go test .
+  tags: 
+    - skv_fops39
+
+jb_2-stte:
+  stage: test_stte
+  image:
+    name: sonarsource/sonar-scanner-cli
+    entrypoint: [""]
+  variables:
+  script:
+    - cd 8_3
+    - sonar-scanner -Dsonar.projectKey=skv_fops39 -Dsonar.sources=. -Dsonar.host.url=http://gitlab.localdomain:9000 -Dsonar.login=sqp_dd57b0623b16333773a265e234b9fe3e0eb04974
+  tags: 
+    - skv_fops39
+
+jb_build:
+  stage: build
+  image: docker:latest
+  script:
+   - cd 8_3
+   - docker build .
+  tags: 
+    - skv_fops39
+```
+
+
 ---
 ## Дополнительные задания* (со звёздочкой)
 
@@ -59,3 +97,48 @@
  - тесты запускались только при изменении файлов с расширением *.go.
 
 В качестве ответа добавьте в шаблон с решением файл gitlab-ci.yml своего проекта или вставьте код в соответсвующее поле в шаблоне.
+![](gitlab-build-up-1.png)
+
+```yaml
+stages:
+  - test
+  - test_stte
+  - build
+
+jb_1-test:
+  stage: test
+  image: golang:1.17
+  script:
+   - cd 8_3 
+   - go test .
+  tags: 
+    - skv_fops39
+  rules:
+    - changes:
+        - 8_3/**/*.go
+
+jb_2-stte:
+  stage: test_stte
+  image:
+    name: sonarsource/sonar-scanner-cli
+    entrypoint: [""]
+  variables:
+  script:
+    - cd 8_3
+    - sonar-scanner -Dsonar.projectKey=skv_fops39 -Dsonar.sources=. -Dsonar.host.url=http://gitlab.localdomain:9000 -Dsonar.login=sqp_dd57b0623b16333773a265e234b9fe3e0eb04974
+  tags: 
+    - skv_fops39
+  rules:
+    - changes:
+        - 8_3/**/*.go
+
+jb_build:
+  stage: build
+  image: docker:latest
+  script:
+   - cd 8_3
+   - docker build .
+  tags: 
+    - skv_fops39
+  needs: []
+```

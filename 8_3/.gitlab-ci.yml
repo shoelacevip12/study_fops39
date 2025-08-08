@@ -11,6 +11,9 @@ jb_1-test:
    - go test .
   tags: 
     - skv_fops39
+  rules:
+    - changes:
+        - 8_3/**/*.go
 
 jb_2-stte:
   stage: test_stte
@@ -23,6 +26,9 @@ jb_2-stte:
     - sonar-scanner -Dsonar.projectKey=skv_fops39 -Dsonar.sources=. -Dsonar.host.url=http://gitlab.localdomain:9000 -Dsonar.login=sqp_dd57b0623b16333773a265e234b9fe3e0eb04974
   tags: 
     - skv_fops39
+  rules:
+    - changes:
+        - 8_3/**/*.go
 
 jb_build:
   stage: build
@@ -32,3 +38,4 @@ jb_build:
    - docker build .
   tags: 
     - skv_fops39
+  needs: []

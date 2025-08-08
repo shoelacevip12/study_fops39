@@ -39,7 +39,7 @@ vagrant --version
 
 source ~/proxy_socks.sh
 
-export ALL_PROXY="socks5://localhost:1080
+export ALL_PROXY="socks5://localhost:1080"
 
 vagrant plugin install \
 --plugin-clean-sources \
@@ -255,7 +255,10 @@ vagrant rsync
 
 vagrant rsync-auto &
 
-vagrant ssh -- -t 'cd /vagrant \
+vagrant ssh -- -t 'echo "vm.max_map_count=262144" \
+| sudo tee -a /etc/sysctl.conf \
+&& sysctl -p
+cd /vagrant \
 && docker-compose up -d \
 && sleep 3 \
 && docker ps'
@@ -316,4 +319,53 @@ git add . .. \
 && git commit --amend --no-edit \
 && git push --set-upstream study_fops39_local 8_3-gitlab --force \
 && git push --set-upstream study_fops39 8_3-gitlab --force
+```
+
+### commit_7, 8_3-gitlab
+```bash
+
+cd gited/8_3
+
+git branch -v \
+&& git remote -v
+
+git status
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_7, 8_3-gitlab' \
+&& git push --set-upstream study_fops39_local 8_3-gitlab \
+&& git push --set-upstream study_fops39 8_3-gitlab
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39_local 8_3-gitlab --force \
+&& git push --set-upstream study_fops39 8_3-gitlab --force
+```
+
+### commit_6, master
+```bash
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39_local 8_3-gitlab --force \
+&& git push --set-upstream study_fops39 8_3-gitlab --force
+
+git checkout master
+
+git branch -v
+
+git merge 8_3-gitlab
+
+git commit
+
+git commit -am 'commit_6, master&8_3-gitlab merge' && git push study_fops39 master
 ```
