@@ -51,3 +51,22 @@ git commit -am 'commit_7, master' \
 
 ```
 
+### commit_1, 9_2-zabbix
+```bash
+git log --oneline
+
+git checkout -b 9_2-zabbix
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . ..
+
+git commit -am 'commit_1, 9_2-zabbix' \
+&& git push --set-upstream study_fops39 9_2-zabbix
+```
