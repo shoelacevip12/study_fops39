@@ -1,0 +1,75 @@
+---
+- name: Настройка окружения
+  hosts: hosts:db
+  gather_facts: false
+  vars:
+    ansible_ssh_user: skv
+  become: yes
+
+  pre_tasks:
+    - name: Проверка доступности по SSH (порт 22)
+      wait_for:
+        host: "{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}"
+        port: 22
+        delay: 5
+        timeout: 300
+        state: started
+        search_regex: OpenSSH
+
+  tasks:
+    - name: Создание тестового файла
+      copy:
+        dest: /tmp/test
+        content: "success"
+
+    # Установка для разных групп
+    - name: Установка zabbix-agent
+      apt:
+        name: zabbix-agent
+        state: present
+        update_cache: yes
+   
+    - name: Установка PostgreSQL для db
+      apt:
+        name: postgresql
+        state: present
+        update_cache: yes
+      when: "'db' in group_names"
+
+    # Запуск служб
+    - name: Запуск и включение zabbix-agent
+      service:
+        name: zabbix-agent
+        state: started
+        enabled: yes
+
+    - name: Запуск и включение PostgreSQL
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+      when: "'db' in group_names"
+
+    # Проверка служб
+    - name: Проверка состояния zabbix-agent
+      command: systemctl is-active zabbix-agent
+      changed_when: false
+      register: zabbix-agent_status
+      notify: show_service_status
+    
+    - name: Проверка состояния PostgreSQL
+      command: systemctl is-active postgresql
+      changed_when: false
+      register: postgresql_status
+      when: "'db' in group_names"
+      notify: show_service_status
+
+  handlers:
+    - name: show_service_status
+      debug:
+        msg: "Служба {{ item.item }} работает: {{ item.stdout }}"
+      loop: "{{ ansible_run_tags }}"
+      when: item is changed
+      loop_control:
+        loop_var: item
+      tags: always

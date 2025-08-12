@@ -1,5 +1,9 @@
 # Игнорировать всю папку:
 cache/
 .vagrant/
-# игнорировать расширения:
+
+# игнорировать расширения и файлы:
 *.deb
+authorized_key.json
+.terraform.lock.hcl
+tfplan

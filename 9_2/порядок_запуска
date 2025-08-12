@@ -1,0 +1,12 @@
+ssh-keygen -f ~/.ssh/id_09-2_ed25519 -t ed25519 -C "9-02"
+cd /home/shoel/gited/9_2
+terraform validate && terraform fmt  && terraform init --upgrade && terraform plan -out=tfplan
+terraform apply
+
+yc compute instance list \
+&& rm ~/.ssh/known_hosts \
+&& eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_07-3_ed25519 \
+&& ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_07-3_ed25519 -A skv@$(awk 'NR==2' hosts.ini) hostnamectl
+
+ansible-playbook test.yml
