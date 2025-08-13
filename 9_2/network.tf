@@ -137,7 +137,7 @@ resource "yandex_vpc_security_group" "host_db" {
     description    = "Allow PostgreSQL"
     protocol       = "TCP"
     port           = 5432
-    v4_cidr_blocks = ["10.10.10.0/26"]
+    v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {

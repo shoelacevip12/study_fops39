@@ -147,13 +147,15 @@ resource "yandex_compute_instance" "DB_d" {
 resource "local_file" "hosts-ans" {
   content  = <<-XYZ
   [zab-serv]
-  ${yandex_compute_instance.zab-serv.network_interface.0.nat_ip_address}
+  ${yandex_compute_instance.zab-serv.network_interface.0.nat_ip_address} zabbix_server_ip=${yandex_compute_instance.zab-serv.network_interface.0.ip_address}
+  ${yandex_compute_instance.zab-serv.network_interface.0.ip_address} zabbix_server_ip=${yandex_compute_instance.zab-serv.network_interface.0.ip_address} exclude_host=true
 
   [hosts]
   ${yandex_compute_instance.host_a.network_interface.0.ip_address}
+  ${yandex_compute_instance.host_b.network_interface.0.ip_address}
   [hosts:vars]
   ansible_ssh_common_args = '-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p -q skv@${yandex_compute_instance.zab-serv.network_interface.0.nat_ip_address}"'
-  
+    
   [db]
   ${yandex_compute_instance.DB_d.network_interface.0.ip_address}
   [db:vars]

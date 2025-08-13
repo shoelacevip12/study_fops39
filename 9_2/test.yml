@@ -1,9 +1,12 @@
 ---
 - name: Настройка окружения
-  hosts: hosts:db
-  gather_facts: false
+  hosts: "hosts:db:zab-serv"
+  gather_facts: true
   vars:
     ansible_ssh_user: skv
+    zabbix_server_ip: "{{ groups['zab-serv'][0] }}"
+    db_host: "{{ groups['db'][0] }}"
+    zabbix_db_password: "zabbix"
   become: yes
 
   pre_tasks:
@@ -15,31 +18,138 @@
         timeout: 300
         state: started
         search_regex: OpenSSH
+      ignore_errors: yes
 
   tasks:
     - name: Создание тестового файла
       copy:
         dest: /tmp/test
         content: "success"
-
-    # Установка для разных групп
-    - name: Установка zabbix-agent
-      apt:
-        name: zabbix-agent
-        state: present
-        update_cache: yes
+    
+    # Настройка конфигурации агента
+    - name: Настройка файла конфигурации zabbix-agent2
+      template:
+        src: zabbix_agent2.conf.j2
+        dest: /etc/zabbix/zabbix_agent2.conf
+        owner: zabbix
+        group: zabbix
+        mode: '0644'
+      notify:
+        - Перезапуск Zabbix Agent2
    
-    - name: Установка PostgreSQL для db
+    # Для серверов DB
+    - name: Установка PostgreSQL и зависимостей
       apt:
-        name: postgresql
+        name:
+          - postgresql
+          - postgresql-contrib
+          - postgresql-client
+          - python3-psycopg2  # Критически важно для Ansible модулей
         state: present
         update_cache: yes
       when: "'db' in group_names"
 
+    - name: Настройка сетевого прослушивания PostgreSQL
+      become: yes
+      lineinfile:
+        path: /etc/postgresql/16/main/postgresql.conf
+        regexp: '^listen_addresses\s*='
+        line: "listen_addresses = '*'"
+        state: present
+      when: "'db' in group_names"
+      notify: Перезапустить PostgreSQL
+
+    - name: Настройка прав доступа к БД
+      become: yes
+      become_user: postgres
+      lineinfile:
+        path: /etc/postgresql/16/main/pg_hba.conf
+        line: "host    all             all             0.0.0.0/0               md5"
+        insertafter: '# IPv4 local connections:'
+        state: present
+      when: "'db' in group_names"
+      notify: Перезапустить PostgreSQL
+
+    - name: Создание пользователя и БД для Zabbix
+      community.general.postgresql_db:
+        name: zabbix
+        owner: zabbix
+        encoding: UTF8
+        lc_ctype: ru_RU.UTF-8
+        lc_collate: ru_RU.UTF-8
+        template: template0
+      when: "'db' in group_names"
+      environment:
+        PGPASSWORD: "zabbix"  # Укажите пароль суперпользователя
+
+    - name: Установка пароля для пользователя zabbix
+      community.general.postgresql_user:
+        name: zabbix
+        password: "{{ zabbix_db_password }}"
+        encrypted: yes
+      when: "'db' in group_names"
+      environment:
+        PGPASSWORD: "zabbix"  # Укажите пароль суперпользователя
+
+    # Для серверов Zabbix
+    - name: Добавление GPG-ключа Zabbix
+      apt_key:
+        url: https://repo.zabbix.com/zabbix-official-repo.key
+        state: present
+      when: "'zab-serv' in group_names"
+
+    - name: Добавление репозитория Zabbix 7.0
+      apt_repository:
+        repo: "deb https://repo.zabbix.com/zabbix/7.0/ubuntu noble main"
+        state: present
+        filename: zabbix
+        update_cache: yes
+      when: "'zab-serv' in group_names"
+
+    - name: Установка пакетов Zabbix Server и Web
+      apt:
+        name:
+          - zabbix-server-pgsql
+          - zabbix-frontend-php
+          - zabbix-apache-conf
+          - zabbix-sql-scripts
+          - postgresql-client
+          - php-pgsql
+          - locales-all
+        state: present
+        update_cache: yes
+      when: "'zab-serv' in group_names"
+      notify:
+        - Перезапустить Apache
+
+    - name: Настройка конфигурации Zabbix Server
+      template:
+        src: zabbix_server.conf.j2
+        dest: /etc/zabbix/zabbix_server.conf
+        owner: zabbix
+        group: zabbix
+        mode: '0644'
+      when: "'zab-serv' in group_names"
+      notify:
+        - Перезапустить Zabbix Server
+
+    - name: Инициализация базы данных Zabbix
+      shell: |
+        set -o pipefail
+        zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql -h {{ db_host }} -U zabbix -d zabbix -w
+      environment:
+        PGPASSWORD: "{{ zabbix_db_password }}"
+      when: "'zab-serv' in group_names"
+      args:
+        executable: /bin/bash
+      register: db_init
+      failed_when: db_init.rc != 0
+      changed_when: db_init.rc == 0
+
     # Запуск служб
-    - name: Запуск и включение zabbix-agent
+    - name: Запуск и включение zabbix-agent2
       service:
-        name: zabbix-agent
+        name: zabbix-agent2
         state: started
         enabled: yes
 
@@ -50,26 +160,37 @@
         enabled: yes
       when: "'db' in group_names"
 
-    # Проверка служб
-    - name: Проверка состояния zabbix-agent
-      command: systemctl is-active zabbix-agent
-      changed_when: false
-      register: zabbix-agent_status
-      notify: show_service_status
-    
-    - name: Проверка состояния PostgreSQL
-      command: systemctl is-active postgresql
-      changed_when: false
-      register: postgresql_status
-      when: "'db' in group_names"
-      notify: show_service_status
+    - name: Запуск и включение Zabbix Server
+      service:
+        name: zabbix-server
+        state: started
+        enabled: yes
+      when: "'zab-serv' in group_names"
+
+    - name: Запуск и включение Apache
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+      when: "'zab-serv' in group_names"
 
   handlers:
-    - name: show_service_status
-      debug:
-        msg: "Служба {{ item.item }} работает: {{ item.stdout }}"
-      loop: "{{ ansible_run_tags }}"
-      when: item is changed
-      loop_control:
-        loop_var: item
-      tags: always
+    - name: Перезапуск Zabbix Agent2
+      service:
+        name: zabbix-agent2
+        state: restarted
+
+    - name: Перезапустить Zabbix Server
+      service:
+        name: zabbix-server
+        state: restarted
+
+    - name: Перезапустить Apache
+      service:
+        name: apache2
+        state: restarted
+
+    - name: Перезапустить PostgreSQL
+      service:
+        name: postgresql
+        state: restarted

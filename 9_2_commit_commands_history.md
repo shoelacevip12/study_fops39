@@ -53,6 +53,8 @@ git commit -am 'commit_7, master' \
 
 ### commit_1, 9_2-zabbix
 ```bash
+cd 9_2
+
 git log --oneline
 
 git checkout -b 9_2-zabbix
@@ -68,5 +70,40 @@ git log --oneline
 git add . ..
 
 git commit -am 'commit_1, 9_2-zabbix' \
+&& git push --set-upstream study_fops39 9_2-zabbix
+```
+
+### commit_2, 9_2-zabbix
+```bash
+
+cd 9_2
+
+terraform validate \
+&& terraform fmt  \
+&& terraform init --upgrade \
+&& terraform plan -out=tfplan
+
+terraform apply "tfplan"
+
+rm ~/.ssh/known_hosts \
+; eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_09-2_ed25519 \
+&& ssh -o StrictHostKeyChecking=no -i \
+~/.ssh/id_09-2_ed25519 -A skv@$(awk 'NR==2' hosts.ini | cut -d' ' -f1) hostnamectl \
+&& yc compute instance list
+
+ansible-playbook test.yml
+
+yc compute instance list
+
+git branch -v \
+&& git remote -v
+
+git status
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_2, 9_2-zabbix' \
 && git push --set-upstream study_fops39 9_2-zabbix
 ```
