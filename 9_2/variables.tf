@@ -24,7 +24,7 @@ variable "host" {
 variable "srv" {
   type = map(number)
   default = {
-    cores         = 2
+    cores         = 4
     memory        = 4
     core_fraction = 20
   }

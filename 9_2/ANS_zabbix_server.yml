@@ -1,0 +1,184 @@
+---
+- name: Развёртывание Zabbix Server 7.0
+  hosts: zab-serv
+  become: yes
+  vars:
+    zabbix_db_password: "zabbix"
+    timezone: "Europe/Moscow"
+
+  tasks:
+    # Установка репозитория Zabbix
+    - name: Добавление GPG-ключа и репозитория
+      block:
+        - name: Импорт GPG-ключа
+          ansible.builtin.apt_key:
+            url: https://repo.zabbix.com/zabbix-official-repo.key
+            state: present
+        
+        - name: Добавление репозитория
+          ansible.builtin.apt_repository:
+            repo: "deb https://repo.zabbix.com/zabbix/7.0/ubuntu noble main"
+            state: present
+            filename: zabbix
+            update_cache: yes
+      tags: repo
+
+    # Установка PostgreSQL
+    - name: Установка PostgreSQL
+      ansible.builtin.apt:
+        name:
+          - postgresql-16
+          - postgresql-client-16
+          - postgresql-contrib-16
+        state: latest
+        update_cache: yes
+      tags: postgres
+
+    - name: Настройка PostgreSQL
+      ansible.builtin.template:
+        src: templates/postgresql.conf.j2
+        dest: /etc/postgresql/16/main/postgresql.conf
+      notify: restart postgres
+
+    - name: Настройка сетевого доступа
+      ansible.builtin.template:
+        src: templates/pg_hba.conf.j2
+        dest: /etc/postgresql/16/main/pg_hba.conf
+      notify: restart postgres
+
+    - name: Запуск и включение PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: yes
+      tags: postgres
+
+    # Создание БД и пользователя
+    - name: Создание пользователя Zabbix
+      become: yes
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: zabbix
+        password: "{{ zabbix_db_password }}"
+        role_attr_flags: CREATEDB
+
+    - name: Создание базы данных
+      become: yes
+      become_user: postgres
+      community.postgresql.postgresql_db:
+        name: zabbix
+        owner: zabbix
+        encoding: UTF8
+        template: template0
+
+    # Установка компонентов Zabbix
+    - name: Установка Zabbix и зависимостей
+      ansible.builtin.apt:
+        name:
+          - zabbix-server-pgsql
+          - zabbix-frontend-php
+          - zabbix-apache-conf
+          - zabbix-sql-scripts
+          - zabbix-agent2
+          - php8.3-pgsql
+          - apache2
+          - libapache2-mod-php
+        state: latest
+        update_cache: yes
+      tags: zabbix
+
+    # Импорт схемы БД (исправленный)
+    - name: Импорт схемы Zabbix
+      become: yes
+      become_user: root
+      ansible.builtin.shell:
+        cmd: |
+          sudo -u zabbix PGPASSWORD="{{ zabbix_db_password }}" zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql -h localhost -U zabbix -d zabbix
+      args:
+        executable: /bin/bash
+
+    # Конфигурация Zabbix
+    - name: Настройка zabbix_server.conf
+      ansible.builtin.template:
+        src: templates/zabbix_server.conf.j2
+        dest: /etc/zabbix/zabbix_server.conf
+      notify: restart zabbix-server
+
+    - name: Настройка PHP
+      ansible.builtin.ini_file:
+        path: /etc/php/8.3/apache2/php.ini
+        section: PHP
+        option: "{{ item.key }}"
+        value: "{{ item.value }}"
+      loop:
+        - { key: date.timezone, value: "{{ timezone }}" }
+        - { key: max_execution_time, value: "600" }
+        - { key: post_max_size, value: "32M" }
+        - { key: upload_max_filesize, value: "16M" }
+      notify: restart apache
+
+    - name: Настройка Apache
+      ansible.builtin.copy:
+        content: |
+          <VirtualHost *:80>
+            ServerName zabbix.local
+            DocumentRoot /usr/share/zabbix
+            <Directory "/usr/share/zabbix">
+              Options FollowSymLinks
+              AllowOverride None
+              Require all granted
+            </Directory>
+          </VirtualHost>
+        dest: /etc/apache2/sites-available/zabbix.conf
+      notify: restart apache
+
+    - name: Активация сайта Zabbix
+      ansible.builtin.file:
+        src: /etc/apache2/sites-available/zabbix.conf
+        dest: /etc/apache2/sites-enabled/zabbix.conf
+        state: link
+      notify: restart apache
+
+    # Запуск сервисов
+    - name: Включение и запуск сервисов
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - zabbix-agent2
+        - apache2
+      tags: services
+
+    - name: Запуск Zabbix Server без ожидания (async)
+      ansible.builtin.service:
+        name: zabbix-server
+        state: started
+        enabled: yes
+      async: 60
+      poll: 0
+
+    - name: Проверка, что Zabbix Server запущен
+      ansible.builtin.service:
+        name: zabbix-server
+        state: started
+      register: zabbix_service
+      until: zabbix_service.state == 'started'
+      retries: 10
+      delay: 10
+
+  handlers:
+    - name: restart zabbix-server
+      ansible.builtin.service:
+        name: zabbix-server
+        state: restarted
+
+    - name: restart postgres
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
+
+    - name: restart apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted

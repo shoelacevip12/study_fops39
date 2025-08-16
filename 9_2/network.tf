@@ -48,9 +48,9 @@ resource "yandex_vpc_route_table" "route" {
 }
 
 ##Правила NAT
-#Разрешаем всем Входящим по 22 порту по протоколу TCP до сети 10.10.10.0/26
-#Разрешаем любые входящие соединения по протоколу TCP по 80,443 портам
-#Разрешаем входящие из-под сети 10.10.10.0/26 по TCP Протоколу до порта 10051
+#Разрешаем Всем Входящие соединения по 22 порту по протоколу TCP, необходимо для proxy-jump до сети 10.10.10.0/26
+#Разрешаем Всем входящие соединения по протоколу TCP по 80,443 портам
+#Разрешаем Всем входящие соединения по протоколу TCP по 10051
 resource "yandex_vpc_security_group" "zab-serv" {
   name       = "zab-serv-${var.dz}"
   network_id = yandex_vpc_network.skv.id
@@ -75,12 +75,12 @@ resource "yandex_vpc_security_group" "zab-serv" {
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # ingress {
-  #   description    = "Allow zabbix-agent"
-  #   protocol       = "TCP"
-  #   port           = 10051
-  #   v4_cidr_blocks = ["10.10.10.0/26"]
-  # }
+  ingress {
+    description    = "Allow zabbix-agent"
+    protocol       = "TCP"
+    port           = 10051
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
 
   # egress {
   #   description    = "Permit ANY"
@@ -112,6 +112,7 @@ resource "yandex_vpc_security_group" "LAN" {
 
 }
 
+
 #Разрешаем любые входящие соединения по протоколу TCP по 80,443 портам
 #Разрешаем входящие из-под сети 10.10.10.0/26 по TCP Протоколу до порта 5432
 #Разрешаем входящие из-под сети 10.10.10.0/26 по TCP Протоколу до порта 10050
@@ -133,12 +134,12 @@ resource "yandex_vpc_security_group" "host_db" {
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    description    = "Allow PostgreSQL"
-    protocol       = "TCP"
-    port           = 5432
-    v4_cidr_blocks = ["0.0.0.0/0"]
-  }
+  # ingress {
+  #   description    = "Allow PostgreSQL"
+  #   protocol       = "TCP"
+  #   port           = 5432
+  #   v4_cidr_blocks = ["0.0.0.0/0"]
+  #}
 
   ingress {
     description    = "Allow zabbix-agent"

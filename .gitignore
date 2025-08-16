@@ -6,5 +6,9 @@ cache/
 *.deb
 authorized_key.json
 .terraform.lock.hcl
+*tfplan
+*terraform.tfstate
+*terraform.tfstate.backup
 tfplan
+terraform.tfstate
 terraform.tfstate.backup

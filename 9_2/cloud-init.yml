@@ -6,13 +6,16 @@ users:
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILiqwgHVFOgIj0+EeiKtuTLILbfvAEO0XrKDeGhHtgbv 9-02
-
 package_update: true
 package_upgrade: true
-
 packages:
   - wget
-
+  - curl
+  - gnupg
+  - software-properties-common
+  - python3-psycopg2
+  - acl
+  - locales-all
 runcmd:
   - wget https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.0-2+ubuntu24.04_all.deb -O /tmp/zabbix-release.deb
   - dpkg -i /tmp/zabbix-release.deb
