@@ -1,0 +1,32 @@
+---
+- name: Обновление и базовая настройка
+  hosts: all
+  become: yes
+  tasks:
+    - name: Обновление пакетов
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Установка базовых утилит
+      apt:
+        name:
+          - wget
+          - curl
+          - gnupg
+          - software-properties-common
+          - python3-psycopg2
+          - acl
+          - locales-all
+        state: present
+
+    - name: Генерация русской локали
+      shell: |
+        echo "ru_RU.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+      args:
+        executable: /bin/bash
+
+    - name: Установка часового пояса
+      timezone:
+        name: Europe/Moscow

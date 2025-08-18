@@ -1,0 +1,45 @@
+---
+- name: Установка Zabbix Agent
+  hosts: all
+  become: yes
+  vars:
+    zabbix_server_ip: "{{ groups['zab-serv'][1] }}"
+  tasks:
+    - name: Добавление GPG-ключа и репозитория
+      block:
+        - name: Импорт GPG-ключа
+          ansible.builtin.apt_key:
+            url: https://repo.zabbix.com/zabbix-official-repo.key
+            state: present
+        
+        - name: Добавление репозитория
+          ansible.builtin.apt_repository:
+            repo: "deb https://repo.zabbix.com/zabbix/7.0/ubuntu noble main"
+            state: present
+            filename: zabbix
+            update_cache: yes
+      tags: repo
+
+
+    - name: Установка агента
+      apt:
+        name: zabbix-agent2
+        state: present
+
+    - name: Настройка конфига агента
+      template:
+        src: templates/zabbix_agent2.conf.j2
+        dest: /etc/zabbix/zabbix_agent2.conf
+      notify: Restart Zabbix Agent
+
+    - name: Включение агента
+      service:
+        name: zabbix-agent2
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: Restart Zabbix Agent
+      service:
+        name: zabbix-agent2
+        state: restarted
