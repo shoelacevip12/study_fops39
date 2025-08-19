@@ -94,6 +94,30 @@ git status
 git add . .. \
 && git status
 
-git commit -am 'commit_2, 9_2-zabbix' \
-&& git push --set-upstream study_fops39 9_2-zabbix
+git commit -am 'commit_2, 9_3-zabbix' \
+&& git push --set-upstream study_fops39 9_3-zabbix
 ```
+
+### commit_9, master
+```bash
+terraform destroy
+
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 9_3-zabbix --force
+
+git checkout master
+
+git branch -v
+
+git merge 9_3-zabbix
+
+git commit -am 'commit_9, master & 9_3-zabbix merge' && git push study_fops39 master
