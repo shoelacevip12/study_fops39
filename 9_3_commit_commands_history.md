@@ -1,4 +1,4 @@
-# Для домашнего задания 9.2
+# Для домашнего задания 9.3
 ### commit_8, master
 ```bash
 git checkout master
