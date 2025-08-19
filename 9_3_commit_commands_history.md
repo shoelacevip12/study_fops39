@@ -57,3 +57,43 @@ git add . ..
 git commit -am 'commit_1, 9_3-zabbix' \
 && git push --set-upstream study_fops39 9_3-zabbix
 ```
+
+### commit_2, 9_3-zabbix
+```bash
+
+cd 9_3
+
+terraform validate \
+&& terraform fmt  \
+&& terraform init --upgrade \
+&& terraform plan -out=tfplan
+
+terraform apply "tfplan"
+
+rm ~/.ssh/known_hosts \
+; eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_09-3_ed25519 \
+&& for d in {120..1}; do \
+echo -n "Лучше подождать чем получить ошибку =): $d сек." \
+; sleep 1 \
+; echo -ne "\r"; done \
+&& ssh -o StrictHostKeyChecking=no -i \
+~/.ssh/id_09-2_ed25519 -A skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) hostnamectl \
+&& yc compute instance list
+
+ansible-playbook ANS_common.yml
+ansible-playbook ANS_zabbix_server.yml
+ansible-playbook ANS_zabbix_agent.yml
+&& yc compute instance list
+
+git branch -v \
+&& git remote -v
+
+git status
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_2, 9_2-zabbix' \
+&& git push --set-upstream study_fops39 9_2-zabbix
+```

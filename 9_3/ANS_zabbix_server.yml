@@ -1,6 +1,6 @@
 ---
 - name: Развёртывание Zabbix Server 7.0
-  hosts: zab-serv
+  hosts: 'zab-serv[0]'
   become: yes
   vars:
     zabbix_db_password: "zabbix"
@@ -30,6 +30,7 @@
           - postgresql-16
           - postgresql-client-16
           - postgresql-contrib-16
+          - gzip
         state: latest
         update_cache: yes
       tags: postgres
@@ -87,15 +88,26 @@
         update_cache: yes
       tags: zabbix
 
-    # Импорт схемы БД (исправленный)
+    # Импорт схемы БД
+    - name: Проверка наличия файла схемы
+      ansible.builtin.stat:
+        path: /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz
+      register: schema_file
+    - name: Отладка - вывод информации о файле схемы
+      ansible.builtin.debug:
+        var: schema_file
+
     - name: Импорт схемы Zabbix
       become: yes
-      become_user: root
       ansible.builtin.shell:
         cmd: |
-          sudo -u zabbix PGPASSWORD="{{ zabbix_db_password }}" zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql -h localhost -U zabbix -d zabbix
+          # Проверка наличия утилит
+          which zcat psql || exit 1
+          # Импорт от имени zabbix
+          sudo -u zabbix bash -c "zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | PGPASSWORD='{{ zabbix_db_password }}' psql -h localhost -U zabbix -d zabbix"
       args:
         executable: /bin/bash
+      tags: zabbix
 
     # Конфигурация Zabbix
     - name: Настройка zabbix_server.conf
