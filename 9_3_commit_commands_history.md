@@ -121,3 +121,4 @@ git branch -v
 git merge 9_3-zabbix
 
 git commit -am 'commit_9, master & 9_3-zabbix merge' && git push study_fops39 master
+```

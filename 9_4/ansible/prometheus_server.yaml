@@ -1,0 +1,16 @@
+---
+- hosts: prom-core[0]
+  become: yes
+  vars:
+    prometheus_targets:
+      node:
+      - targets:
+        - localhost:9100
+        - "{{ groups['node_exp'][0] }}:9100"
+  roles:
+    - prometheus
+
+- hosts: node_exp:prom-core[0]
+  become: yes
+  roles:
+    - node_exporter

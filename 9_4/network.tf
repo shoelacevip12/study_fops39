@@ -12,24 +12,6 @@ resource "yandex_vpc_subnet" "skv_a" {
   route_table_id = yandex_vpc_route_table.route.id
 }
 
-# #Подсеть zone B
-# resource "yandex_vpc_subnet" "skv_b" {
-#   name           = "skv-fops-${var.dz}-ru-central1-b"
-#   zone           = "ru-central1-b"
-#   network_id     = yandex_vpc_network.skv.id
-#   v4_cidr_blocks = ["10.10.10.16/28"]
-#   route_table_id = yandex_vpc_route_table.route.id
-# }
-
-# #Подсеть zone D
-# resource "yandex_vpc_subnet" "skv_d" {
-#   name           = "skv-fops-${var.dz}-ru-central1-d"
-#   zone           = "ru-central1-d"
-#   network_id     = yandex_vpc_network.skv.id
-#   v4_cidr_blocks = ["10.10.10.32/28"]
-#   route_table_id = yandex_vpc_route_table.route.id
-# }
-
 #Сеть под NAT
 resource "yandex_vpc_gateway" "nat_gateway" {
   name = "fops-gateway-${var.dz}"
@@ -51,8 +33,8 @@ resource "yandex_vpc_route_table" "route" {
 #Разрешаем Всем Входящие соединения по 22 порту по протоколу TCP, необходимо для proxy-jump до сети 10.10.10.0/26
 #Разрешаем Всем входящие соединения по протоколу TCP по 80,443 портам
 #Разрешаем Всем входящие соединения по протоколу TCP по 3000
-resource "yandex_vpc_security_group" "Prom-core" {
-  name       = "Prom-core-${var.dz}"
+resource "yandex_vpc_security_group" "prom-core" {
+  name       = "prom-core-${var.dz}"
   network_id = yandex_vpc_network.skv.id
   ingress {
     description    = "Allow 0.0.0.0/0"
@@ -79,6 +61,20 @@ resource "yandex_vpc_security_group" "Prom-core" {
     description    = "Grafana веб UI"
     protocol       = "TCP"
     port           = 3000
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description    = "Allow Prometheus"
+    protocol       = "TCP"
+    port           = 9090
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description    = "Node Exporter"
+    protocol       = "TCP"
+    port           = 9100
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 }
@@ -109,7 +105,7 @@ resource "yandex_vpc_security_group" "LAN" {
 #Разрешаем входящие из-под сети 10.10.10.0/26 по TCP Протоколу до порта 9090
 #Разрешаем входящие из-под сети 10.10.10.0/26 по TCP Протоколу до порта 9100
 resource "yandex_vpc_security_group" "nod_gra" {
-  name       = "host-db${var.dz}"
+  name       = "nod_gra-${var.dz}"
   network_id = yandex_vpc_network.skv.id
 
 
