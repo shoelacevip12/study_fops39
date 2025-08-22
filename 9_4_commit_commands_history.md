@@ -67,3 +67,25 @@ git commit -am 'commit_9, master' \
 && git push --set-upstream study_fops39 master
 
 ```
+
+### commit_1, 9_4-prometheus
+```bash
+cd 9_4
+
+git log --oneline
+
+git checkout -b 9_4-prometheus
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . ..
+
+git commit -am 'commit_1, 9_4-prometheus' \
+&& git push --set-upstream study_fops39 9_4-prometheus
+```
