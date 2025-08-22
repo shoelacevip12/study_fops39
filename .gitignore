@@ -12,3 +12,5 @@ authorized_key.json
 tfplan
 terraform.tfstate
 terraform.tfstate.backup
+cloud-init.yml
+*cloud-init.yml
