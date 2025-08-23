@@ -89,5 +89,5 @@ resource "local_file" "hosts-ans" {
   [node_exp:vars]
   ansible_ssh_common_args = '-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p -q skv@${yandex_compute_instance.prom-core.network_interface.0.nat_ip_address}"'
     XYZ
-  filename = "./ansible/hosts.ini"
+  filename = "./hosts.ini"
 }

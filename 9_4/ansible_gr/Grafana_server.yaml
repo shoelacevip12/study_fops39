@@ -1,0 +1,31 @@
+---
+- hosts: prom-core[0]
+  become: yes
+  vars:
+    grafana_ini:
+      security:
+        admin_user: admin
+        admin_password: test@skv
+    grafana_datasources:
+      - name: "Prometheus"
+        type: "prometheus"
+        url: 'http://localhost:9090'
+    grafana_deb_url: "https://drive.usercontent.google.com/download?id=1qyOyfimxPCxaLlpFG9qUa-yI333UmDur&export=download&authuser=0&confirm=t&uuid=cf3de615-55ca-4548-8d74-2b0d677da23a&at=AN8xHopbt9iylbD94PD-GhQSIIxV%3A1755950320616"
+    grafana_deb_file: "grafana_12.1.1_16903967602_linux_amd64.deb"
+
+  pre_tasks:
+    - name: Скачать DEB пакет
+      get_url:
+        url: "{{ grafana_deb_url }}"
+        dest: "/tmp/{{ grafana_deb_file }}"
+        mode: '0644'
+        timeout: 300
+        headers:
+          Content-Disposition: "attachment"
+
+    - name: Установка Grafana из DEB пакета
+      apt:
+        deb: "/tmp/{{ grafana_deb_file }}"
+        state: present
+  roles:
+    - grafana

@@ -41,6 +41,7 @@
 #### Требования к результату
 - [ ] Прикрепите к файлу README.md скриншот systemctl status prometheus, где будет написано: prometheus.service — Prometheus Service Netology Lesson 9.4 — [Ваши ФИО]
 
+![](./img/prometheus-1.png)![](./img/prometheus-2.png)
 ---
 
 ### Задание 2
@@ -55,6 +56,7 @@
 #### Требования к результату
 - [ ] Прикрепите к файлу README.md скриншот systemctl status node-exporter, где будет написано: node-exporter.service — Node Exporter Netology Lesson 9.4 — [Ваши ФИО]
 
+![](./img/node_exporter-1.png)
 ---
 
 ### Задание 3
@@ -70,6 +72,77 @@
 - [ ] Прикрепите к файлу README.md скриншот конфигурации из интерфейса Prometheus вкладки Status > Configuration
 - [ ] Прикрепите к файлу README.md скриншот из интерфейса Prometheus вкладки Status > Targets, чтобы было видно минимум два эндпоинта
 
+```yaml
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  scrape_protocols:
+  - OpenMetricsText1.0.0
+  - OpenMetricsText0.0.1
+  - PrometheusText1.0.0
+  - PrometheusText0.0.4
+  evaluation_interval: 15s
+  external_labels:
+    environment: prom-core.ru-central1.internal
+runtime:
+  gogc: 75
+rule_files:
+- /etc/prometheus/rules/*.yml
+- /etc/prometheus/rules/*.yaml
+- /etc/prometheus/rules/*.rules
+scrape_config_files:
+- /etc/prometheus/scrape_configs/*
+scrape_configs:
+- job_name: prometheus
+  honor_timestamps: true
+  track_timestamps_staleness: false
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  scrape_protocols:
+  - OpenMetricsText1.0.0
+  - OpenMetricsText0.0.1
+  - PrometheusText1.0.0
+  - PrometheusText0.0.4
+  always_scrape_classic_histograms: false
+  convert_classic_histograms_to_nhcb: false
+  metrics_path: /metrics
+  scheme: http
+  enable_compression: true
+  metric_name_validation_scheme: utf8
+  metric_name_escaping_scheme: allow-utf-8
+  follow_redirects: true
+  enable_http2: true
+  static_configs:
+  - targets:
+    - prom-core.ru-central1.internal:9090
+- job_name: node
+  honor_timestamps: true
+  track_timestamps_staleness: false
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  scrape_protocols:
+  - OpenMetricsText1.0.0
+  - OpenMetricsText0.0.1
+  - PrometheusText1.0.0
+  - PrometheusText0.0.4
+  always_scrape_classic_histograms: false
+  convert_classic_histograms_to_nhcb: false
+  metrics_path: /metrics
+  scheme: http
+  enable_compression: true
+  metric_name_validation_scheme: utf8
+  metric_name_escaping_scheme: allow-utf-8
+  follow_redirects: true
+  enable_http2: true
+  file_sd_configs:
+  - files:
+    - /etc/prometheus/file_sd/node.yml
+    refresh_interval: 5m
+otlp:
+  translation_strategy: UnderscoreEscapingWithSuffixes
+```
+
+![](./img/node_exporter-2.png)
 ---
 ## Дополнительные задания со звёздочкой*
 Эти задания дополнительные. Их можно не выполнять. Это не повлияет на зачёт. Вы можете их выполнить, если хотите глубже разобраться в материале.
@@ -82,10 +155,10 @@
 #### Требования к результату
 - [ ] Прикрепите к файлу README.md скриншот левого нижнего угла интерфейса, чтобы при наведении на иконку пользователя были видны ваши ФИО
 
+![](./img/Grafana-1.png)
 ---
 
 ### Задание 5*
 Интегрируйте Grafana и Prometheus.
 
-
-
+![](./img/Grafana-2.png)![](./img/Grafana-3.png)

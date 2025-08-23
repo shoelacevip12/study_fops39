@@ -40,7 +40,7 @@ packages:
   - locales-all
 EOF
 
-sed -i "8s|.*|      - $(cat ~/.ssh/id_09-3_ed25519.pub)|" cloud-init.yml
+sed -i "8s|.*|      - $(cat ~/.ssh/id_09-4_ed25519.pub)|" cloud-init.yml
 
 rm -rf ANS* \
 templates \
@@ -102,9 +102,9 @@ terraform validate \
 
 terraform apply "tfplan"
 
-mv ansible.cfg ansible/
+cp ansible.cfg ansible/
 
-cd ansible
+sed -i "2s|./h|../h|" ansible/ansible.cfg
 
 rm ~/.ssh/known_hosts \
 ; eval $(ssh-agent) \
@@ -118,12 +118,12 @@ echo -n "Лучше подождать чем получить ошибку =): 
 && yc compute instance list
 
 sed -i 's/Description=Prometheus/Description=Prometheus Service Netology Lesson 9.4 — [Скворцов Д.В.]/g' \
-"roles/prometheus/templates/prometheus.service.j2"
+"ansible/roles/prometheus/templates/prometheus.service.j2"
 
 sed -i 's/Description=Prometheus Node Exporter/Description=Node Exporter Netology Lesson 9.4 — [Скворцов Д.В.]/g' \
-"roles/node_exporter/templates/node_exporter.service.j2"
+"ansible/roles/node_exporter/templates/node_exporter.service.j2"
 
-cat>prometheus_server.yaml<<'EOF'
+cat>./ansible/prometheus_server.yaml<<'EOF'
 ---
 - hosts: prom-core[0]
   become: yes
@@ -142,7 +142,7 @@ cat>prometheus_server.yaml<<'EOF'
     - node_exporter
 EOF
 
-ANSIBLE_ALLOW_BROKEN_CONDITIONALS=true ansible-playbook prometheus_server.yaml
+ANSIBLE_ALLOW_BROKEN_CONDITIONALS=true ansible-playbook ansible/prometheus_server.yaml
 
 && yc compute instance list
 
@@ -156,4 +156,119 @@ git add . .. \
 
 git commit -am 'commit_2, 9_4-prometheus' \
 && git push --set-upstream study_fops39 9_4-prometheus
+```
+
+### commit_3, 9_4-prometheus
+```bash
+
+cd ..
+
+terraform destroy
+
+ansible-galaxy collection install grafana.grafana
+
+git clone https://github.com/grafana/grafana-ansible-collection.git
+
+mv grafana-ansible-collection ansible_gr
+
+rm -rf ansible_gr/.git
+
+cp ansible.cfg  ansible_gr/
+
+sed -i "2s|./h|../h|" ansible_gr/ansible.cfg
+
+cat >ansible_gr/Grafana_server.yaml<<'EOF'
+---
+- hosts: prom-core[0]
+  become: yes
+  vars:
+    grafana_ini:
+      security:
+        admin_user: admin
+        admin_password: test@skv
+    grafana_datasources:
+      - name: "Prometheus"
+        type: "prometheus"
+        url: 'http://ocalhost:9090'
+    grafana_deb_url: "https://drive.usercontent.google.com/download?id=1qyOyfimxPCxaLlpFG9qUa-yI333UmDur&export=download&authuser=0&confirm=t&uuid=cf3de615-55ca-4548-8d74-2b0d677da23a&at=AN8xHopbt9iylbD94PD-GhQSIIxV%3A1755950320616"
+    grafana_deb_file: "grafana_12.1.1_16903967602_linux_amd64.deb"
+
+  pre_tasks:
+    - name: Download Grafana DEB package
+      get_url:
+        url: "{{ grafana_deb_url }}"
+        dest: "/tmp/{{ grafana_deb_file }}"
+        mode: '0644'
+        timeout: 300
+        headers:
+          Content-Disposition: "attachment"
+
+    - name: Install Grafana from DEB package
+      apt:
+        deb: "/tmp/{{ grafana_deb_file }}"
+        state: present
+  roles:
+    - grafana
+EOF
+
+terraform validate \
+&& terraform fmt  \
+&& terraform init --upgrade \
+&& terraform plan -out=tfplan
+
+terraform apply "tfplan"
+
+rm ~/.ssh/known_hosts \
+; eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_09-4_ed25519 \
+&& for d in {120..1}; do \
+echo -n "Лучше подождать чем получить ошибку =): $d сек." \
+; sleep 1 \
+; echo -ne "\r"; done \
+&& ssh -o StrictHostKeyChecking=no -i \
+~/.ssh/id_09-4_ed25519 -A skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) hostnamectl \
+&& yc compute instance list
+
+ANSIBLE_ALLOW_BROKEN_CONDITIONALS=true ansible-playbook ansible/prometheus_server.yaml
+
+ssh -i ~/.ssh/id_09-4_ed25519 -A \
+skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) \
+sudo bash -c "echo -e \n && hostnamectl | grep hostname: \
+&& systemctl status \
+prometheus \
+| grep -e Netology -e Active"
+
+ssh -i ~/.ssh/id_09-4_ed25519 -A \
+skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) \
+sudo bash -c "echo -e \n && hostnamectl | grep hostname: \
+&& systemctl status \
+node_exporter \
+| grep -e Netology -e Active"
+
+ssh -J skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) \
+-i ~/.ssh/id_09-4_ed25519 skv@$(awk 'NR==9' hosts.ini | cut -d' ' -f1) \
+sudo bash -c "echo -e \n && hostnamectl | grep hostname: \
+&& systemctl status node_exporter.service \
+| grep -e Netology -e Active"
+
+ANSIBLE_ALLOW_BROKEN_CONDITIONALS=true ansible-playbook ansible_gr/Grafana_server.yaml
+
+ssh -i ~/.ssh/id_09-4_ed25519 -A \
+skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) \
+sudo bash -c "echo -e \n && hostnamectl | grep hostname: \
+&& systemctl status \
+{prometheus,node_exporter,grafana-server} \
+| grep -e Netology -e Active"
+
+git branch -v \
+&& git remote -v
+
+git status
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_3, 9_4-prometheus' \
+&& git push --set-upstream study_fops39 9_4-prometheus
+
 ```
