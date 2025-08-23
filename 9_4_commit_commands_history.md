@@ -189,7 +189,7 @@ cat >ansible_gr/Grafana_server.yaml<<'EOF'
     grafana_datasources:
       - name: "Prometheus"
         type: "prometheus"
-        url: 'http://ocalhost:9090'
+        url: 'http://localhost:9090'
     grafana_deb_url: "https://drive.usercontent.google.com/download?id=1qyOyfimxPCxaLlpFG9qUa-yI333UmDur&export=download&authuser=0&confirm=t&uuid=cf3de615-55ca-4548-8d74-2b0d677da23a&at=AN8xHopbt9iylbD94PD-GhQSIIxV%3A1755950320616"
     grafana_deb_file: "grafana_12.1.1_16903967602_linux_amd64.deb"
 
@@ -271,4 +271,32 @@ git add . .. \
 git commit -am 'commit_3, 9_4-prometheus' \
 && git push --set-upstream study_fops39 9_4-prometheus
 
+```
+
+### commit_10, master
+```bash
+terraform destroy
+
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 9_4-prometheus --force
+
+git checkout master
+
+git branch -v
+
+git merge 9_4-prometheus
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_10, master & 9_4-prometheus' && git push study_fops39 master
 ```
