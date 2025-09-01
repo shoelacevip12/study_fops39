@@ -49,3 +49,65 @@ git add . ..
 
 git commit -am 'commit_1, 9_5-FHRP_VRRP' \
 && git push --set-upstream study_fops39 9_5-FHRP_VRRP
+```
+
+### commit_2, 9_5-FHRP_VRRP
+```Pug
+#Router 1
+en
+sh run
+
+
+^C
+conf t
+int gi0/1
+standby 1 preempt
+standby 1 tr gi0/0
+sh
+no sh
+end
+
+wr
+
+cop run st
+
+sh run | in standby
+
+sh stan br
+````
+
+```Pug
+#Router 2
+en
+sh run
+
+
+^C
+conf t
+int gi0/1
+standby 1 pri 55
+standby 1 tr gi0/0
+sh
+no sh
+end
+
+wr
+
+cop run st
+
+sh run | in standby
+
+sh stan br
+```
+```bash
+git branch -v
+
+git remote -v
+
+git status
+
+git add . ..
+
+git commit -am 'commit_2, 9_5-FHRP_VRRP' \
+&& git push --set-upstream study_fops39 9_5-FHRP_VRRP
+```
