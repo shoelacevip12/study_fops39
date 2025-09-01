@@ -30,3 +30,22 @@ git commit -am 'commit_10, master' \
 && git push --set-upstream study_fops39 master
 
 ```
+
+### commit_1, 9_5-FHRP_VRRP
+```bash
+git log --oneline
+
+git checkout -b 9_5-FHRP_VRRP
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . ..
+
+git commit -am 'commit_1, 9_5-FHRP_VRRP' \
+&& git push --set-upstream study_fops39 9_5-FHRP_VRRP
