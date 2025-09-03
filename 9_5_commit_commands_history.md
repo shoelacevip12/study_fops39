@@ -299,3 +299,31 @@ git add . ..
 git commit -am 'commit_3, 9_5-FHRP_VRRP' \
 && git push --set-upstream study_fops39 9_5-FHRP_VRRP
 ```
+
+### commit_12, master
+```bash
+(cd 1 && vagrant destroy)
+
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 9_5-FHRP_VRRP --force
+
+git checkout master
+
+git branch -v
+
+git merge 9_5-FHRP_VRRP
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_12, master & 9_5-FHRP_VRRP' && git push study_fops39 master
+```
