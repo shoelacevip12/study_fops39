@@ -27,6 +27,7 @@ Vagrant.configure("2") do |config|
     hallltest.vm.hostname = "hallltest"
     hallltest.vm.network "forwarded_port", guest: 8888, host: 8888
     hallltest.vm.network "forwarded_port", guest: 9999, host: 9999
+    hallltest.vm.network "forwarded_port", guest: 7777, host: 7777
     hallltest.vm.network "forwarded_port", guest: 80, host: 8081
     hallltest.vm.network "forwarded_port", guest: 8080, host: 8082
     hallltest.vm.network "forwarded_port", guest: 888, host: 8083
@@ -104,27 +105,35 @@ listen stats  # веб-страница со статистикой
 frontend example  # секция фронтенд
         mode http
         bind :8088
-        default_backend web_servers
+        # default_backend web_servers
+        acl ACL_example.local hdr(host) -i example.local
+        use_backend web_servers if ACL_example.local
 
 backend web_servers    # секция бэкенд
         mode http
         balance roundrobin
         option httpchk
         http-check send meth GET uri /index.html
-        server s1 127.0.0.1:8888 check
-        server s2 127.0.0.1:9999 check
+        server s1 127.0.0.1:8888 check weight 2
+        server s2 127.0.0.1:9999 check weight 3
+        server s3 127.0.0.1:7777 check weight 4
 
 listen web_tcp
 
         bind :1325
-
-        server s1 127.0.0.1:8888 check inter 3s
-        server s2 127.0.0.1:9999 check inter 3s
+        mode tcp
+        balance roundrobin
+        server s1 127.0.0.1:8888 check inter 3s weight 2
+        server s2 127.0.0.1:9999 check inter 3s weight 3
+        server s3 127.0.0.1:7777 check inter 3s weight 4
 EOF"
-      sudo sed -i "3s| weight=3||" /etc/nginx/include/upstream.inc
-
+      sudo sed -i "3s| weight=3| weight=2|" /etc/nginx/include/upstream.inc
+      sudo sed -i "s|99;|99 weight=3;|" /etc/nginx/include/upstream.inc
+      sudo sed -i "4a\\        server 127.0.0.1:7777 weight=4;" /etc/nginx/include/upstream.inc
+      sudo sed -i "s/p.com;/p.local;/" /etc/nginx/conf.d/example-http.conf
       sudo systemctl enable --now python-http1.service
       sudo systemctl enable --now python-http2.service
+      sudo systemctl enable --now python-http3.service
       sudo systemctl enable --now nginx.service
       sudo systemctl reload nginx.service
       sudo systemctl enable haproxy.service

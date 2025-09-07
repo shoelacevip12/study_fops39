@@ -181,7 +181,8 @@ backend web_servers    # секция бэкенд
 listen web_tcp
 
         bind :1325
-
+        mode tcp
+        balance roundrobin
         server s1 127.0.0.1:8888 check inter 3s
         server s2 127.0.0.1:9999 check inter 3s
 EOF"
@@ -248,6 +249,92 @@ git add . .. \
 git log --oneline
 
 git commit -am 'commit_2, 9_6-HA' \
+&& git push --set-upstream study_fops39 9_6-HA
+
+```
+
+### commit_3, 9_6-HA
+```bash
+vagrant destroy
+
+mkdir 2/http3 \
+&& echo 'Server 3 Port 7777' > \
+2/http3/index.html
+
+cat >service/python-http3.service<<'EOF'
+[Unit]
+Description=HTTP3
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m http.server --directory /vagrant/http3/ 7777 --bind 0.0.0.0
+WorkingDirectory=/vagrant/http3/
+Restart=always
+RestartSec=5
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sed -i '/host: 9999/a\    hallltest.vm.network "forwarded_port", guest: 7777, host: 7777' \
+Vagrantfile
+
+sed -i -e '/default_backend web_servers/ {
+    s//# default_backend web_servers/
+    a\
+\        acl ACL_example.local hdr(host) -i example.local\
+\        use_backend web_servers if ACL_example.local
+}' Vagrantfile
+
+sed -i '117s/88 check/88 check weight 2/' \
+Vagrantfile
+
+sed -i '118s/99 check/99 check weight 3/' \
+Vagrantfile
+
+sed -i '118a\        server s3 127.0.0.1:7777 check weight 4' \
+Vagrantfile
+
+sed -i 's/88 check inter 3s/88 check inter 3s weight 2/' \
+Vagrantfile
+
+sed -i 's/99 check inter 3s/99 check inter 3s weight 3/' \
+Vagrantfile
+
+sed -i '/9999 check inter 3s/a\        server s3 127.0.0.1:7777 check inter 3s weight 4' \
+Vagrantfile
+
+sed -i "s/ght=3||/ght=3| weight=2|/" \
+Vagrantfile
+
+sed -i '130a\      sudo sed -i "s|99;|99 weight=3;|" /etc/nginx/include/upstream.inc' \
+Vagrantfile
+
+sed -i '131a\      sudo sed -i "4a\\\\        server 127.0.0.1:7777 weight=4;" /etc/nginx/include/upstream.inc' \
+Vagrantfile
+
+sed -i '132a\      sudo sed -i "s/p.com;/p.local;/" /etc/nginx/conf.d/example-http.conf' \
+Vagrantfile
+
+sed -i '/--now python-http2.service/a\      sudo systemctl enable --now python-http3.service' \
+Vagrantfile
+
+vagrant up
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_3, 9_6-HA' \
 && git push --set-upstream study_fops39 9_6-HA
 
 ```
