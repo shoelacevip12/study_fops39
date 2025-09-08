@@ -1,0 +1,45 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.ssh.insert_key = true
+
+  # Общая конфигурация
+  config.vm.box = "cloud-image/ubuntu-24.04"
+  config.vm.box_version = "20250805.0.0"
+
+  # Конфигурация для libvirt (общая)
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.driver = "kvm"
+    libvirt.uri = 'qemu:///system'
+    libvirt.memory = 4096
+    libvirt.cpus = 2
+    libvirt.nested = true
+    libvirt.disk_driver :cache => 'none'
+    libvirt.disk_bus = "virtio"
+    libvirt.default_prefix = "keepalived_"
+    libvirt.nic_model_type = "virtio"
+    libvirt.management_network_mode = "route"
+  end
+
+  # Определение первой машины
+  config.vm.define "hallltest" do |hallltest|
+    hallltest.vm.hostname = "hallltest"
+    hallltest.vm.cloud_init do |cloud_init|
+      cloud_init.content_type = "text/cloud-config"
+      cloud_init.inline = <<-EOF
+        package_update: true
+        package_upgrade: true
+      EOF
+    end
+
+    hallltest.vm.provision "shell", inline: <<-SHELL
+      export DEBIAN_FRONTEND=noninteractive
+      sudo systemctl enable --now cloud-init
+      sudo systemctl restart cloud-init
+      sudo cloud-init init
+      sudo cloud-init status --wait
+      sudo cloud-init clean
+    SHELL
+  end
+end
