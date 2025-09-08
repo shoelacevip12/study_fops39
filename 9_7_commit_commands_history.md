@@ -30,3 +30,23 @@ git commit -am 'commit_15, master' \
 && git push --set-upstream study_fops39 master
 
 ```
+
+### commit_1, 9_7-Rsync
+```bash
+git log --oneline
+
+git checkout -b 9_7-Rsync
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . ..
+
+git commit -am 'commit_1, 9_7-Rsync' \
+&& git push --set-upstream study_fops39 9_7-Rsync
+```
