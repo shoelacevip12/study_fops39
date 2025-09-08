@@ -50,3 +50,30 @@ git add . ..
 git commit -am 'commit_1, 9_7-Rsync' \
 && git push --set-upstream study_fops39 9_7-Rsync
 ```
+
+### commit_2, 9_7-Rsync
+```bash
+
+rsync --archive \
+--verbose \
+--delete \
+--checksum \
+--exclude='/.*' \
+--exclude='*.qcow2' \
+--exclude='*.iso' \
+-P \
+~/ /tmp/backup/
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_2, 9_7-Rsync' \
+&& git push --set-upstream study_fops39 9_7-Rsync
+
+```
