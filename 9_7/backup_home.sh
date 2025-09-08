@@ -1,7 +1,7 @@
 #!/bin/bash
 
 Sou_dir="$HOME/"
-D_dir="/tmp/backup/"
+D_dir="vagrant@192.168.121.31:/tmp/backup/"
 
 # Cоздание директории назначения
 mkdir -p "$D_dir"
@@ -16,6 +16,8 @@ rsync --archive \
       --exclude='/.*' \
       --exclude='*.qcow2' \
       --exclude='*.iso' \
+      -e "ssh -i ~/.ssh/rsync_id_ed25519" \
+      --bwlimit=123 \
       -P \
       "$Sou_dir" "$D_dir" > /tmp/backup_output.tmp 2>&1
 
