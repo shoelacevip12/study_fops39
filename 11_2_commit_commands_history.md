@@ -89,7 +89,7 @@ docker exec -it memcached_SKV_DV ps aux | grep memcached
 
 docker exec -it memcached_SKV_DV ps top
 
-add key 0 20 5
+add key 0 5 20
 
 value
 
