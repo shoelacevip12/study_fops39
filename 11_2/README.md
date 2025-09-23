@@ -89,7 +89,7 @@ docker exec -it memcached_SKV_DV ps top
 ```bash
 telnet localhost 11211
 
-add key 0 20 5
+add key 0 5 20
 
 value
 
@@ -173,4 +173,5 @@ GET ne-5
 
 quit
 ```
+
 ---
