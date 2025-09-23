@@ -158,3 +158,33 @@ git add . ..
 git commit -am 'commit_2, 11_2-cached' \
 && git push --set-upstream study_fops39 11_2-cached
 ```
+
+### commit_17, master
+```bash
+docker-compose down
+
+sudo systemctl disable --now docker.service
+
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 11_2-cached --force
+
+git checkout master
+
+git branch -v
+
+git merge 11_2-cached
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_17, master & 1_2-cached' && git push study_fops39 master
+```
