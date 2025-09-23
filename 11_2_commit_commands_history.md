@@ -29,3 +29,22 @@ git log --oneline
 git commit -am 'commit_16, master' \
 && git push --set-upstream study_fops39 master
 ```
+### commit_1, 11_2-cached
+```bash
+git log --oneline
+
+git checkout -b 11_2-cached
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . ..
+
+git commit -am 'commit_1, 11_2-cached' \
+&& git push --set-upstream study_fops39 11_2-cached
+```
