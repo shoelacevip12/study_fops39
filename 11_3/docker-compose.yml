@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  elasticsearch:
+    image: elasticsearch:9.1.4
+    environment:
+      - discovery.type=single-node
+      - cluster.name=es_SKV-DV
+      - xpack.security.enabled=false
+    ports:
+      - 9200:9200
