@@ -22,6 +22,33 @@ services:
     networks:
       - ELK-net
 
+  logstash:
+    image: logstash:9.1.4
+    environment:
+      ES_HOST: "elasticsearch:9200"
+    ports:
+      - "5044:5044/udp"
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./configs/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml
+      - ./configs/logstash/pipelines:/usr/share/logstash/config/pipelines
+      - ./data_logs:/var/log/nginx
+    networks:
+      - ELK-net
+
+  nginx:
+    image: nginx:1.29.1-perl
+    ports:
+      - 8081:80
+      - 8443:443
+    depends_on:
+      - logstash
+    volumes:
+      - ./data_logs/access.log:/var/log/nginx/access.log
+    networks:
+      - ELK-net
+
 networks:
   ELK-net:
     driver: bridge

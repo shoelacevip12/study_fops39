@@ -82,7 +82,6 @@ git commit -am 'commit_1, 11_3-ELK' \
 ```
 ### commit_2, 11_3-ELK
 ```bash
-
 cat>>docker-compose.yml<<'EOF'
     networks:
       - ELK-net
@@ -119,5 +118,106 @@ git add . .. \
 git log --oneline
 
 git commit -am 'commit_2, 11_3-ELK' \
+&& git push --set-upstream study_fops39 11_3-ELK
+```
+### commit_3, 11_3-ELK
+```bash
+mkdir data_logs
+
+touch ./data_logs/access.log
+
+cat>./configs/logstash/pipelines/nginx_file_read.conf<<'EOF'
+input {
+  file {
+    path => "/var/log/nginx/access.log"
+    start_position => "beginning"
+    sincedb_path => "/dev/null"
+    tags => ["nginx_access"]
+  }
+}
+
+filter {
+  grok {
+    match => { "message" => '%{IPORHOST:client_ip} - - \[%{HTTPDATE:timestamp}\] "%{WORD:http_method} %{URIPATHPARAM:request} HTTP/%{NUMBER:http_version}" %{NUMBER:response_code:int} %{NUMBER:bytes_sent:int} "%{GREEDYDATA:referrer}" "%{GREEDYDATA:user_agent}" "%{GREEDYDATA:other}"' }
+  }
+  
+  mutate {
+    convert => { "status" => "integer" }
+    convert => { "bytes" => "integer" }
+  }
+
+  date {
+    match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss Z"]
+    target => "@timestamp"
+  }
+
+  useragent {
+    source => "agent"
+    target => "user_agent_details"
+  }
+}
+
+output {
+  stdout {
+    codec => rubydebug
+  }
+
+  if "nginx_access" in [tags] {
+    elasticsearch {
+      hosts => [ "${ES_HOST}" ]
+      index => "logs-nginx-access-%{+YYYY.MM.dd}"
+      action => "create"  # важно для data stream!
+    }
+  }
+}
+EOF
+
+sed -i 's|nx.c|nx_file_read.c|' ./configs/logstash/pipelines.yml
+
+sed -i '24 r /dev/stdin' docker-compose.yml << 'EOF'
+  logstash:
+    image: logstash:9.1.4
+    environment:
+      ES_HOST: "elasticsearch:9200"
+    ports:
+      - "5044:5044/udp"
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./configs/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml
+      - ./configs/logstash/pipelines:/usr/share/logstash/config/pipelines
+      - ./data_logs:/var/log/nginx
+    networks:
+      - ELK-net
+
+  nginx:
+    image: nginx:1.29.1-perl
+    ports:
+      - 8081:80
+      - 8443:443
+    depends_on:
+      - logstash
+    volumes:
+      - ./data_logs/access.log:/var/log/nginx/access.log
+    networks:
+      - ELK-net
+
+EOF
+
+docker-compose down \
+&& docker-compose up -d
+
+git remote -v
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_3, 11_3-ELK' \
 && git push --set-upstream study_fops39 11_3-ELK
 ```
