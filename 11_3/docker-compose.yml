@@ -49,6 +49,19 @@ services:
     networks:
       - ELK-net
 
+  filebeat:
+    image: elastic/filebeat:9.1.4
+    volumes:
+      - ./data_logs:/var/log/app/:ro
+      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+    depends_on:
+      - logstash
+      - elasticsearch
+      - kibana
+      - nginx
+    networks:
+      - ELK-net
+
 networks:
   ELK-net:
     driver: bridge

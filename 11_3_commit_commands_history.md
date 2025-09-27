@@ -220,4 +220,61 @@ git log --oneline
 
 git commit -am 'commit_3, 11_3-ELK' \
 && git push --set-upstream study_fops39 11_3-ELK
+
+cat /dev/null > ./data_logs/access.log \
+&& git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 11_3-ELK --force
+```
+
+### commit_4, 11_3-ELK
+```bash
+sed -i '51 r /dev/stdin' docker-compose.yml << 'EOF'
+  filebeat:
+    image: elastic/filebeat:9.1.4
+    volumes:
+      - ./data_logs:/var/log/app/:ro
+      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+    depends_on:
+      - logstash
+      - elasticsearch
+      - kibana
+      - nginx
+    networks:
+      - ELK-net
+
+EOF
+
+sed -i 's|x_file_read.c|x.c|' ./configs/logstash/pipelines.yml
+sed -i 's|: log|: filestream|' ./configs/filebeat/filebeat.yml
+
+cat /dev/null > ./data_logs/access.log \
+&& docker-compose down \
+&& docker-compose up -d
+
+cat /dev/null > ./data_logs/access.log \
+&& docker-compose down
+
+rm ./configs/logstash/pipelines/{gen_service_logs,udp_service_logs_es,udp_service_logs}.conf
+
+rm -rf ./app
+
+rm docker-compose_*
+
+rm docker-compose-*
+
+git remote -v \
+&& git status
+
+git diff \
+&& git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+cat /dev/null > ./data_logs/access.log \
+&& git commit -am 'commit_4, 11_3-ELK' \
+&& git push --set-upstream study_fops39 11_3-ELK
 ```
