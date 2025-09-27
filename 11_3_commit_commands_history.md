@@ -278,3 +278,31 @@ cat /dev/null > ./data_logs/access.log \
 && git commit -am 'commit_4, 11_3-ELK' \
 && git push --set-upstream study_fops39 11_3-ELK
 ```
+### commit_19, master
+```bash
+sudo systemctl disable --now docker.service
+
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 11_3-ELK --force
+
+git checkout master
+
+git branch -v
+
+git merge 11_3-ELK
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_19, master & 11_3-ELK' \
+&& git push study_fops39 master
+```
