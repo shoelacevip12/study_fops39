@@ -80,3 +80,44 @@ git add . ..
 git commit -am 'commit_1, 11_3-ELK' \
 && git push --set-upstream study_fops39 11_3-ELK
 ```
+### commit_2, 11_3-ELK
+```bash
+
+cat>>docker-compose.yml<<'EOF'
+    networks:
+      - ELK-net
+
+  kibana:
+    image: kibana:9.1.4
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - ELK-net
+
+networks:
+  ELK-net:
+    driver: bridge
+EOF
+
+docker-compose up -d
+
+docker ps -a
+
+git remote -v
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_2, 11_3-ELK' \
+&& git push --set-upstream study_fops39 11_3-ELK
+```

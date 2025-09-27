@@ -8,3 +8,20 @@ services:
       - xpack.security.enabled=false
     ports:
       - 9200:9200
+    networks:
+      - ELK-net
+
+  kibana:
+    image: kibana:9.1.4
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - ELK-net
+
+networks:
+  ELK-net:
+    driver: bridge
