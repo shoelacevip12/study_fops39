@@ -1,0 +1,26 @@
+{
+    "users": [
+        {
+            "name": "skvdv",
+            "password": "skvdv",
+            "tags": "administrator"
+        }
+    ],
+    "permissions": [
+        {
+            "user": "skvdv",
+            "vhost": "/",
+            "configure": ".*",
+            "read": ".*",
+            "write": ".*"
+        }
+    ],
+    "vhosts": [
+        {
+            "name": "/"
+        }
+    ],
+    "queues": [],
+    "exchanges": [],
+    "bindings": []
+}

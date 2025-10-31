@@ -1,0 +1,42 @@
+services:
+  rabbitmq1:
+    image: rabbitmq:4.2.0-management-alpine
+    hostname: rabbitmq1
+    environment:
+      - RABBITMQ_CONFIG_FILE=/config/rabbitmq_ha
+      - RABBITMQ_ERLANG_COOKIE=${RABBITMQ_ERLANG_COOKIE}
+    volumes:
+      - ./config:/config
+      - ./defs/def.json:/etc/rabbitmq/definitions.json:ro
+      - ./defs/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    ports:
+      - 15672:15672
+      - 5672:5672
+
+  rabbitmq2:
+    image: rabbitmq:4.2.0-management-alpine
+    hostname: rabbitmq2
+    environment:
+      - RABBITMQ_CONFIG_FILE=/config/rabbitmq_ha
+      - RABBITMQ_ERLANG_COOKIE=${RABBITMQ_ERLANG_COOKIE}
+      - RABBITMQ_NODE_PORT=5672
+    volumes:
+      - ./config:/config
+      - ./defs/def.json:/etc/rabbitmq/definitions.json:ro
+      - ./defs/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    ports:
+      - 15673:15672
+
+  rabbitmq3:
+    image: rabbitmq:4.2.0-management-alpine
+    hostname: rabbitmq3
+    environment:
+      - RABBITMQ_CONFIG_FILE=/config/rabbitmq_ha
+      - RABBITMQ_ERLANG_COOKIE=${RABBITMQ_ERLANG_COOKIE}
+      - RABBITMQ_NODE_PORT=5672
+    volumes:
+      - ./config:/config
+      - ./defs/def.json:/etc/rabbitmq/definitions.json:ro
+      - ./defs/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    ports:
+      - 15674:15672
