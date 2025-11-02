@@ -53,3 +53,120 @@ git add . ..
 git commit -am 'commit_1, 12_2-DDL/DML' \
 && git push --set-upstream study_fops39 12_2-DDL/DML
 ```
+
+### commit_2, `12_2-DDL/DML`
+```bash
+sudo systemctl enable --now docker.service
+
+cat>docker-compose.yml<<'EOF'
+services:
+  db_mysql_fops-39_12_2:
+    image: mysql:lts
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: skvDV
+    volumes:
+      - ./mysql_D:/var/lib/mysql
+    ports:
+      - "3306:3306"
+EOF
+
+sudo pacman -Syu unzip mariadb-clients
+
+sudo rm -rf mysql_D/* \
+&& chmod 770 -R mysql_D
+
+docker-compose down \
+&& docker-compose up -d
+
+mysql -h 127.0.0.1 -P 3306 -u root -p
+```
+```sql
+CREATE USER 'sys_temp'@'%' IDENTIFIED BY 'sysskvtmp';
+
+SELECT User, Host FROM mysql.user;
+
+GRANT ALL PRIVILEGES ON *.* TO 'sys_temp'@'%';
+
+SHOW GRANTS FOR 'sys_temp'@'%';
+
+\q
+```
+```bash
+curl https://downloads.mysql.com/docs/sakila-db.zip \
+-o sakila-db.zip \
+&& unzip sakila-db.zip \
+&& rm -rf sakila-db.zip
+
+chmod 777 -R ./sakila-db
+
+docker cp sakila-db/sakila-schema.sql \
+$(docker ps -a \
+--filter name=12_2-db_mysql_fops-39 \
+--format "{{.ID}}"):/tmp/sakila-schema.sql
+
+docker cp sakila-db/sakila-data.sql \
+$(docker ps -a --filter name=12_2-db_mysql_fops-39 \
+--format "{{.ID}}"):/tmp/sakila-data.sql
+
+mysql -h 127.0.0.1 -P 3306 -u sys_temp -p
+```
+```sql
+ALTER USER 'sys_temp'@'%' IDENTIFIED WITH caching_sha2_password BY 'sysskvtmp';
+
+FLUSH PRIVILEGES;
+
+CREATE DATABASE sakila;
+
+\q
+```
+```bash
+docker exec $(docker ps -a \
+--filter name=12_2-db_mysql_fops-39 \
+--format "{{.ID}}") \
+sh -c 'exec mysql -u"sys_temp" \
+-p"sysskvtmp" sakila \
+< /tmp/sakila-schema.sql'
+
+docker exec $(docker ps -a \
+--filter name=12_2-db_mysql_fops-39 \
+--format "{{.ID}}") \
+sh -c 'exec mysql -u"sys_temp" \
+-p"sysskvtmp" sakila \
+< /tmp/sakila-data.sql'
+
+docker exec  $(docker ps -a \
+--filter name=12_2-db_mysql_fops-39 \
+--format "{{.ID}}") \
+rm /tmp/sakila-schema.sql /tmp/sakila-data.sql
+
+rm -rf ./sakila-db
+
+mysql -h 127.0.0.1 -P 3306 -u sys_temp -p
+```
+```sql
+USE sakila;
+
+SHOW TABLES;
+
+\q
+```
+```bash
+git remote -v
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_2, 12_2-DDL/DML' \
+&& git push --set-upstream study_fops39 12_2-DDL/DML
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 12_2-DDL/DML --force
+```

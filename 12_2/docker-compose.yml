@@ -1,0 +1,10 @@
+services:
+  db_mysql_fops-39_12_2:
+    image: mysql:lts
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: skvDV
+    volumes:
+      - ./mysql_D:/var/lib/mysql
+    ports:
+      - "3306:3306"

@@ -2,6 +2,7 @@
 cache/
 .vagrant/
 __pycache__/
+mysql_D/
 
 # игнорировать расширения и файлы:
 *.deb
