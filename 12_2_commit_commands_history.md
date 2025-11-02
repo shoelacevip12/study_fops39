@@ -170,3 +170,51 @@ git add . .. \
 && git commit --amend --no-edit \
 && git push --set-upstream study_fops39 12_2-DDL/DML --force
 ```
+
+### commit_3, `12_2-DDL/DML`
+```bash
+mysql -h 127.0.0.1 -P 3306 -u root -p
+```
+```sql
+GRANT ALL PRIVILEGES ON sakila.* TO 'sys_temp'@'%';
+
+REVOKE INSERT, UPDATE, DELETE ON sakila.* FROM 'sys_temp'@'%';
+
+SHOW GRANTS FOR 'sys_temp'@'%';
+```
+```sql
+USE sakila;
+
+SELECT 
+TABLE_NAME AS 'Название таблицы', 
+COLUMN_NAME AS 'Название первичного ключа'
+FROM 
+information_schema.KEY_COLUMN_USAGE
+WHERE 
+TABLE_SCHEMA = 'sakila' 
+AND 
+CONSTRAINT_NAME = 'PRIMARY'
+ORDER BY 
+TABLE_NAME;
+
+\q
+```
+```bash
+git remote -v
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_3, 12_2-DDL/DML' \
+&& git push --set-upstream study_fops39 12_2-DDL/DML
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 12_2-DDL/DML --force
+```
