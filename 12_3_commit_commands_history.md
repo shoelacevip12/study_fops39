@@ -36,3 +36,22 @@ git log --oneline
 git commit -am 'commit_23, master' \
 && git push --set-upstream study_fops39 master
 ```
+## commit_1, `12_6-Repl\exp`
+```bash
+git log --oneline
+
+git checkout -b 12_6-Repl\exp
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . ..
+
+git commit -am 'commit_1, 12_6-Repl\exp' \
+&& git push --set-upstream study_fops39 12_6-Repl\exp
+```
