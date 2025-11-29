@@ -101,10 +101,6 @@ relay_log = mysql-relay-bin
 EOF
 
 cat > ./master/master.sql <<'EOF'
-CREATE DATABASE IF NOT EXISTS mydb;
-USE mydb;
-CREATE TABLE code (code INT);
-INSERT INTO code VALUES (100), (200);
 CREATE USER 'repl_skv'@'%' IDENTIFIED WITH caching_sha2_password BY 'passskvdvs' REQUIRE NONE PASSWORD EXPIRE NEVER;
 GRANT REPLICATION SLAVE ON *.* TO 'repl_skv'@'%';
 EOF
@@ -241,4 +237,28 @@ git add . ..
 
 git commit -am 'commit_2, 12_6-Repl\exp' \
 && git push --set-upstream study_fops39 12_6-Repl\exp
+```
+## commit_24, master
+```bash
+docker-compose down \
+&& sleep 2 \
+&& rm -rf  ./{master,slave}/db/*
+
+sudo systemctl disable --now docker.service
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 12_6-Repl\exp --force
+
+git checkout master
+
+git branch -v
+
+git merge 12_6-Repl\exp
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_24, master & 12_6-Repl/exp1' \
+&& git push study_fops39 master
 ```
