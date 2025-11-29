@@ -1,0 +1,36 @@
+services:
+  db_mysql_master_12_6:
+    image: mysql:lts
+    container_name: mysql-master
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - ./master/master.env
+    volumes:
+      - ./master/m_mys.cnf:/etc/mysql/conf.d/m_mys.cnf
+      - ./master/db:/var/lib/mysql
+      - ./master/master.sql:/docker-entrypoint-initdb.d/start.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - mysql
+
+  db_mysql_slave_12_6:
+    image: mysql:lts
+    container_name: mysql-slave
+    user: "1000:1000"
+    env_file:
+      - ./slave/slave.env
+    volumes:
+      - ./slave/s_mys.cnf:/etc/mysql/conf.d/s_mys.cnf
+      - ./slave/db:/var/lib/mysql
+    ports:
+      - 3307:3306
+    networks:
+      - mysql
+    depends_on:
+      - db_mysql_master_12_6
+
+networks:
+  mysql:
+    driver: bridge

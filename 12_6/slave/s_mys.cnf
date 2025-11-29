@@ -1,0 +1,7 @@
+[mysqld]
+skip-name-resolve
+
+server-id = 2
+read_only = ON
+replicate_do_db = mydb
+relay_log = mysql-relay-bin
