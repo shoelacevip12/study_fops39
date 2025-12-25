@@ -105,10 +105,10 @@
 - Репликация для высокой доступности (`High Availability`)
 - `PITR` (`WAL`/`binlog` + бэкапы) для защиты от логических ошибок и человеческого фактора
 - Мониторинг и оповещение по метрикам: 
-- `last_backup_age`,
-- `replication_lag`,
-- `disk_free`,
-- `verify_backup_status`
+    - `last_backup_age`,
+    - `replication_lag`,
+    - `disk_free`,
+    - `verify_backup_status`
 
 *Приведите ответ в свободной форме.*
 
