@@ -4,8 +4,8 @@
 Vagrant.configure("2") do |config|
   # Путь к ISO образу ALT Linux p11
   altlinux_iso_path_w = "/home/shoel/iso/alt-workstation-11.1-x86_64.iso"
-  config.vm.box = "iseeyouxyzLibvirt/metasploitable3_ub2004"
-  config.vm.box_version = "1.0"
+  config.vm.box = "deargle/metasploitable2"
+  config.vm.box_version = "0.0.4"
   config.vm.synced_folder '.', '/vagrant', disabled: true
   config.vm.provider :libvirt do |libvirt|
     libvirt.driver = "kvm"
@@ -22,11 +22,11 @@ Vagrant.configure("2") do |config|
     libvirt.management_network_guest_ipv6 = "no"
   end
   
-  config.vm.define "ub2004" do |ub2004|
-    ub2004.vm.hostname = "metasploitable3-ub2004"
-    config.ssh.username = 'vagrant'
-    config.ssh.password = 'vagrant'
-    ub2004.vm.network "private_network",
+  config.vm.define "ub1404" do |ub1404|
+    ub1404.vm.hostname = "metasploitable2-ub1404"
+    config.ssh.username = 'msfadmin'
+    config.ssh.password = 'msfadmin'
+    ub1404.vm.network "private_network",
                       libvirt__network_name: "s_private_network", # Имя создаваемой сети
                       libvirt__forward_mode: "none", # Режим маршрутизации
                       libvirt__dhcp_enabled: false  # Отключаем DHCP в этой сети

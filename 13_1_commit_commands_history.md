@@ -73,8 +73,8 @@ cat>vagrantfile<<'OEF'
 Vagrant.configure("2") do |config|
   # Путь к ISO образу ALT Linux p11
   altlinux_iso_path_w = "/home/shoel/iso/alt-workstation-11.1-x86_64.iso"
-  config.vm.box = "iseeyouxyzLibvirt/metasploitable3_ub2004"
-  config.vm.box_version = "1.0"
+  config.vm.box = "deargle/metasploitable2"
+  config.vm.box_version = "0.0.4"
   config.vm.synced_folder '.', '/vagrant', disabled: true
   config.vm.provider :libvirt do |libvirt|
     libvirt.driver = "kvm"
@@ -91,17 +91,18 @@ Vagrant.configure("2") do |config|
     libvirt.management_network_guest_ipv6 = "no"
   end
   
-  config.vm.define "ub2004" do |ub2004|
-    ub2004.vm.hostname = "metasploitable3-ub2004"
-    config.ssh.username = 'vagrant'
-    config.ssh.password = 'vagrant'
-    ub2004.vm.network "private_network",
-                      libvirt__network_name: "s_private_network",
+  config.vm.define "ub1404" do |ub1404|
+    ub1404.vm.hostname = "metasploitable2-ub1404"
+    config.ssh.username = 'msfadmin'
+    config.ssh.password = 'msfadmin'
+    ub1404.vm.network "private_network",
+                      libvirt__network_name: "s_private_network", # Имя создаваемой сети
                       libvirt__forward_mode: "none", # Режим маршрутизации
                       libvirt__dhcp_enabled: false  # Отключаем DHCP в этой сети
   end
  # --- Создание ВМ на altlinux ---
   config.vm.define "altlinux_w2" do |node_3|
+    # Исправлено: имя хоста должно зависеть от переменной цикла i
     node_3.vm.hostname = "altlinux-w2"
     node_3.vm.communicator = "none"
     # Настройки сети: только private_network
@@ -114,6 +115,7 @@ Vagrant.configure("2") do |config|
       libvirt.boot 'hd' # Загрузка с жесткого диска
       libvirt.boot 'cdrom' # Загрузка с CDROM (вторая опция)
       libvirt.storage :file, :device => :cdrom, :path => altlinux_iso_path_w
+      
     end
     node_3.vm.provision "shell", inline: "echo 'altlinux_w2 VM created.'", run: "never"
   end
@@ -231,9 +233,9 @@ sudo bash -c \
 
 # Удаление интерфейса management_network для прямого общения с хост машиной с выходом в интернет 
 sudo virsh detach-interface \
-13_1_ub2004 \
+13_1_ub1404 \
 --type network \
---mac 52:54:00:8f:32:6a \
+--mac 52:54:00:88:a9:59 \
 --config
 
 # Экспорт настроек созданных ВМ
@@ -275,7 +277,7 @@ sudo virsh start \
 
 # Запуск "песочницы" для пентеста
 sudo virsh start \
---domain 13_1_ub2004
+--domain 13_1_ub1404
 
 # создаем ключ для подключения к bastion хосту
 ssh-keygen -t ed25519 \
@@ -360,19 +362,23 @@ exit
 ################################
 # Настройка хоста для пентеста #
 ################################
-
-# проброс ключа до виртуальной машины через шлюз как прокси-сервер
-ssh-copy-id \
--i ~/.ssh/id_vm.pub \
--o "ProxyJump sadmin@192.168.121.2" \
-vagrant@10.10.10.245
-
 # вход через bastion (192.168.121.2), как прокси, на машину локальной сети 10.10.10.245
 ssh -i ~/.ssh/id_kvm_host_to_vms \
+-o HostkeyAlgorithms=+ssh-rsa \
 -o "ProxyJump sadmin@192.168.121.2" \
--i ~/.ssh/id_vm vagrant@10.10.10.245
+msfadmin@10.10.10.245
+
+sudo tcpdump -nn \
+-i eth0 \
+-l port 53 \
+or port 69 \
+or port 111 \
+or 'tcp[13] & 2 != 0 or tcp[13] & 1 != 0 or tcp[13] & 32 != 0' \
+2>&1 \
+| tee metasploitable_incoming.log
 
 exit
+################################
 ```
 ```bash
 git branch -v
@@ -388,4 +394,83 @@ git add . .. \
 
 git commit -am 'commit_4, 13_1-explo_and_atta' \
 && git push --set-upstream study_fops39 13_1-explo_and_atta
+```
+
+## commit_5, `13_1-explo_and_atta`
+
+```bash
+########################
+# Работа через bastion #
+########################
+# вход на bastion server
+ssh \
+-i ~/.ssh/id_kvm_host_to_vms \
+sadmin@alt-w-p11-route
+
+su -
+# -p- Сканирует все 65535 TCP-портов
+# -A Агрессивный набор опций сканирования (включает в себя `-sC`, `-sV`, `-O`, `--traceroute`)
+# -sV Определяет версии служб, работающих на открытых портах
+# -sC Запускает набор встроенных NSE-скриптов по умолчанию
+# -O определение ОС
+# --traceroute выполняет трассировку до хоста
+nmap -p- -A \
+10.10.10.245 \
+| grep -i 'open\|filtered'
+```
+    21/tcp    open  ftp         vsftpd 2.3.4
+    22/tcp    open  ssh         OpenSSH 4.7p1 Debian 8ubuntu1 (protocol 2.0)
+    23/tcp    open  telnet      Linux telnetd
+    25/tcp    open  smtp        Postfix smtpd
+    53/tcp    open  domain      ISC BIND 9.4.2
+    80/tcp    open  http        Apache httpd 2.2.8 ((Ubuntu) DAV/2)
+    111/tcp   open  rpcbind
+    139/tcp   open  netbios-ssn Samba smbd 3.X - 4.X (workgroup: WORKGROUP)
+    512/tcp   open  exec        netkit-rsh rexecd
+    513/tcp   open  login       OpenBSD or Solaris rlogind
+    514/tcp   open  shell       Netkit rshd
+    1099/tcp  open  java-rmi    GNU Classpath grmiregistry
+    1524/tcp  open  bindshell   Metasploitable root shell
+    2049/tcp  open  rpcbind
+    2121/tcp  open  ftp         ProFTPD 1.3.1
+    3306/tcp  open  mysql       MySQL 5.0.51a-3ubuntu5
+    3632/tcp  open  distccd     distccd v1 ((GNU) 4.2.4 (Ubuntu 4.2.4-1ubuntu4))
+    5432/tcp  open  postgresql  PostgreSQL DB 8.3.0 - 8.3.7
+    5900/tcp  open  vnc         VNC (protocol 3.3)
+    6000/tcp  open  X11         (access denied)
+    6667/tcp  open  irc         UnrealIRCd
+    6697/tcp  open  irc         UnrealIRCd
+    8009/tcp  open  ajp13       Apache Jserv (Protocol v1.3)
+    8180/tcp  open  http        Apache Tomcat/Coyote JSP engine 1.1
+    8787/tcp  open  drb         Ruby DRb RMI (Ruby 1.8; path /usr/lib/ruby/1.8/drb)
+    38253/tcp open  rpcbind
+    38528/tcp open  rpcbind
+    58186/tcp open  java-rmi    GNU Classpath grmiregistry
+    58399/tcp open  rpcbind
+```bash
+# -A Агрессивный набор опций сканирования (включает в себя `-sC`, `-sV`, `-O`, `--traceroute`)
+# -sU для сканирования UDP-портов
+# -sV Определяет версии служб, работающих на открытых портах
+# -sC Запускает набор встроенных NSE-скриптов по умолчанию
+# -O определение ОС
+# --traceroute выполняет трассировку до хоста
+nmap -sU -A \
+10.10.10.245 \
+| grep -i 'open\|filtered'
+```
+    53/udp   open          domain      ISC BIND 9.4.2 (generic dns response: NOTIMP)
+    69/udp   open|filtered tftp
+    111/udp  open          rpcbind
+    137/udp  open          netbios-ns  Microsoft Windows netbios-ns (workgroup: WORKGROUP)
+    138/udp  open|filtered netbios-dgm
+    2049/udp open          rpcbind
+```bash
+nmap -sS -p 1-1000 10.10.10.245 \
+&& echo "SYN сканирование" \
+&& nmap -sF -p 1-1000 10.10.10.245 \
+&& echo "FIN сканирование" \
+&& nmap -sX -p 1-1000 10.10.10.245 \
+&& echo "Xmas сканирование" \
+&& nmap -sU -p 53,69,111,137,138 10.10.10.245 \
+&& echo "UDP сканирование"
 ```

@@ -1,6 +1,6 @@
 <domain type='kvm'>
-  <name>13_1_ub2004</name>
-  <uuid>de0076f8-802b-46b5-9f57-6a3c301a75cd</uuid>
+  <name>13_1_ub1404</name>
+  <uuid>ea338471-0774-4495-955c-c4a7d8b07936</uuid>
   <description>Source: /home/shoel/nfs_git/gited/13_1/Vagrantfile</description>
   <memory unit='KiB'>3145728</memory>
   <currentMemory unit='KiB'>3145728</currentMemory>
@@ -27,14 +27,14 @@
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2' cache='none'/>
-      <source file='/var/lib/libvirt/images/13_1_ub2004.img'/>
+      <source file='/var/lib/libvirt/images/13_1_ub1404.img'/>
       <target dev='vda' bus='virtio'/>
       <alias name='ua-box-volume-0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </disk>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
-      <source file='/var/lib/libvirt/images/13_1_ub2004-vdb.qcow2'/>
+      <source file='/var/lib/libvirt/images/13_1_ub1404-vdb.qcow2'/>
       <target dev='vdb' bus='virtio'/>
       <alias name='ua-disk-volume-0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
@@ -44,7 +44,7 @@
     </controller>
     <controller type='pci' index='0' model='pci-root'/>
     <interface type='network'>
-      <mac address='52:54:00:ea:20:bf'/>
+      <mac address='52:54:00:9e:c7:d9'/>
       <source network='s_private_network'/>
       <model type='virtio'/>
       <driver iommu='off'/>

@@ -1,7 +1,7 @@
 <network ipv6='yes'>
   <name>s_private_network</name>
-  <uuid>17b59b72-b18b-486a-b827-8998b288542a</uuid>
+  <uuid>9e0b07aa-6a90-401a-b636-55e8f65517ec</uuid>
   <bridge name='virbr2' stp='on' delay='0'/>
-  <mac address='52:54:00:6e:bb:22'/>
+  <mac address='52:54:00:65:4c:3d'/>
 </network>
 
