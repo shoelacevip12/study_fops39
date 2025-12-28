@@ -395,9 +395,7 @@ git add . .. \
 git commit -am 'commit_4, 13_1-explo_and_atta' \
 && git push --set-upstream study_fops39 13_1-explo_and_atta
 ```
-
 ## commit_5, `13_1-explo_and_atta`
-
 ```bash
 ########################
 # Работа через bastion #
@@ -471,6 +469,21 @@ nmap -sS -p 1-1000 10.10.10.245 \
 && echo "FIN сканирование" \
 && nmap -sX -p 1-1000 10.10.10.245 \
 && echo "Xmas сканирование" \
-&& nmap -sU -p 53,69,111,137,138 10.10.10.245 \
+&& nmap -sU -p 53,69,111,137,138,2049 10.10.10.245 \
 && echo "UDP сканирование"
+```
+```bash
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_5_upd2, 13_1-explo_and_atta' \
+&& git push --set-upstream study_fops39 13_1-explo_and_atta
 ```
