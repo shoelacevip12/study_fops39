@@ -137,3 +137,125 @@ git add . .. \
 git commit -am 'commit_2, 13_1-explo_and_atta' \
 && git push --set-upstream study_fops39 13_1-explo_and_atta
 ```
+## commit_3, `13_1-explo_and_atta`
+```bash
+###############################################
+# VPN для скачивания с hashicorp.com образов  #
+###############################################
+# Создание службы для подключения к существующему SSH серверу как к proxy-SOCKS серверу 
+cat > ~/.config/systemd/user/ssh-tunnel.service << 'EOF'
+[Unit]
+Description=SSH SOCKS Tunnel
+After=network.target
+
+[Service]
+Type=simple
+Environment="TERM=xterm"
+Environment="HOME=%h"
+Environment="IP=xxx.xxx.xxx.xxx"
+ExecStart=/usr/bin/ssh -v -D 1080 -N \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -o TCPKeepAlive=yes \
+  -i /home/%u/.ssh/ssh_id_ed25519 \
+  root@$IP
+Restart=always
+RestartSec=10
+MemoryLimit=100M
+
+[Install]
+WantedBy=default.target
+EOF
+
+# Запуск службы для текущего пользователя 
+systemctl --user enable --now ssh-tunnel.service
+
+# Используем переменную окружения ALL_PROXY для обозначения прокси по протоколу, серверу и порту
+export ALL_PROXY="socks5://localhost:1080"
+
+# Проверка получаемого ip WAN
+curl 2ip.ru
+###############################################
+```
+```bash
+# Запуск vagrant без удаления в случае ошибки запуска
+vagrant up --no-destroy-on-error
+
+# Остановка всех ВМ 
+sudo bash -c \
+"for i in \$(virsh list --all \
+| awk '{print \$2}'); do \
+virsh destroy \$i; done"
+
+# Отключение VPN
+systemctl --user disable --now ssh-tunnel.service
+unset ALL_PROXY
+curl 2ip.ru
+
+# Остановка всех сетей Libvirt начиная со 2ого по списку
+sudo virsh net-list --all \
+| awk 'NR > 3 {print $1}' \
+| xargs -I {} sudo virsh net-destroy {}
+
+# Запуск редактора сети vagrant-libvirt для выхода в интернет
+sudo virsh net-edit \
+--network \
+vagrant-libvirt
+
+# экспорт настроек созданных сетей Libvirt
+sudo virsh net-dumpxml \
+vagrant-libvirt \
+> ./mngt_net.xml
+
+sudo chmod 777 !$
+
+sudo virsh net-dumpxml \
+s_private_network \
+> ./s_private_network.xml
+
+sudo chmod 777 !$
+
+# определяем списка виртуальных машин 
+sudo bash -c \
+"virsh list --all \
+| awk '/alt|ub/ {print \$2}'"
+
+# определяем мак адреса интерфейсов для отключения
+sudo bash -c \
+"virsh list --all \
+| awk '/alt|ub/ && !/x_w2/ {print \$2}' \
+| xargs -I {} virsh dumpxml {} \
+| grep -B1 vagrant-libvir" \
+| sed -n "s/.*<mac address='\([^']*\)'.*/\1/p"
+
+# Удаление интерфейса management_network для прямого общения с хост машиной с выходом в интернет 
+sudo virsh detach-interface \
+13_1_ub2004 \
+--type network \
+--mac 52:54:00:8f:32:6a \
+--config
+
+# Экспорт настроек созданных ВМ
+sudo bash -c \
+"for i in \$(virsh list --all \
+| awk '/w2|ub/ {print \$2}') ; do \
+virsh dumpxml \$i \
+> \$i.xml; done"
+
+sudo chmod 777 *.xml
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_3, 13_1-explo_and_atta' \
+&& git push --set-upstream study_fops39 13_1-explo_and_atta
+```
