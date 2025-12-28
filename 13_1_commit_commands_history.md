@@ -487,3 +487,38 @@ git add . .. \
 git commit -am 'commit_5_upd2, 13_1-explo_and_atta' \
 && git push --set-upstream study_fops39 13_1-explo_and_atta
 ```
+### commit_27, master
+```bash
+sudo bash -c \
+"for i in \$(virsh list --all \
+| awk '{print \$2}'); do \
+virsh destroy \$i; done"
+
+sudo virsh net-list --all \
+| awk 'NR > 3 {print $1}' \
+| xargs -I {} sudo virsh net-destroy {}
+
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 13_1-explo_and_atta --force
+
+git checkout master
+
+git branch -v
+
+git merge 13_1-explo_and_atta
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_27, master & 13_1-explo_and_atta' \
+&& git push study_fops39 master
+```
