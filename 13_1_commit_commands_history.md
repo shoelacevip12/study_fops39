@@ -259,3 +259,133 @@ git add . .. \
 git commit -am 'commit_3, 13_1-explo_and_atta' \
 && git push --set-upstream study_fops39 13_1-explo_and_atta
 ```
+## commit_4, `13_1-explo_and_atta`
+```bash
+# Выводим список ВМ стенда для напоминания
+sudo virsh list --all
+
+# Поочередный запуск всех сетей libvirt со 2ого по списку
+sudo virsh net-list --all \
+| awk 'NR > 3 {print $1}' \
+| xargs -I {} sudo virsh net-start {}
+
+# Запуск Рабочей станции Alt p11 выступающим в роли bastion
+sudo virsh start \
+--domain adm4_altlinux_w2
+
+# Запуск "песочницы" для пентеста
+sudo virsh start \
+--domain 13_1_ub2004
+
+# создаем ключ для подключения к bastion хосту
+ssh-keygen -t ed25519 \
+-f ~/.ssh/id_kvm_host_to_vms \
+-C "kvm-host_access_to_vms"
+
+# создаем ключ для подключения к другим виртуальным машинам
+ssh-keygen -t ed25519 \
+-f ~/.ssh/id_vm \
+-C "vm-access-key"
+
+# проброс ключа до шлюза
+ssh-copy-id \
+-i ~/.ssh/id_kvm_host_to_vms.pub \
+sadmin@192.168.121.2
+
+# включаем агента-ssh
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_vm \
+&& ssh-add  ~/.ssh/id_kvm_host_to_vms
+```
+![](13_1/img/1.png)
+```bash
+#####################
+# Настройка bastion #
+#####################
+# вход на bastion server
+ssh \
+-i ~/.ssh/id_kvm_host_to_vms \
+sadmin@alt-w-p11-route
+
+su -
+
+# Отключение из автозагрузки служб для графического взаимодействия
+systemctl isolate multi-user.target
+systemctl set-default multi-user.target
+
+runlevel
+
+# включение внутренней маршрутизации пакетов между интерфейсами
+sed -i 's/rd\ =\ 0/rd\ =\ 1/' \
+/etc/net/sysctl.conf
+
+# обновление системы и установка пакетов для nat-маршрутизации
+apt-get update \
+&& update-kernel -y \
+&& apt-get dist-upgrade -y \
+&& apt-get install -y \
+nftables
+
+# Включаем и добавляем в автозагрузку службу nftables:
+systemctl enable --now nftables
+
+
+# Создаём необходимую структуру для nftables (семейство, таблица, цепочка) для настройки NAT:
+nft add table ip nat
+nft add chain ip nat postrouting '{ type nat hook postrouting priority 0; }'
+nft add rule ip nat postrouting ip saddr 10.10.10.240/28 oifname "ens5" counter masquerade
+
+# Сохраняем правила nftables
+nft list ruleset \
+| tail -n6 \
+| tee -a /etc/nftables/nftables.nft
+
+systemctl reboot
+
+su -
+
+nft list ruleset
+
+# установка nmap
+apt-get update \
+&& apt-get install -y \
+nmap
+
+exit
+
+exit
+#####################
+```
+```bash
+################################
+# Настройка хоста для пентеста #
+################################
+
+# проброс ключа до виртуальной машины через шлюз как прокси-сервер
+ssh-copy-id \
+-i ~/.ssh/id_vm.pub \
+-o "ProxyJump sadmin@192.168.121.2" \
+vagrant@10.10.10.245
+
+# вход через bastion (192.168.121.2), как прокси, на машину локальной сети 10.10.10.245
+ssh -i ~/.ssh/id_kvm_host_to_vms \
+-o "ProxyJump sadmin@192.168.121.2" \
+-i ~/.ssh/id_vm vagrant@10.10.10.245
+
+exit
+```
+```bash
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_4, 13_1-explo_and_atta' \
+&& git push --set-upstream study_fops39 13_1-explo_and_atta
+```
