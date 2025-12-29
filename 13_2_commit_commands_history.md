@@ -126,3 +126,65 @@ git add . .. \
 git commit -am 'commit_2, 13_2-hosts_sec' \
 && git push --set-upstream study_fops39 13_2-hosts_sec
 ```
+### commit_3, `13_2-hosts_sec`
+```bash
+# Запуск vagrant без удаления в случае ошибки запуска
+vagrant up --no-destroy-on-error
+
+# Остановка всех ВМ 
+sudo bash -c \
+"for i in \$(virsh list --all \
+| awk '{print \$2}'); do \
+virsh destroy \$i; done"
+
+# Остановка всех сетей Libvirt начиная со 2ого по списку
+sudo virsh net-list --all \
+| awk 'NR > 3 {print $1}' \
+| xargs -I {} sudo virsh net-destroy {}
+
+# Запуск редактора сети vagrant-libvirt для выхода в интернет
+sudo virsh net-edit \
+--network \
+vagrant-libvirt
+
+# экспорт настроек созданных сетей Libvirt
+sudo virsh net-dumpxml \
+vagrant-libvirt \
+> ./mngt_net.xml
+
+sudo chmod 777 !$
+
+sudo virsh net-dumpxml \
+s_private_network \
+> ./s_private_network.xml
+
+sudo chmod 777 !$
+
+# определяем списка виртуальных машин 
+sudo bash -c \
+"virsh list --all \
+| awk '/alt|ub/ {print \$2}'"
+
+# Экспорт настроек созданных ВМ
+sudo bash -c \
+"for i in \$(virsh list --all \
+| awk '/w2/ {print \$2}') ; do \
+virsh dumpxml \$i \
+> \$i.xml; done"
+
+sudo chmod 777 *.xml
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_3, 13_2-hosts_sec' \
+&& git push --set-upstream study_fops39 13_2-hosts_sec
+```
