@@ -27,12 +27,6 @@ Vagrant.configure("2") do |config|
   config.vm.define "altlinux_w2" do |work2|
     work2.vm.hostname = "altlinux-w2"
     work2.vm.communicator = "none"
-    # Настройки сети: только private_network
-    work2.vm.network "private_network",
-                          libvirt__network_name: "s_private_network",
-                          libvirt__forward_mode: "none",
-                          libvirt__dhcp_enabled: false
-
     work2.vm.provider :libvirt do |libvirt|
       libvirt.storage :file, :device => :cdrom, :path => altlinux_iso_path_w
       

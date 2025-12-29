@@ -58,12 +58,12 @@ git commit -am 'commit_1, 13_2-hosts_sec' \
 # Подготовка к запуску #
 ########################
 
-# Скачать образ Altlinux p11 для bastion хоста
+# Скачать образ Altlinux p11
 wget -P \
 ~/iso/ \
 https://download.basealt.ru/pub/distributions/ALTLinux/p11/images/workstation/x86_64/alt-workstation-11.1-x86_64.iso
 
-# Создание Vagrant файла развертывания для пинтеста
+# Создание Vagrant файла
 cat>vagrantfile<<'OEF'
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
@@ -94,12 +94,6 @@ Vagrant.configure("2") do |config|
   config.vm.define "altlinux_w2" do |work2|
     work2.vm.hostname = "altlinux-w2"
     work2.vm.communicator = "none"
-    # Настройки сети: только private_network
-    work2.vm.network "private_network",
-                          libvirt__network_name: "s_private_network",
-                          libvirt__forward_mode: "none",
-                          libvirt__dhcp_enabled: false
-
     work2.vm.provider :libvirt do |libvirt|
       libvirt.storage :file, :device => :cdrom, :path => altlinux_iso_path_w
       
@@ -154,25 +148,10 @@ vagrant-libvirt \
 
 sudo chmod 777 !$
 
-sudo virsh net-dumpxml \
-s_private_network \
-> ./s_private_network.xml
-
-sudo chmod 777 !$
-
 # определяем списка виртуальных машин 
 sudo bash -c \
 "virsh list --all \
 | awk '/alt|ub/ {print \$2}'"
-
-# Экспорт настроек созданных ВМ
-sudo bash -c \
-"for i in \$(virsh list --all \
-| awk '/w2/ {print \$2}') ; do \
-virsh dumpxml \$i \
-> \$i.xml; done"
-
-sudo chmod 777 *.xml
 
 git branch -v
 
@@ -187,4 +166,82 @@ git add . .. \
 
 git commit -am 'commit_3, 13_2-hosts_sec' \
 && git push --set-upstream study_fops39 13_2-hosts_sec
+```
+### commit_4, `13_2-hosts_sec`
+```bash
+# Выводим список ВМ стенда для напоминания
+sudo virsh list --all
+
+# Создание нового раздела
+sudo qemu-img create \
+-f qcow2 \
+/var/lib/libvirt/images/adm4_altlinux_w2-vda_2.qcow2 \
+10G
+
+# XML-конфиг для подключения диска к ВМ
+cat > ./disk-device.xml <<EOF
+<disk type='file' device='disk'>
+  <driver name='qemu' type='qcow2'/>
+  <source file='/var/lib/libvirt/images/adm4_altlinux_w2-vda_2.qcow2'/>
+  <target dev='vdb' bus='virtio'/>
+  <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>
+</disk>
+EOF
+
+# Подключение диска к ВМ
+sudo virsh attach-device \
+adm4_altlinux_w2 --config --live \
+./disk-device.xml
+
+# проверка диска
+sudo virsh dumpxml \
+adm4_altlinux_w2 \
+| grep -A5 '<disk'
+
+# Экспорт настроек созданных ВМ
+sudo bash -c \
+"for i in \$(virsh list --all \
+| awk '/w2/ {print \$2}') ; do \
+virsh dumpxml \$i \
+> \$i.xml; done"
+
+sudo chmod 777 *.xml
+
+# Поочередный запуск всех сетей libvirt со 2ого по списку
+sudo virsh net-list --all \
+| awk 'NR > 3 {print $1}' \
+| xargs -I {} sudo virsh net-start {}
+
+# Запуск Рабочей станции Alt p11
+sudo virsh start \
+--domain adm4_altlinux_w2
+
+# создаем ключ для подключения к хосту
+ssh-keygen -t ed25519 \
+-f ~/.ssh/id_kvm_host_to_vms \
+-C "kvm-host_access_to_vms"
+
+# проброс ключа до Хоста
+ssh-copy-id \
+-i ~/.ssh/id_kvm_host_to_vms.pub \
+sadmin@192.168.121.2
+
+# включаем агента-ssh
+eval $(ssh-agent) \
+&& ssh-add  ~/.ssh/id_kvm_host_to_vms
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_4, 13_2-hosts_sec' \
+&& git push --set-upstream study_fops39 13_2-hosts_sec
+########################
 ```

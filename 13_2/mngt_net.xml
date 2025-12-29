@@ -1,0 +1,10 @@
+<network>
+  <name>vagrant-libvirt</name>
+  <uuid>3574ca47-5204-4000-926e-cd0452d59d6c</uuid>
+  <forward mode='route'/>
+  <bridge name='virbr1' stp='on' delay='0'/>
+  <mac address='52:54:00:78:93:31'/>
+  <ip address='192.168.121.1' netmask='255.255.255.0'>
+  </ip>
+</network>
+
