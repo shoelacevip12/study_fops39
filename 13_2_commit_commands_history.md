@@ -268,7 +268,7 @@ multi-user.target
 
 runlevel
 
-# обновление системы и установка пакетов для nat-маршрутизации
+# обновление системы
 apt-get update \
 && update-kernel -y \
 && apt-get dist-upgrade -y
@@ -287,9 +287,9 @@ tree
 #####################
 ```
 ```bash
-#####################
-# Выполнение работы #
-#####################
+##############################
+# Выполнение работы ecryptfs #
+##############################
 
 # Создание пользователя cryptouser
 useradd -c "Скворцов Денис" \
@@ -332,7 +332,100 @@ git add . .. \
 
 git commit -am 'commit_5, 13_2-hosts_sec' \
 && git push --set-upstream study_fops39 13_2-hosts_sec
+##############################
 ```
 ### commit_6, `13_2-hosts_sec`
 ```bash
+##########################
+# Выполнение работы LUKS #
+##########################
+# Для определения нового диска под шифрование
+lsblk
+
+# Создание Раздела LUKS на всем диске /dev/sda
+cryptsetup luksFormat \
+/dev/sda
+
+# Проверка информации о LUKS разделе
+cryptsetup luksDump \
+/dev/sda
+
+# Создаем отображение на новое блочное устройство dm-crypt
+cryptsetup open \
+/dev/sda \
+skv-sec-disk
+
+
+# Проверки отображения нового блочного устройства
+lsblk
+
+ll /dev/mapper/skv-sec-disk
+
+cryptsetup -v status \
+skv-sec-disk
+
+# создание файловой системы на LUKS устройстве
+mkfs.xfs /dev/dm-0
+
+# Монтирование раздела LUKS для синхронизации данных
+mount -m \
+/dev/mapper/skv-sec-disk \
+/mnt/home
+
+# Проверка монтирования
+findmnt /mnt/home
+
+# синхронизация Каталога /home на новый раздел
+rsync -aP \
+/home/ \
+/mnt/home
+
+# Отмонтирование LUKS
+umount /mnt/home
+
+# Организуем запись в /etc/crypttab на основе UUID 
+echo "skv-sec-disk \
+UUID=$(cryptsetup luksUUID /dev/sda)" \
+> /etc/crypttab
+
+# Проверка записи в /etc/crypttab
+cat /etc/crypttab
+
+# Добавляем запись в /etc/fstab на основе UUID /dev/mapper/skv-sec-disk
+echo "UUID=$(blkid \
+-s UUID \
+-o value /dev/mapper/skv-sec-disk) \
+/home xfs defaults 0 2" \
+>> /etc/fstab
+
+# Проверка записи в /etc/fstab
+cat /etc/fstab
+
+# Перезагрузка 
+systemctl reboot
+
+# Вход на ВМ
+ssh -t \
+-i ~/.ssh/id_kvm_host_to_vms \
+sadmin@alt-w-p11-route "su -" 
+
+# Проверка Дисков и монтирований
+lsblk
+
+findmnt /home
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_6, 13_2-hosts_sec' \
+&& git push --set-upstream study_fops39 13_2-hosts_sec
+##########################
 ```
