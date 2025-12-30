@@ -245,3 +245,94 @@ git commit -am 'commit_4, 13_2-hosts_sec' \
 && git push --set-upstream study_fops39 13_2-hosts_sec
 ########################
 ```
+### commit_5, `13_2-hosts_sec`
+```bash
+#####################
+# Подготовка Хоста #
+#####################
+# вход на машину под суперпользователем 
+ssh -t \
+-i ~/.ssh/id_kvm_host_to_vms \
+sadmin@alt-w-p11-route "su -"
+
+# Поиск созданного примонтированного раздела в 10 G
+lsblk \
+| grep 10G
+
+# Отключение из автозагрузки служб для графического взаимодействия
+systemctl isolate \
+multi-user.target
+
+systemctl set-default \
+multi-user.target
+
+runlevel
+
+# обновление системы и установка пакетов для nat-маршрутизации
+apt-get update \
+&& update-kernel -y \
+&& apt-get dist-upgrade -y
+
+# Поиск eCryptfs в дистрибутиве altinux в репозитории p11
+apt-cache search eCryptfs
+
+# ПОИСК LUKS утилит
+apt-cache search LUKS
+
+# Установка утилит
+apt-get install -y \
+ecryptfs-utils \
+cryptsetup \
+tree
+#####################
+```
+```bash
+#####################
+# Выполнение работы #
+#####################
+
+# Создание пользователя cryptouser
+useradd -c "Скворцов Денис" \
+cryptouser
+
+# Подключение PAM модуля pam_ecryptfs.so
+cat > /etc/pam.d/postlogin << 'EOF'
+# ALT Linux: Для совместимости с ecryptfs
+session optional pam_ecryptfs.so unwrap
+EOF
+
+# Доступ до служебной группы ecryptfs
+usermod -a -G ecryptfs cryptouser
+
+# Проверка читабельности из-под суперпользователя
+tree -a \
+/home/cryptouser/
+
+
+# Шифрование каталога пользователя
+ecryptfs-migrate-home -u cryptouser
+
+
+# Проверка читабельности из-под суперпользователя
+tree -a \
+/home/cryptouser/ \
+&& tree -a \
+/home/cryptouser/.Private
+
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_5, 13_2-hosts_sec' \
+&& git push --set-upstream study_fops39 13_2-hosts_sec
+```
+### commit_6, `13_2-hosts_sec`
+```bash
+```

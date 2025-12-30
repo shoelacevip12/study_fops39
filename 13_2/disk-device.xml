@@ -1,0 +1,6 @@
+<disk type='file' device='disk'>
+  <driver name='qemu' type='qcow2'/>
+  <source file='/var/lib/libvirt/images/adm4_altlinux_w2-vda_2.qcow2'/>
+  <target dev='vdb' bus='virtio'/>
+  <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>
+</disk>
