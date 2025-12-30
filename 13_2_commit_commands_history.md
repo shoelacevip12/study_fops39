@@ -429,3 +429,40 @@ git commit -am 'commit_6, 13_2-hosts_sec' \
 && git push --set-upstream study_fops39 13_2-hosts_sec
 ##########################
 ```
+### commit_29, master
+```bash
+systemctl poweroff
+
+sudo bash -c \
+"for i in \$(virsh list --all \
+| awk '{print \$2}'); do \
+virsh destroy \$i; done"
+
+sudo virsh net-list --all \
+| awk 'NR > 3 {print $1}' \
+| xargs -I {} sudo virsh net-destroy {}
+
+git branch -v
+
+git log --oneline
+
+git status
+
+git diff && git diff --staged
+
+git add . .. \
+&& git commit --amend --no-edit \
+&& git push --set-upstream study_fops39 13_2-hosts_sec --force
+
+git checkout master
+
+git branch -v
+
+git merge 13_2-hosts_sec
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_29, master & 13_2-hosts_sec' \
+&& git push study_fops39 master
+```
