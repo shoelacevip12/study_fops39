@@ -37,7 +37,7 @@ git status
 
 git log --oneline
 
-git add . ..
+git add .
 
 git commit -am 'commit_1, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
