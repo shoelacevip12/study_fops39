@@ -98,5 +98,51 @@ git commit -am 'commit_2, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ### commit_3, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка для работы с yandex cloud
 ```bash
+# Скачиваем скрипт для установки yandex console
+curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh \
+| bash
+
+# Применение новых переменных окружения в текущей сессии
+source \
+~/.bashrc
 ```
+```bash
+# инициализация подключения к уже созданному аккаунту yandex cloud
+yc init
+
+#зайти по предоставленной ссылке 
+https://oauth.yandex.ru/authorize?response_type=token&client_id=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# для получения OAuth token вида
+y0__xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+1
+Y
+1
+```
+```bash
+# Для вывода Id облака yandex cloud
+yc config get cloud-id
+bxxxxxxxxxxxxxxxxxxxxxxp
+
+# Для вывода Id каталога yandex cloud
+yc config get folder-id
+bxxxxxxxxxxxxxxxxxx5
+```
+```bash
+git branch -v
+
+git remote -v
+
+git status
+
+git log --oneline
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_3, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
+```
+### commit_4, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка для работы с terraform
