@@ -5,6 +5,7 @@ __pycache__/
 mysql_D/
 master/db/
 slave/db/
+.terraform/
 
 # игнорировать расширения и файлы:
 *.deb
@@ -18,3 +19,4 @@ terraform.tfstate
 terraform.tfstate.backup
 cloud-init.yml
 *cloud-init.yml
+.terraform.*

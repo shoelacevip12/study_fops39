@@ -1,0 +1,1316 @@
+[0m[1mdata.yandex_compute_image.ubuntu_2404_lts: Reading...[0m[0m
+[0m[1mdata.yandex_compute_image.ubuntu_2404_lts: Read complete after 0s [id=fd8d6ui1a6greafrtud9][0m
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  [32m+[0m create[0m
+
+Terraform will perform the following actions:
+
+[1m  # local_file.hosts_ans[0m will be created
+[0m  [32m+[0m[0m resource "local_file" "hosts_ans" {
+      [32m+[0m[0m content              = (known after apply)
+      [32m+[0m[0m content_base64sha256 = (known after apply)
+      [32m+[0m[0m content_base64sha512 = (known after apply)
+      [32m+[0m[0m content_md5          = (known after apply)
+      [32m+[0m[0m content_sha1         = (known after apply)
+      [32m+[0m[0m content_sha256       = (known after apply)
+      [32m+[0m[0m content_sha512       = (known after apply)
+      [32m+[0m[0m directory_permission = "0777"
+      [32m+[0m[0m file_permission      = "0777"
+      [32m+[0m[0m filename             = "./hosts.ini"
+      [32m+[0m[0m id                   = (known after apply)
+    }
+
+[1m  # yandex_alb_backend_group.web-bg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_alb_backend_group" "web-bg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m name       = "web-bg-cours-fops39-skv"
+
+      [32m+[0m[0m http_backend {
+          [32m+[0m[0m name             = "web-backend"
+          [32m+[0m[0m port             = 80
+          [32m+[0m[0m target_group_ids = (known after apply)
+          [32m+[0m[0m weight           = 100
+
+          [32m+[0m[0m healthcheck {
+              [32m+[0m[0m healthcheck_port    = 80
+              [32m+[0m[0m healthy_threshold   = 2
+              [32m+[0m[0m interval            = "5s"
+              [32m+[0m[0m timeout             = "2s"
+              [32m+[0m[0m unhealthy_threshold = 2
+
+              [32m+[0m[0m http_healthcheck {
+                  [32m+[0m[0m path = "/"
+                }
+            }
+        }
+    }
+
+[1m  # yandex_alb_http_router.web-router[0m will be created
+[0m  [32m+[0m[0m resource "yandex_alb_http_router" "web-router" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = {
+          [32m+[0m[0m "env" = "cours-fops39-skv"
+        }
+      [32m+[0m[0m name       = "web-router-cours-fops39-skv"
+    }
+
+[1m  # yandex_alb_load_balancer.alb[0m will be created
+[0m  [32m+[0m[0m resource "yandex_alb_load_balancer" "alb" {
+      [32m+[0m[0m created_at         = (known after apply)
+      [32m+[0m[0m description        = "ALB для распределения трафика на веб-серверы"
+      [32m+[0m[0m folder_id          = (known after apply)
+      [32m+[0m[0m id                 = (known after apply)
+      [32m+[0m[0m labels             = {
+          [32m+[0m[0m "env" = "cours-fops39-skv"
+        }
+      [32m+[0m[0m log_group_id       = (known after apply)
+      [32m+[0m[0m name               = "alb-cours-fops39-skv"
+      [32m+[0m[0m network_id         = (known after apply)
+      [32m+[0m[0m security_group_ids = (known after apply)
+      [32m+[0m[0m status             = (known after apply)
+
+      [32m+[0m[0m allocation_policy {
+          [32m+[0m[0m location {
+              [32m+[0m[0m disable_traffic = false
+              [32m+[0m[0m subnet_id       = (known after apply)
+              [32m+[0m[0m zone_id         = "ru-central1-a"
+            }
+          [32m+[0m[0m location {
+              [32m+[0m[0m disable_traffic = false
+              [32m+[0m[0m subnet_id       = (known after apply)
+              [32m+[0m[0m zone_id         = "ru-central1-b"
+            }
+        }
+
+      [32m+[0m[0m listener {
+          [32m+[0m[0m name = "http-listener"
+
+          [32m+[0m[0m endpoint {
+              [32m+[0m[0m ports = [
+                  [32m+[0m[0m 80,
+                ]
+
+              [32m+[0m[0m address {
+                  [32m+[0m[0m external_ipv4_address {
+                      [32m+[0m[0m address = (known after apply)
+                    }
+                }
+            }
+
+          [32m+[0m[0m http {
+              [32m+[0m[0m handler {
+                  [32m+[0m[0m allow_http10       = false
+                  [32m+[0m[0m http_router_id     = (known after apply)
+                  [32m+[0m[0m rewrite_request_id = false
+                }
+            }
+        }
+    }
+
+[1m  # yandex_alb_target_group.web-tg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_alb_target_group" "web-tg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m name       = "web-tg-cours-fops39-skv"
+
+      [32m+[0m[0m target {
+          [32m+[0m[0m ip_address = "10.10.10.201"
+          [32m+[0m[0m subnet_id  = (known after apply)
+        }
+      [32m+[0m[0m target {
+          [32m+[0m[0m ip_address = "10.10.10.211"
+          [32m+[0m[0m subnet_id  = (known after apply)
+        }
+    }
+
+[1m  # yandex_alb_virtual_host.web-host[0m will be created
+[0m  [32m+[0m[0m resource "yandex_alb_virtual_host" "web-host" {
+      [32m+[0m[0m authority      = [
+          [32m+[0m[0m "*",
+        ]
+      [32m+[0m[0m http_router_id = (known after apply)
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m name           = "web-host-cours-fops39-skv"
+
+      [32m+[0m[0m route {
+          [32m+[0m[0m name = "default-route"
+
+          [32m+[0m[0m http_route {
+              [32m+[0m[0m http_route_action {
+                  [32m+[0m[0m backend_group_id = (known after apply)
+                }
+            }
+        }
+    }
+
+[1m  # yandex_compute_instance.bastion[0m will be created
+[0m  [32m+[0m[0m resource "yandex_compute_instance" "bastion" {
+      [32m+[0m[0m created_at                = (known after apply)
+      [32m+[0m[0m folder_id                 = (known after apply)
+      [32m+[0m[0m fqdn                      = (known after apply)
+      [32m+[0m[0m gpu_cluster_id            = (known after apply)
+      [32m+[0m[0m hardware_generation       = (known after apply)
+      [32m+[0m[0m hostname                  = "bastion"
+      [32m+[0m[0m id                        = (known after apply)
+      [32m+[0m[0m maintenance_grace_period  = (known after apply)
+      [32m+[0m[0m maintenance_policy        = (known after apply)
+      [32m+[0m[0m metadata                  = {
+          [32m+[0m[0m "serial-port-enable" = "1"
+          [32m+[0m[0m "ssh-keys"           = <<-EOT
+                ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
+            EOT
+          [32m+[0m[0m "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+                runcmd:
+                  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
+                  - [ systemctl, restart, sshd ]
+            EOT
+        }
+      [32m+[0m[0m name                      = "bastion"
+      [32m+[0m[0m network_acceleration_type = "standard"
+      [32m+[0m[0m platform_id               = "standard-v2"
+      [32m+[0m[0m status                    = (known after apply)
+      [32m+[0m[0m zone                      = "ru-central1-d"
+
+      [32m+[0m[0m boot_disk {
+          [32m+[0m[0m auto_delete = true
+          [32m+[0m[0m device_name = (known after apply)
+          [32m+[0m[0m disk_id     = (known after apply)
+          [32m+[0m[0m mode        = (known after apply)
+
+          [32m+[0m[0m initialize_params {
+              [32m+[0m[0m block_size  = (known after apply)
+              [32m+[0m[0m description = (known after apply)
+              [32m+[0m[0m image_id    = "fd8d6ui1a6greafrtud9"
+              [32m+[0m[0m name        = (known after apply)
+              [32m+[0m[0m size        = 20
+              [32m+[0m[0m snapshot_id = (known after apply)
+              [32m+[0m[0m type        = "network-hdd"
+            }
+        }
+
+      [32m+[0m[0m metadata_options (known after apply)
+
+      [32m+[0m[0m network_interface {
+          [32m+[0m[0m index              = (known after apply)
+          [32m+[0m[0m ip_address         = "10.10.10.230"
+          [32m+[0m[0m ipv4               = true
+          [32m+[0m[0m ipv6               = (known after apply)
+          [32m+[0m[0m ipv6_address       = (known after apply)
+          [32m+[0m[0m mac_address        = (known after apply)
+          [32m+[0m[0m nat                = true
+          [32m+[0m[0m nat_ip_address     = (known after apply)
+          [32m+[0m[0m nat_ip_version     = (known after apply)
+          [32m+[0m[0m security_group_ids = (known after apply)
+          [32m+[0m[0m subnet_id          = (known after apply)
+        }
+
+      [32m+[0m[0m placement_policy (known after apply)
+
+      [32m+[0m[0m resources {
+          [32m+[0m[0m core_fraction = 20
+          [32m+[0m[0m cores         = 4
+          [32m+[0m[0m memory        = 4
+        }
+
+      [32m+[0m[0m scheduling_policy (known after apply)
+    }
+
+[1m  # yandex_compute_instance.elasticsearch[0m will be created
+[0m  [32m+[0m[0m resource "yandex_compute_instance" "elasticsearch" {
+      [32m+[0m[0m created_at                = (known after apply)
+      [32m+[0m[0m folder_id                 = (known after apply)
+      [32m+[0m[0m fqdn                      = (known after apply)
+      [32m+[0m[0m gpu_cluster_id            = (known after apply)
+      [32m+[0m[0m hardware_generation       = (known after apply)
+      [32m+[0m[0m hostname                  = "elasticsearch"
+      [32m+[0m[0m id                        = (known after apply)
+      [32m+[0m[0m maintenance_grace_period  = (known after apply)
+      [32m+[0m[0m maintenance_policy        = (known after apply)
+      [32m+[0m[0m metadata                  = {
+          [32m+[0m[0m "serial-port-enable" = "1"
+          [32m+[0m[0m "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+                runcmd:
+                  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
+                  - [ systemctl, restart, sshd ]
+            EOT
+        }
+      [32m+[0m[0m name                      = "elasticsearch"
+      [32m+[0m[0m network_acceleration_type = "standard"
+      [32m+[0m[0m platform_id               = "standard-v2"
+      [32m+[0m[0m status                    = (known after apply)
+      [32m+[0m[0m zone                      = "ru-central1-d"
+
+      [32m+[0m[0m boot_disk {
+          [32m+[0m[0m auto_delete = true
+          [32m+[0m[0m device_name = (known after apply)
+          [32m+[0m[0m disk_id     = (known after apply)
+          [32m+[0m[0m mode        = (known after apply)
+
+          [32m+[0m[0m initialize_params {
+              [32m+[0m[0m block_size  = (known after apply)
+              [32m+[0m[0m description = (known after apply)
+              [32m+[0m[0m image_id    = "fd8d6ui1a6greafrtud9"
+              [32m+[0m[0m name        = (known after apply)
+              [32m+[0m[0m size        = 30
+              [32m+[0m[0m snapshot_id = (known after apply)
+              [32m+[0m[0m type        = "network-hdd"
+            }
+        }
+
+      [32m+[0m[0m metadata_options (known after apply)
+
+      [32m+[0m[0m network_interface {
+          [32m+[0m[0m index              = (known after apply)
+          [32m+[0m[0m ip_address         = "10.10.10.233"
+          [32m+[0m[0m ipv4               = true
+          [32m+[0m[0m ipv6               = (known after apply)
+          [32m+[0m[0m ipv6_address       = (known after apply)
+          [32m+[0m[0m mac_address        = (known after apply)
+          [32m+[0m[0m nat                = false
+          [32m+[0m[0m nat_ip_address     = (known after apply)
+          [32m+[0m[0m nat_ip_version     = (known after apply)
+          [32m+[0m[0m security_group_ids = (known after apply)
+          [32m+[0m[0m subnet_id          = (known after apply)
+        }
+
+      [32m+[0m[0m placement_policy (known after apply)
+
+      [32m+[0m[0m resources {
+          [32m+[0m[0m core_fraction = 20
+          [32m+[0m[0m cores         = 4
+          [32m+[0m[0m memory        = 4
+        }
+
+      [32m+[0m[0m scheduling_policy (known after apply)
+    }
+
+[1m  # yandex_compute_instance.grafana[0m will be created
+[0m  [32m+[0m[0m resource "yandex_compute_instance" "grafana" {
+      [32m+[0m[0m created_at                = (known after apply)
+      [32m+[0m[0m folder_id                 = (known after apply)
+      [32m+[0m[0m fqdn                      = (known after apply)
+      [32m+[0m[0m gpu_cluster_id            = (known after apply)
+      [32m+[0m[0m hardware_generation       = (known after apply)
+      [32m+[0m[0m hostname                  = "grafana"
+      [32m+[0m[0m id                        = (known after apply)
+      [32m+[0m[0m maintenance_grace_period  = (known after apply)
+      [32m+[0m[0m maintenance_policy        = (known after apply)
+      [32m+[0m[0m metadata                  = {
+          [32m+[0m[0m "serial-port-enable" = "1"
+          [32m+[0m[0m "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+                runcmd:
+                  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
+                  - [ systemctl, restart, sshd ]
+            EOT
+        }
+      [32m+[0m[0m name                      = "grafana"
+      [32m+[0m[0m network_acceleration_type = "standard"
+      [32m+[0m[0m platform_id               = "standard-v2"
+      [32m+[0m[0m status                    = (known after apply)
+      [32m+[0m[0m zone                      = "ru-central1-d"
+
+      [32m+[0m[0m boot_disk {
+          [32m+[0m[0m auto_delete = true
+          [32m+[0m[0m device_name = (known after apply)
+          [32m+[0m[0m disk_id     = (known after apply)
+          [32m+[0m[0m mode        = (known after apply)
+
+          [32m+[0m[0m initialize_params {
+              [32m+[0m[0m block_size  = (known after apply)
+              [32m+[0m[0m description = (known after apply)
+              [32m+[0m[0m image_id    = "fd8d6ui1a6greafrtud9"
+              [32m+[0m[0m name        = (known after apply)
+              [32m+[0m[0m size        = 20
+              [32m+[0m[0m snapshot_id = (known after apply)
+              [32m+[0m[0m type        = "network-hdd"
+            }
+        }
+
+      [32m+[0m[0m metadata_options (known after apply)
+
+      [32m+[0m[0m network_interface {
+          [32m+[0m[0m index              = (known after apply)
+          [32m+[0m[0m ip_address         = "10.10.10.232"
+          [32m+[0m[0m ipv4               = true
+          [32m+[0m[0m ipv6               = (known after apply)
+          [32m+[0m[0m ipv6_address       = (known after apply)
+          [32m+[0m[0m mac_address        = (known after apply)
+          [32m+[0m[0m nat                = true
+          [32m+[0m[0m nat_ip_address     = (known after apply)
+          [32m+[0m[0m nat_ip_version     = (known after apply)
+          [32m+[0m[0m security_group_ids = (known after apply)
+          [32m+[0m[0m subnet_id          = (known after apply)
+        }
+
+      [32m+[0m[0m placement_policy (known after apply)
+
+      [32m+[0m[0m resources {
+          [32m+[0m[0m core_fraction = 20
+          [32m+[0m[0m cores         = 4
+          [32m+[0m[0m memory        = 4
+        }
+
+      [32m+[0m[0m scheduling_policy (known after apply)
+    }
+
+[1m  # yandex_compute_instance.kibana[0m will be created
+[0m  [32m+[0m[0m resource "yandex_compute_instance" "kibana" {
+      [32m+[0m[0m created_at                = (known after apply)
+      [32m+[0m[0m folder_id                 = (known after apply)
+      [32m+[0m[0m fqdn                      = (known after apply)
+      [32m+[0m[0m gpu_cluster_id            = (known after apply)
+      [32m+[0m[0m hardware_generation       = (known after apply)
+      [32m+[0m[0m hostname                  = "kibana"
+      [32m+[0m[0m id                        = (known after apply)
+      [32m+[0m[0m maintenance_grace_period  = (known after apply)
+      [32m+[0m[0m maintenance_policy        = (known after apply)
+      [32m+[0m[0m metadata                  = {
+          [32m+[0m[0m "serial-port-enable" = "1"
+          [32m+[0m[0m "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+                runcmd:
+                  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
+                  - [ systemctl, restart, sshd ]
+            EOT
+        }
+      [32m+[0m[0m name                      = "kibana"
+      [32m+[0m[0m network_acceleration_type = "standard"
+      [32m+[0m[0m platform_id               = "standard-v2"
+      [32m+[0m[0m status                    = (known after apply)
+      [32m+[0m[0m zone                      = "ru-central1-d"
+
+      [32m+[0m[0m boot_disk {
+          [32m+[0m[0m auto_delete = true
+          [32m+[0m[0m device_name = (known after apply)
+          [32m+[0m[0m disk_id     = (known after apply)
+          [32m+[0m[0m mode        = (known after apply)
+
+          [32m+[0m[0m initialize_params {
+              [32m+[0m[0m block_size  = (known after apply)
+              [32m+[0m[0m description = (known after apply)
+              [32m+[0m[0m image_id    = "fd8d6ui1a6greafrtud9"
+              [32m+[0m[0m name        = (known after apply)
+              [32m+[0m[0m size        = 20
+              [32m+[0m[0m snapshot_id = (known after apply)
+              [32m+[0m[0m type        = "network-hdd"
+            }
+        }
+
+      [32m+[0m[0m metadata_options (known after apply)
+
+      [32m+[0m[0m network_interface {
+          [32m+[0m[0m index              = (known after apply)
+          [32m+[0m[0m ip_address         = "10.10.10.234"
+          [32m+[0m[0m ipv4               = true
+          [32m+[0m[0m ipv6               = (known after apply)
+          [32m+[0m[0m ipv6_address       = (known after apply)
+          [32m+[0m[0m mac_address        = (known after apply)
+          [32m+[0m[0m nat                = true
+          [32m+[0m[0m nat_ip_address     = (known after apply)
+          [32m+[0m[0m nat_ip_version     = (known after apply)
+          [32m+[0m[0m security_group_ids = (known after apply)
+          [32m+[0m[0m subnet_id          = (known after apply)
+        }
+
+      [32m+[0m[0m placement_policy (known after apply)
+
+      [32m+[0m[0m resources {
+          [32m+[0m[0m core_fraction = 20
+          [32m+[0m[0m cores         = 4
+          [32m+[0m[0m memory        = 4
+        }
+
+      [32m+[0m[0m scheduling_policy (known after apply)
+    }
+
+[1m  # yandex_compute_instance.prometheus[0m will be created
+[0m  [32m+[0m[0m resource "yandex_compute_instance" "prometheus" {
+      [32m+[0m[0m created_at                = (known after apply)
+      [32m+[0m[0m folder_id                 = (known after apply)
+      [32m+[0m[0m fqdn                      = (known after apply)
+      [32m+[0m[0m gpu_cluster_id            = (known after apply)
+      [32m+[0m[0m hardware_generation       = (known after apply)
+      [32m+[0m[0m hostname                  = "prometheus"
+      [32m+[0m[0m id                        = (known after apply)
+      [32m+[0m[0m maintenance_grace_period  = (known after apply)
+      [32m+[0m[0m maintenance_policy        = (known after apply)
+      [32m+[0m[0m metadata                  = {
+          [32m+[0m[0m "serial-port-enable" = "1"
+          [32m+[0m[0m "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+                runcmd:
+                  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
+                  - [ systemctl, restart, sshd ]
+            EOT
+        }
+      [32m+[0m[0m name                      = "prometheus"
+      [32m+[0m[0m network_acceleration_type = "standard"
+      [32m+[0m[0m platform_id               = "standard-v2"
+      [32m+[0m[0m status                    = (known after apply)
+      [32m+[0m[0m zone                      = "ru-central1-d"
+
+      [32m+[0m[0m boot_disk {
+          [32m+[0m[0m auto_delete = true
+          [32m+[0m[0m device_name = (known after apply)
+          [32m+[0m[0m disk_id     = (known after apply)
+          [32m+[0m[0m mode        = (known after apply)
+
+          [32m+[0m[0m initialize_params {
+              [32m+[0m[0m block_size  = (known after apply)
+              [32m+[0m[0m description = (known after apply)
+              [32m+[0m[0m image_id    = "fd8d6ui1a6greafrtud9"
+              [32m+[0m[0m name        = (known after apply)
+              [32m+[0m[0m size        = 20
+              [32m+[0m[0m snapshot_id = (known after apply)
+              [32m+[0m[0m type        = "network-hdd"
+            }
+        }
+
+      [32m+[0m[0m metadata_options (known after apply)
+
+      [32m+[0m[0m network_interface {
+          [32m+[0m[0m index              = (known after apply)
+          [32m+[0m[0m ip_address         = "10.10.10.231"
+          [32m+[0m[0m ipv4               = true
+          [32m+[0m[0m ipv6               = (known after apply)
+          [32m+[0m[0m ipv6_address       = (known after apply)
+          [32m+[0m[0m mac_address        = (known after apply)
+          [32m+[0m[0m nat                = false
+          [32m+[0m[0m nat_ip_address     = (known after apply)
+          [32m+[0m[0m nat_ip_version     = (known after apply)
+          [32m+[0m[0m security_group_ids = (known after apply)
+          [32m+[0m[0m subnet_id          = (known after apply)
+        }
+
+      [32m+[0m[0m placement_policy (known after apply)
+
+      [32m+[0m[0m resources {
+          [32m+[0m[0m core_fraction = 20
+          [32m+[0m[0m cores         = 4
+          [32m+[0m[0m memory        = 4
+        }
+
+      [32m+[0m[0m scheduling_policy (known after apply)
+    }
+
+[1m  # yandex_compute_instance.web-a[0m will be created
+[0m  [32m+[0m[0m resource "yandex_compute_instance" "web-a" {
+      [32m+[0m[0m created_at                = (known after apply)
+      [32m+[0m[0m folder_id                 = (known after apply)
+      [32m+[0m[0m fqdn                      = (known after apply)
+      [32m+[0m[0m gpu_cluster_id            = (known after apply)
+      [32m+[0m[0m hardware_generation       = (known after apply)
+      [32m+[0m[0m hostname                  = "web-a"
+      [32m+[0m[0m id                        = (known after apply)
+      [32m+[0m[0m maintenance_grace_period  = (known after apply)
+      [32m+[0m[0m maintenance_policy        = (known after apply)
+      [32m+[0m[0m metadata                  = {
+          [32m+[0m[0m "serial-port-enable" = "1"
+          [32m+[0m[0m "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+                runcmd:
+                  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
+                  - [ systemctl, restart, sshd ]
+            EOT
+        }
+      [32m+[0m[0m name                      = "web-a"
+      [32m+[0m[0m network_acceleration_type = "standard"
+      [32m+[0m[0m platform_id               = "standard-v2"
+      [32m+[0m[0m status                    = (known after apply)
+      [32m+[0m[0m zone                      = "ru-central1-a"
+
+      [32m+[0m[0m boot_disk {
+          [32m+[0m[0m auto_delete = true
+          [32m+[0m[0m device_name = (known after apply)
+          [32m+[0m[0m disk_id     = (known after apply)
+          [32m+[0m[0m mode        = (known after apply)
+
+          [32m+[0m[0m initialize_params {
+              [32m+[0m[0m block_size  = (known after apply)
+              [32m+[0m[0m description = (known after apply)
+              [32m+[0m[0m image_id    = "fd8d6ui1a6greafrtud9"
+              [32m+[0m[0m name        = (known after apply)
+              [32m+[0m[0m size        = 20
+              [32m+[0m[0m snapshot_id = (known after apply)
+              [32m+[0m[0m type        = "network-hdd"
+            }
+        }
+
+      [32m+[0m[0m metadata_options (known after apply)
+
+      [32m+[0m[0m network_interface {
+          [32m+[0m[0m index              = (known after apply)
+          [32m+[0m[0m ip_address         = "10.10.10.201"
+          [32m+[0m[0m ipv4               = true
+          [32m+[0m[0m ipv6               = (known after apply)
+          [32m+[0m[0m ipv6_address       = (known after apply)
+          [32m+[0m[0m mac_address        = (known after apply)
+          [32m+[0m[0m nat                = false
+          [32m+[0m[0m nat_ip_address     = (known after apply)
+          [32m+[0m[0m nat_ip_version     = (known after apply)
+          [32m+[0m[0m security_group_ids = (known after apply)
+          [32m+[0m[0m subnet_id          = (known after apply)
+        }
+
+      [32m+[0m[0m placement_policy (known after apply)
+
+      [32m+[0m[0m resources {
+          [32m+[0m[0m core_fraction = 5
+          [32m+[0m[0m cores         = 2
+          [32m+[0m[0m memory        = 2
+        }
+
+      [32m+[0m[0m scheduling_policy (known after apply)
+    }
+
+[1m  # yandex_compute_instance.web-b[0m will be created
+[0m  [32m+[0m[0m resource "yandex_compute_instance" "web-b" {
+      [32m+[0m[0m created_at                = (known after apply)
+      [32m+[0m[0m folder_id                 = (known after apply)
+      [32m+[0m[0m fqdn                      = (known after apply)
+      [32m+[0m[0m gpu_cluster_id            = (known after apply)
+      [32m+[0m[0m hardware_generation       = (known after apply)
+      [32m+[0m[0m hostname                  = "web-b"
+      [32m+[0m[0m id                        = (known after apply)
+      [32m+[0m[0m maintenance_grace_period  = (known after apply)
+      [32m+[0m[0m maintenance_policy        = (known after apply)
+      [32m+[0m[0m metadata                  = {
+          [32m+[0m[0m "serial-port-enable" = "1"
+          [32m+[0m[0m "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+                runcmd:
+                  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
+                  - [ systemctl, restart, sshd ]
+            EOT
+        }
+      [32m+[0m[0m name                      = "web-b"
+      [32m+[0m[0m network_acceleration_type = "standard"
+      [32m+[0m[0m platform_id               = "standard-v2"
+      [32m+[0m[0m status                    = (known after apply)
+      [32m+[0m[0m zone                      = "ru-central1-b"
+
+      [32m+[0m[0m boot_disk {
+          [32m+[0m[0m auto_delete = true
+          [32m+[0m[0m device_name = (known after apply)
+          [32m+[0m[0m disk_id     = (known after apply)
+          [32m+[0m[0m mode        = (known after apply)
+
+          [32m+[0m[0m initialize_params {
+              [32m+[0m[0m block_size  = (known after apply)
+              [32m+[0m[0m description = (known after apply)
+              [32m+[0m[0m image_id    = "fd8d6ui1a6greafrtud9"
+              [32m+[0m[0m name        = (known after apply)
+              [32m+[0m[0m size        = 20
+              [32m+[0m[0m snapshot_id = (known after apply)
+              [32m+[0m[0m type        = "network-hdd"
+            }
+        }
+
+      [32m+[0m[0m metadata_options (known after apply)
+
+      [32m+[0m[0m network_interface {
+          [32m+[0m[0m index              = (known after apply)
+          [32m+[0m[0m ip_address         = "10.10.10.211"
+          [32m+[0m[0m ipv4               = true
+          [32m+[0m[0m ipv6               = (known after apply)
+          [32m+[0m[0m ipv6_address       = (known after apply)
+          [32m+[0m[0m mac_address        = (known after apply)
+          [32m+[0m[0m nat                = false
+          [32m+[0m[0m nat_ip_address     = (known after apply)
+          [32m+[0m[0m nat_ip_version     = (known after apply)
+          [32m+[0m[0m security_group_ids = (known after apply)
+          [32m+[0m[0m subnet_id          = (known after apply)
+        }
+
+      [32m+[0m[0m placement_policy (known after apply)
+
+      [32m+[0m[0m resources {
+          [32m+[0m[0m core_fraction = 5
+          [32m+[0m[0m cores         = 2
+          [32m+[0m[0m memory        = 2
+        }
+
+      [32m+[0m[0m scheduling_policy (known after apply)
+    }
+
+[1m  # yandex_vpc_gateway.nat_gateway[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_gateway" "nat_gateway" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "fops-gateway-cours-fops39-skv"
+
+      [32m+[0m[0m shared_egress_gateway {}
+    }
+
+[1m  # yandex_vpc_network.skv[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_network" "skv" {
+      [32m+[0m[0m created_at                = (known after apply)
+      [32m+[0m[0m default_security_group_id = (known after apply)
+      [32m+[0m[0m folder_id                 = (known after apply)
+      [32m+[0m[0m id                        = (known after apply)
+      [32m+[0m[0m labels                    = (known after apply)
+      [32m+[0m[0m name                      = "skv-fops39-cours-fops39-skv"
+      [32m+[0m[0m subnet_ids                = (known after apply)
+    }
+
+[1m  # yandex_vpc_route_table.route[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_route_table" "route" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "fops-route-table-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+
+      [32m+[0m[0m static_route {
+          [32m+[0m[0m destination_prefix = "0.0.0.0/0"
+          [32m+[0m[0m gateway_id         = (known after apply)
+            [90m# (1 unchanged attribute hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_security_group.LAN[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_security_group" "LAN" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "LAN-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+      [32m+[0m[0m status     = (known after apply)
+
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить весь исходящий трафик"
+          [32m+[0m[0m from_port         = 0
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = -1
+          [32m+[0m[0m protocol          = "ANY"
+          [32m+[0m[0m to_port           = 65535
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить весь трафик из внутренней сети"
+          [32m+[0m[0m from_port         = 0
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = -1
+          [32m+[0m[0m protocol          = "ANY"
+          [32m+[0m[0m to_port           = 65535
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "10.10.10.192/26",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_security_group.alb_sg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_security_group" "alb_sg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "alb-sg-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+      [32m+[0m[0m status     = (known after apply)
+
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить трафик к веб-серверам"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 80
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "10.10.10.192/26",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить HTTP трафик из интернета"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 80
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_security_group.bastion-sg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_security_group" "bastion-sg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "bastion-sg-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+      [32m+[0m[0m status     = (known after apply)
+
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить весь исходящий трафик"
+          [32m+[0m[0m from_port         = 0
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = -1
+          [32m+[0m[0m protocol          = "ANY"
+          [32m+[0m[0m to_port           = 65535
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить SSH доступ из интернета на порт 22"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 22
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить SSH доступ из интернета на порт 2225"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 2225
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_security_group.elasticsearch_sg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_security_group" "elasticsearch_sg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "elasticsearch-sg-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+      [32m+[0m[0m status     = (known after apply)
+
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить весь исходящий трафик"
+          [32m+[0m[0m from_port         = 0
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = -1
+          [32m+[0m[0m protocol          = "ANY"
+          [32m+[0m[0m to_port           = 65535
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить SSH доступ только с bastion host"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 22
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m security_group_id = (known after apply)
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = []
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (1 unchanged attribute hidden)[0m[0m
+        }
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить доступ к Elasticsearch из Kibana и веб-серверов"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 9200
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "10.10.10.192/26",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_security_group.grafana_sg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_security_group" "grafana_sg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "grafana-sg-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+      [32m+[0m[0m status     = (known after apply)
+
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить весь исходящий трафик"
+          [32m+[0m[0m from_port         = 0
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = -1
+          [32m+[0m[0m protocol          = "ANY"
+          [32m+[0m[0m to_port           = 65535
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить доступ к Prometheus"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 9090
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "10.10.10.192/26",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить HTTP доступ к Grafana из интернета"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 3000
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить SSH доступ только с bastion host"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 22
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m security_group_id = (known after apply)
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = []
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (1 unchanged attribute hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_security_group.kibana_sg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_security_group" "kibana_sg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "kibana-sg-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+      [32m+[0m[0m status     = (known after apply)
+
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить весь исходящий трафик"
+          [32m+[0m[0m from_port         = 0
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = -1
+          [32m+[0m[0m protocol          = "ANY"
+          [32m+[0m[0m to_port           = 65535
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить доступ к Elasticsearch"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 9200
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "10.10.10.192/26",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить HTTP доступ к Kibana из интернета"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 5601
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить SSH доступ только с bastion host"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 22
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m security_group_id = (known after apply)
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = []
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (1 unchanged attribute hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_security_group.prometheus_sg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_security_group" "prometheus_sg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "prometheus-sg-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+      [32m+[0m[0m status     = (known after apply)
+
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить весь исходящий трафик"
+          [32m+[0m[0m from_port         = 0
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = -1
+          [32m+[0m[0m protocol          = "ANY"
+          [32m+[0m[0m to_port           = 65535
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить сбор метрик с веб-серверов"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 9100
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "10.10.10.192/26",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить SSH доступ только с bastion host"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 22
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m security_group_id = (known after apply)
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = []
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (1 unchanged attribute hidden)[0m[0m
+        }
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить доступ к Prometheus из Grafana"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 9090
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "10.10.10.192/26",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_security_group.web-sg[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_security_group" "web-sg" {
+      [32m+[0m[0m created_at = (known after apply)
+      [32m+[0m[0m folder_id  = (known after apply)
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m labels     = (known after apply)
+      [32m+[0m[0m name       = "web-sg-cours-fops39-skv"
+      [32m+[0m[0m network_id = (known after apply)
+      [32m+[0m[0m status     = (known after apply)
+
+      [32m+[0m[0m egress {
+          [32m+[0m[0m description       = "Разрешить весь исходящий трафик"
+          [32m+[0m[0m from_port         = 0
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = -1
+          [32m+[0m[0m protocol          = "ANY"
+          [32m+[0m[0m to_port           = 65535
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "0.0.0.0/0",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить HTTP трафик из ALB"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 80
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = [
+              [32m+[0m[0m "10.10.10.192/26",
+              [32m+[0m[0m "198.18.235.0/24",
+              [32m+[0m[0m "198.18.248.0/24",
+            ]
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (2 unchanged attributes hidden)[0m[0m
+        }
+      [32m+[0m[0m ingress {
+          [32m+[0m[0m description       = "Разрешить SSH доступ только с bastion host"
+          [32m+[0m[0m from_port         = -1
+          [32m+[0m[0m id                = (known after apply)
+          [32m+[0m[0m labels            = (known after apply)
+          [32m+[0m[0m port              = 22
+          [32m+[0m[0m protocol          = "TCP"
+          [32m+[0m[0m security_group_id = (known after apply)
+          [32m+[0m[0m to_port           = -1
+          [32m+[0m[0m v4_cidr_blocks    = []
+          [32m+[0m[0m v6_cidr_blocks    = []
+            [90m# (1 unchanged attribute hidden)[0m[0m
+        }
+    }
+
+[1m  # yandex_vpc_subnet.skv-locnet-a[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_subnet" "skv-locnet-a" {
+      [32m+[0m[0m created_at     = (known after apply)
+      [32m+[0m[0m folder_id      = (known after apply)
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m labels         = (known after apply)
+      [32m+[0m[0m name           = "skv-fops-cours-fops39-skv-ru-central1-a"
+      [32m+[0m[0m network_id     = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m v4_cidr_blocks = [
+          [32m+[0m[0m "10.10.10.192/28",
+        ]
+      [32m+[0m[0m v6_cidr_blocks = (known after apply)
+      [32m+[0m[0m zone           = "ru-central1-a"
+    }
+
+[1m  # yandex_vpc_subnet.skv-locnet-b[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_subnet" "skv-locnet-b" {
+      [32m+[0m[0m created_at     = (known after apply)
+      [32m+[0m[0m folder_id      = (known after apply)
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m labels         = (known after apply)
+      [32m+[0m[0m name           = "skv-fops-cours-fops39-skv-ru-central1-b"
+      [32m+[0m[0m network_id     = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m v4_cidr_blocks = [
+          [32m+[0m[0m "10.10.10.208/28",
+        ]
+      [32m+[0m[0m v6_cidr_blocks = (known after apply)
+      [32m+[0m[0m zone           = "ru-central1-b"
+    }
+
+[1m  # yandex_vpc_subnet.skv-locnet-d[0m will be created
+[0m  [32m+[0m[0m resource "yandex_vpc_subnet" "skv-locnet-d" {
+      [32m+[0m[0m created_at     = (known after apply)
+      [32m+[0m[0m folder_id      = (known after apply)
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m labels         = (known after apply)
+      [32m+[0m[0m name           = "skv-fops-cours-fops39-skv-ru-central1-d"
+      [32m+[0m[0m network_id     = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m v4_cidr_blocks = [
+          [32m+[0m[0m "10.10.10.224/28",
+        ]
+      [32m+[0m[0m v6_cidr_blocks = (known after apply)
+      [32m+[0m[0m zone           = "ru-central1-d"
+    }
+
+[1mPlan:[0m [0m27 to add, 0 to change, 0 to destroy.
+[90m
+─────────────────────────────────────────────────────────────────────────────[0m
+
+Saved the plan to: tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "tfplan"
