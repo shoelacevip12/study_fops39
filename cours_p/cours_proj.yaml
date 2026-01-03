@@ -1,0 +1,11 @@
+---
+- name: Развертывание инфраструктуры курсового проекта
+  hosts: all
+  become: yes
+  gather_facts: yes
+  vars:
+    # install_soft: false # включаем(true)\выключаем(false) установку софта
+    dist_upd: true # включаем(true)\выключаем(false) только обновление кеша
+
+  roles:
+    - fops39_skv_2025

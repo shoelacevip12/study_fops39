@@ -1,0 +1,4 @@
+---
+- name: Обновление и установка основных пакетов
+  include_tasks:
+    file: upd_inst.yml

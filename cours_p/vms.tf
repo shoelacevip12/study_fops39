@@ -180,7 +180,7 @@ resource "yandex_compute_instance" "grafana" {
 
   network_interface {
     subnet_id  = yandex_vpc_subnet.skv-locnet-d.id
-    nat        = true
+    nat        = false
     ip_address = "10.10.10.232"
     security_group_ids = [
       yandex_vpc_security_group.grafana_sg.id,
@@ -254,7 +254,7 @@ resource "yandex_compute_instance" "kibana" {
 
   network_interface {
     subnet_id  = yandex_vpc_subnet.skv-locnet-d.id
-    nat        = true
+    nat        = false
     ip_address = "10.10.10.234"
     security_group_ids = [
       yandex_vpc_security_group.kibana_sg.id,
@@ -281,21 +281,21 @@ resource "local_file" "hosts_ans" {
     ${yandex_compute_instance.web-b.network_interface.0.ip_address} hostname=web-b
     
     [webservers:vars]
-    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
+    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p -i ~/.ssh/id_cours_fops39_2025_ed25519 skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
     
     [monitoring]
     ${yandex_compute_instance.prometheus.network_interface.0.ip_address} hostname=prometheus
     ${yandex_compute_instance.grafana.network_interface.0.ip_address} hostname=grafana
     
     [monitoring:vars]
-    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
+    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p -i ~/.ssh/id_cours_fops39_2025_ed25519 skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
     
     [logging]
     ${yandex_compute_instance.elasticsearch.network_interface.0.ip_address} hostname=elasticsearch
     ${yandex_compute_instance.kibana.network_interface.0.ip_address} hostname=kibana
     
     [logging:vars]
-    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
+    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p -i ~/.ssh/id_cours_fops39_2025_ed25519 skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
   EOT
 
   filename = "./hosts.ini"

@@ -69,21 +69,9 @@ users:
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
-      - ssh-ed25519
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPK/Vb9xf7O0dTgwHZe3vk8QdKEEUj44vD3z270oHq0y cours_fops39_2025
     lock_passwd: false
 package_update: true
-package_upgrade: true
-packages:
-  - wget
-  - curl
-  - gnupg
-  - software-properties-common
-  - python3-psycopg2
-  - acl
-  - locales-all
-runcmd:
-  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
-  - [ systemctl, restart, sshd ]
 EOF
 
 # Добавляем содержимое публичного ключа в cloud-init.yml
@@ -1009,5 +997,168 @@ git commit -am 'commit_4, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ### commit_5, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка по ansible
 ```bash
+# Создание основного конфига ansible с готовыми преднастройками
+# где:
+# "home=./" Выставляем домашний каталог проекта текущий каталог
+# "ssh_agent=auto" Выставляем автоматический запуск ssh-agent при подключении к узлам
+# "host_key_checking=False" Отключаем запрос fingerprints при подключении по ssh к Управляемым хостам
+# "roles_path=./roles" Выставляем папку расположения ролей
+# "inventory=./hosts.ini" Выставляем ранее созданный файл Управляемых хостов как по умолчанию
+#  вместо ansible-config init --disabled -t all > ansible.cfg
+cat > ansible.cfg <<"EOF"
+[defaults]
+home=./
+inventory=./hosts.ini
+roles_path=./roles
+host_key_checking=False
+[privilege_escalation]
+[persistent_connection]
+[connection]
+ssh_agent=auto
+[colors]
+[selinux]
+[diff]
+[galaxy]
+[inventory]
+[netconf_connection]
+[paramiko_connection]
+host_key_checking=False
+[jinja2]
+[tags]
+[runas_become_plugin]
+[su_become_plugin]
+[sudo_become_plugin]
+[callback_tree]
+[ssh_connection]
+host_key_checking=False
+[winrm]
+[inventory_plugins]
+[inventory_plugin_script]
+[inventory_plugin_yaml]
+[url_lookup]
+[powershell]
+[vars_host_group_vars]
+EOF
+
+# Создаем папку расположения ролей проекта
+mkdir roles
+
+# Генерация шаблона(файлов и папок) роли в папку ./roles 
+ansible-galaxy init roles/fops39_skv_2025
+```
+#### Создание playbook
+```bash
+# Создание файла основной логики выполняемого процесса playbook
+# На который мы будем ссылаться при использовании команды ansible-playbook
+# c указанием:
+# 1. на какой группе хостов будет выполнено действие
+# 2. Вход под суперпользователем (become: yes)
+# 3. Методы авторизации под суперпользователем
+# 4. Сбор дополнительных переменных(фактов) для взаимодействия с группой хостов
+# 5. Указанием списка ролей где название берется из названия каталога ./roles/xrdp_skv
+cat > ./cours_proj.yaml<< 'EOF'
+---
+- name: Развертывание инфраструктуры курсового проекта
+  hosts: all
+  become: yes
+  gather_facts: yes
+  vars:
+    # install_soft: false # включаем(true)\выключаем(false) установку софта
+    dist_upd: true # включаем(true)\выключаем(false) только обновление кеша
+
+  roles:
+    - fops39_skv_2025
+EOF
+```
+```bash
+# Редактируем шаблон файла с переменными по умолчанию
+# При запуске роли ../defaults/main.yml
+cat > ./roles/fops39_skv_2025/defaults/main.yml << 'EOF'
+---
+# install_soft: true # установка софта
+dist_upd: true # обновление дистрибутивов
+EOF
+```
+
+```bash
+# Редактируем шаблон файла с задачами к которому идет первое обращение
+# При запуске роли ../tasks/main.yml
+# Создано обращение к отдельным файлам задач
+cat > ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
+---
+- name: Обновление и установка основных пакетов
+  include_tasks:
+    file: upd_inst.yml
+  when: dist_upd | bool
+EOF
+```
+
+```bash
+# Создание файла с отдельными задачами к которому идет обращение в ../tasks/main.yml
+# 1. Обновление списка пакетов и обновление установленных программ
+# /usr/sbin в переменной окружения PATH для суперпользователя на удаленном хосте
+# 4. Удаление пакета xrdp для тестового прогона
+# 5. Установка пакета xrdp и обращение (notify) к обработчику если будут изменения
+cat > ./roles/fops39_skv_2025/tasks/upd_inst.yml << 'EOF'
+---
+- name: Обновление пакетов
+  apt:
+    update_cache: yes
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Установка базовых утилит
+  apt:
+    name:
+      - wget
+      - curl
+      - gnupg
+      - software-properties-common
+      - python3-psycopg2
+      - acl
+      - locales-all
+      - autossh
+      - net-tools
+    state: present
+
+- name: Генерация русской локали
+  shell: |
+    echo "ru_RU.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+  args:
+    executable: /bin/bash
+
+- name: Установка часового пояса
+  timezone:
+    name: Europe/Moscow
+EOF
+```
+```bash
+git add . .. \
+&& git status
+
+git commit -am 'commit_5, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
+```
+### commit_6, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка по ansible
+
+```bash
+# Проверка tf файлов проекта и создание файла запуска terraform
+terraform validate \
+&& terraform fmt  \
+&& terraform init --upgrade \
+&& terraform plan -out=tfplan
+
+# Применение файла запуска terraform
+terraform apply "tfplan"
+
+# Тестовое подключение и вывод рабочих машин
+ssh -o StrictHostKeyChecking=no -i \
+~/.ssh/id_cours_fops39_2025_ed25519 -A \
+skv@"$(grep -A1 "bastion" hosts.ini \
+      | tail -n1)" \
+      hostnamectl \
+&& yc compute instance list
 ```
