@@ -1,0 +1,62 @@
+---
+# - name: Debug hostvars
+#   debug:
+#     msg:
+#       - "grafana IP: {{ hostvars['grafana'].ansible_host }}"
+#       - "kibana IP: {{ hostvars['kibana'].ansible_host }}"
+#   delegate_to: localhost
+#   run_once: true
+
+- name: Создание autossh службы для Grafana
+  copy:
+    content: |
+      [Unit]
+      Description=AutoSSH tunnel for Grafana
+      After=network.target
+
+      [Service]
+      User=root
+      ExecStart=/usr/bin/autossh -M 0 -N -L 3000:{{ hostvars['grafana'].ansible_host }}:3000 skv@localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=34
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/autossh-grafana.service
+    mode: '0644'
+    owner: root
+    group: root
+  notify: start_autossh
+
+- name: Создание autossh службы для Kibana
+  copy:
+    content: |
+      [Unit]
+      Description=AutoSSH tunnel for Kibana
+      After=network.target
+
+      [Service]
+      User=root
+      ExecStart=/usr/bin/autossh -M 0 -N -L 5601:{{ hostvars['kibana'].ansible_host }}:5601 skv@localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=34
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/autossh-kibana.service
+    mode: '0644'
+    owner: root
+    group: root
+  notify: start_autossh
+
+- name: Конфигурация SSH ля внутренних служб
+  ansible.builtin.copy:
+    content: |
+      Host *.internal
+        ProxyJump skv@localhost
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+    dest: /home/skv/.ssh/config
+    owner: skv
+    group: skv
+    mode: '0600'

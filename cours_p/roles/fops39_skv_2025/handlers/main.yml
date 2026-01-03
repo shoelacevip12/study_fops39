@@ -1,0 +1,13 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Запуск autossh служб обработчиком
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+    masked: no
+    daemon_reload: yes
+  loop:
+    - autossh-grafana.service
+    - autossh-kibana.service
+  listen: start_autossh

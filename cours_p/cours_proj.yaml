@@ -1,0 +1,12 @@
+---
+- name: Развертывание инфраструктуры курсового проекта
+  hosts: all
+  become: yes
+  gather_facts: yes
+  vars:
+    # включаем(true)\выключаем(false) задачи роли
+    dist_upd: false # Установка и обновление пакетов всех машин
+    port_forwards: true # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
+    # install_soft: false # установка 
+  roles:
+    - fops39_skv_2025

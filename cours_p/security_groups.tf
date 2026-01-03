@@ -124,10 +124,10 @@ resource "yandex_vpc_security_group" "grafana_sg" {
   network_id = yandex_vpc_network.skv.id
 
   ingress {
-    description    = "Разрешить HTTP доступ к Grafana из интернета"
-    protocol       = "TCP"
-    port           = 3000
-    v4_cidr_blocks = ["0.0.0.0/0"]
+    description       = "Разрешить доступ к Grafana только с bastion host"
+    protocol          = "TCP"
+    port              = 3000
+    security_group_id = yandex_vpc_security_group.bastion_sg.id
   }
 
   ingress {
@@ -187,10 +187,10 @@ resource "yandex_vpc_security_group" "kibana_sg" {
   network_id = yandex_vpc_network.skv.id
 
   ingress {
-    description    = "Разрешить HTTP доступ к Kibana из интернета"
-    protocol       = "TCP"
-    port           = 5601
-    v4_cidr_blocks = ["0.0.0.0/0"]
+    description       = "Разрешить доступ к Kibana только с bastion host"
+    protocol          = "TCP"
+    port              = 5601
+    security_group_id = yandex_vpc_security_group.bastion_sg.id
   }
 
   ingress {

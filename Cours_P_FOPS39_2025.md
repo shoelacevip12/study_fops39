@@ -59,7 +59,8 @@ chmod 644 ~/.ssh/id_cours_fops39_2025_ed25519.pub
 # включаем агента-ssh
 eval $(ssh-agent) \
 && ssh-add ~/.ssh/id_cours_fops39_2025_ed25519
-
+```
+```bash
 # содержимое файла cloud-init
 cat >cloud-init.yml<<'EOF'
 #cloud-config
@@ -69,25 +70,14 @@ users:
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
-      - ssh-ed25519
-    lock_passwd: false
-package_update: true
-package_upgrade: true
-packages:
-  - wget
-  - curl
-  - gnupg
-  - software-properties-common
-  - python3-psycopg2
-  - acl
-  - locales-all
-runcmd:
-  - [ sed, -i, 's/#Port 22/Port 2225/', /etc/ssh/sshd_config ]
-  - [ systemctl, restart, sshd ]
+      - ssh-ed25519 
 EOF
-
+```
+```bash
 # Добавляем содержимое публичного ключа в cloud-init.yml
-sed -i "8s|.*|      - $(cat ~/.ssh/id_cours_fops39_2025_ed25519.pub)|" cloud-init.yml
+sed -i "8s|.*|      - $(cat ~/.ssh/id_cours_fops39_2025_ed25519.pub \
+                      | tr -d '\n\r')|" \
+cloud-init.yml
 ```
 ```bash
 git branch -v
@@ -871,7 +861,7 @@ resource "yandex_compute_instance" "grafana" {
 
   network_interface {
     subnet_id  = yandex_vpc_subnet.skv-locnet-d.id
-    nat        = true
+    nat        = false
     ip_address = "10.10.10.232"
     security_group_ids = [
       yandex_vpc_security_group.grafana_sg.id,
@@ -945,7 +935,7 @@ resource "yandex_compute_instance" "kibana" {
 
   network_interface {
     subnet_id  = yandex_vpc_subnet.skv-locnet-d.id
-    nat        = true
+    nat        = false
     ip_address = "10.10.10.234"
     security_group_ids = [
       yandex_vpc_security_group.kibana_sg.id,
@@ -961,32 +951,29 @@ resource "local_file" "hosts_ans" {
     ansible_user=skv
     ansible_ssh_private_key_file="~/.ssh/id_cours_fops39_2025_ed25519"
     
-    [alb]
-    ${yandex_alb_load_balancer.alb.listener[0].endpoint[0].address[0].external_ipv4_address[0].address}
-    
     [bastion]
     ${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}
     
     [webservers]
-    ${yandex_compute_instance.web-a.network_interface.0.ip_address} hostname=web-a
-    ${yandex_compute_instance.web-b.network_interface.0.ip_address} hostname=web-b
+    web-a ansible_host=${yandex_compute_instance.web-a.network_interface.0.ip_address}
+    web-b ansible_host=${yandex_compute_instance.web-b.network_interface.0.ip_address}
     
     [webservers:vars]
-    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
+    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p -i ~/.ssh/id_cours_fops39_2025_ed25519 skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
     
     [monitoring]
-    ${yandex_compute_instance.prometheus.network_interface.0.ip_address} hostname=prometheus
-    ${yandex_compute_instance.grafana.network_interface.0.ip_address} hostname=grafana
+    prometheus ansible_host=${yandex_compute_instance.prometheus.network_interface.0.ip_address}
+    grafana ansible_host=${yandex_compute_instance.grafana.network_interface.0.ip_address}
     
     [monitoring:vars]
-    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
+    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p -i ~/.ssh/id_cours_fops39_2025_ed25519 skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
     
     [logging]
-    ${yandex_compute_instance.elasticsearch.network_interface.0.ip_address} hostname=elasticsearch
-    ${yandex_compute_instance.kibana.network_interface.0.ip_address} hostname=kibana
+    elasticsearch ansible_host=${yandex_compute_instance.elasticsearch.network_interface.0.ip_address}
+    kibana ansible_host=${yandex_compute_instance.kibana.network_interface.0.ip_address}
     
     [logging:vars]
-    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
+    ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -o StrictHostKeyChecking=accept-new -W %h:%p -i ~/.ssh/id_cours_fops39_2025_ed25519 skv@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
   EOT
 
   filename = "./hosts.ini"
@@ -1009,5 +996,283 @@ git commit -am 'commit_4, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ### commit_5, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка по ansible
 ```bash
+# Создание основного конфига ansible с готовыми преднастройками
+# где:
+# "home=./" Выставляем домашний каталог проекта текущий каталог
+# "ssh_agent=auto" Выставляем автоматический запуск ssh-agent при подключении к узлам
+# "host_key_checking=False" Отключаем запрос fingerprints при подключении по ssh к Управляемым хостам
+# "roles_path=./roles" Выставляем папку расположения ролей
+# "inventory=./hosts.ini" Выставляем ранее созданный файл Управляемых хостов как по умолчанию
+#  вместо ansible-config init --disabled -t all > ansible.cfg
+cat > ansible.cfg <<"EOF"
+[defaults]
+home=./
+inventory=./hosts.ini
+roles_path=./roles
+host_key_checking=False
+[privilege_escalation]
+[persistent_connection]
+[connection]
+ssh_agent=auto
+[colors]
+[selinux]
+[diff]
+[galaxy]
+[inventory]
+[netconf_connection]
+[paramiko_connection]
+host_key_checking=False
+[jinja2]
+[tags]
+[runas_become_plugin]
+[su_become_plugin]
+[sudo_become_plugin]
+[callback_tree]
+[ssh_connection]
+host_key_checking=False
+[winrm]
+[inventory_plugins]
+[inventory_plugin_script]
+[inventory_plugin_yaml]
+[url_lookup]
+[powershell]
+[vars_host_group_vars]
+EOF
+
+# Создаем папку расположения ролей проекта
+mkdir roles
+
+# Генерация шаблона(файлов и папок) роли в папку ./roles 
+ansible-galaxy init roles/fops39_skv_2025
 ```
+#### Создание playbook
+```bash
+# Создание файла основной логики выполняемого процесса playbook
+# На который мы будем ссылаться при использовании команды ansible-playbook
+# c указанием:
+# 1. на какой группе хостов будет выполнено действие
+# 2. Вход под суперпользователем (become: yes)
+# 3. Методы авторизации под суперпользователем
+# 4. Сбор дополнительных переменных(фактов) для взаимодействия с группой хостов
+# 5. Указанием списка ролей где название берется из названия каталога ./roles/xrdp_skv
+cat > ./cours_proj.yaml<< 'EOF'
+---
+- name: Развертывание инфраструктуры курсового проекта
+  hosts: all
+  become: yes
+  gather_facts: yes
+  vars:
+    # включаем(true)\выключаем(false) задачи роли
+    dist_upd: false # Установка и обновление пакетов всех машин
+    port_forwards: true # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
+    # install_soft: false # установка 
+  roles:
+    - fops39_skv_2025
+EOF
+```
+```bash
+# Редактируем шаблон файла с переменными по умолчанию
+# При запуске роли ../defaults/main.yml
+cat > ./roles/fops39_skv_2025/defaults/main.yml << 'EOF'
+---
+# install_soft: true # установка софта
+dist_upd: false # обновление дистрибутивов
+port_forwards: false # проброс портов 3000,5601 для Grafana и Kibana
+EOF
+```
+
+```bash
+# Редактируем шаблон файла с задачами к которому идет первое обращение
+# При запуске роли ../tasks/main.yml
+# Создано обращение к отдельным файлам задач
+cat > ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
+---
+- name: Обновление и установка основных пакетов
+  include_tasks:
+    file: upd_inst.yml
+  when: dist_upd | bool
+
+- name: Проброс портов bastion
+  include_tasks: port_forwards.yml
+  when:
+    - port_forwards | bool
+    - inventory_hostname in groups['bastion']
+EOF
+```
+
+```bash
+# Создание файла с отдельными задачами к которому идет обращение в ../tasks/main.yml
+# 1. Обновление списка пакетов и обновление установленных программ
+# /usr/sbin в переменной окружения PATH для суперпользователя на удаленном хосте
+# 4. Удаление пакета xrdp для тестового прогона
+# 5. Установка пакета xrdp и обращение (notify) к обработчику если будут изменения
+cat > ./roles/fops39_skv_2025/tasks/upd_inst.yml << 'EOF'
+---
+- name: Обновление пакетов
+  apt:
+    update_cache: yes
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Установка базовых утилит
+  apt:
+    name:
+      - wget
+      - curl
+      - gnupg
+      - software-properties-common
+      - python3-psycopg2
+      - acl
+      - locales-all
+      - autossh
+      - net-tools
+    state: present
+
+- name: Генерация русской локали
+  shell: |
+    echo "ru_RU.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+  args:
+    executable: /bin/bash
+
+- name: Установка часового пояса
+  timezone:
+    name: Europe/Moscow
+EOF
+```
+```bash
+cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
+---
+# - name: Debug hostvars
+#   debug:
+#     msg:
+#       - "grafana IP: {{ hostvars['grafana'].ansible_host }}"
+#       - "kibana IP: {{ hostvars['kibana'].ansible_host }}"
+#   delegate_to: localhost
+#   run_once: true
+
+- name: Создание autossh службы для Grafana
+  copy:
+    content: |
+      [Unit]
+      Description=AutoSSH tunnel for Grafana
+      After=network.target
+
+      [Service]
+      User=root
+      ExecStart=/usr/bin/autossh -M 0 -N -L 3000:{{ hostvars['grafana'].ansible_host }}:3000 skv@localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=34
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/autossh-grafana.service
+    mode: '0644'
+    owner: root
+    group: root
+  notify: start_autossh
+
+- name: Создание autossh службы для Kibana
+  copy:
+    content: |
+      [Unit]
+      Description=AutoSSH tunnel for Kibana
+      After=network.target
+
+      [Service]
+      User=root
+      ExecStart=/usr/bin/autossh -M 0 -N -L 5601:{{ hostvars['kibana'].ansible_host }}:5601 skv@localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=34
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/autossh-kibana.service
+    mode: '0644'
+    owner: root
+    group: root
+  notify: start_autossh
+
+- name: Конфигурация SSH ля внутренних служб
+  ansible.builtin.copy:
+    content: |
+      Host *.internal
+        ProxyJump skv@localhost
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+    dest: /home/skv/.ssh/config
+    owner: skv
+    group: skv
+    mode: '0600'
+EOF
+```
+```bash
+cat >./roles/fops39_skv_2025/handlers/main.yml <<'EOF'
+#SPDX-License-Identifier: MIT-0
+---
+- name: Запуск autossh служб обработчиком
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+    masked: no
+    daemon_reload: yes
+  loop:
+    - autossh-grafana.service
+    - autossh-kibana.service
+  listen: start_autossh
+EOF
+```
+```bash
+git add . .. \
+&& git status
+
+git commit -am 'commit_5, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
+```
+### commit_6, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка по ansible
+```bash
+
+ansible-galaxy collection install prometheus.prometheus
+
+ansible-galaxy collection install grafana.grafana
+```
+```bash
+# Проверка tf файлов проекта и создание файла запуска terraform
+terraform validate \
+&& terraform fmt  \
+&& terraform init --upgrade \
+&& terraform plan -out=tfplan
+
+# Применение файла запуска terraform
+terraform apply "tfplan"
+
+# Запускам агента-ssh с прописанным ключем
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_cours_fops39_2025_ed25519
+
+# Тестовое подключение рабочих машин
+ssh -o StrictHostKeyChecking=accept-new -i \
+~/.ssh/id_cours_fops39_2025_ed25519 \
+skv@"$(grep -A1 "bastion" hosts.ini \
+      | tail -n1)" \
+      hostnamectl \
+&& yc compute instance list
+
+for ip in {201,211,231,232,233,234}; do \
+ssh -t -o StrictHostKeyChecking=accept-new \
+-J skv@"$(grep -A1 "bastion" hosts.ini \
+      | tail -n1)" \
+skv@10.10.10.$ip \
+"hostnamectl | head -n1"; \
+done
+
+# Запуск Ansible роли
+ansible-playbook cours_proj.yaml
+```
+
+
+
+git clone https://github.com/prometheus-community/ansible.git

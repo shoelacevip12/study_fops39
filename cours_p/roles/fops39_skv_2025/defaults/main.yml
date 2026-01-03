@@ -1,0 +1,4 @@
+---
+# install_soft: true # установка софта
+dist_upd: false # обновление дистрибутивов
+port_forwards: false # проброс портов 3000,5601 для Grafana и Kibana

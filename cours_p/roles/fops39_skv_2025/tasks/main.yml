@@ -1,0 +1,11 @@
+---
+- name: Обновление и установка основных пакетов
+  include_tasks:
+    file: upd_inst.yml
+  when: dist_upd | bool
+
+- name: Проброс портов bastion
+  include_tasks: port_forwards.yml
+  when:
+    - port_forwards | bool
+    - inventory_hostname in groups['bastion']
