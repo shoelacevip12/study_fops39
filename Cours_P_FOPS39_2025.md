@@ -1005,6 +1005,7 @@ git commit -am 'commit_4, cours_fops39_2025' \
 # "host_key_checking=False" Отключаем запрос fingerprints при подключении по ssh к Управляемым хостам
 # "roles_path=./roles" Выставляем папку расположения ролей
 # "inventory=./hosts.ini" Выставляем ранее созданный файл Управляемых хостов как по умолчанию
+# "interpreter_python = auto_silent" Убрать предупреждение про Python
 #  вместо ansible-config init --disabled -t all > ansible.cfg
 cat > ansible.cfg <<"EOF"
 [defaults]
@@ -1012,6 +1013,7 @@ home=./
 inventory=./hosts.ini
 roles_path=./roles
 host_key_checking=False
+interpreter_python = auto_silent
 [privilege_escalation]
 [persistent_connection]
 [connection]
@@ -1050,43 +1052,33 @@ ansible-galaxy init roles/fops39_skv_2025
 #### Создание playbook
 ```bash
 # Создание файла основной логики выполняемого процесса playbook
-# На который мы будем ссылаться при использовании команды ansible-playbook
-# c указанием:
-# 1. на какой группе хостов будет выполнено действие
-# 2. Вход под суперпользователем (become: yes)
-# 3. Методы авторизации под суперпользователем
-# 4. Сбор дополнительных переменных(фактов) для взаимодействия с группой хостов
-# 5. Указанием списка ролей где название берется из названия каталога ./roles/xrdp_skv
+# C указанием списка ролей где название берется из названия каталога
 cat > ./cours_proj.yaml<< 'EOF'
 ---
 - name: Развертывание инфраструктуры курсового проекта
   hosts: all
   become: yes
   gather_facts: yes
-  vars:
-    # включаем(true)\выключаем(false) задачи роли
-    dist_upd: false # Установка и обновление пакетов всех машин
-    port_forwards: true # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
-    # install_soft: false # установка 
+  vars_files:
+    - group_vars/all.yml
   roles:
     - fops39_skv_2025
 EOF
 ```
 ```bash
-# Редактируем шаблон файла с переменными по умолчанию
-# При запуске роли ../defaults/main.yml
-cat > ./roles/fops39_skv_2025/defaults/main.yml << 'EOF'
+# Создание общих переменных для всех ролей и tasks
+mkdir -p group_vars
+
+cat > group_vars/all.yml << 'EOF'
 ---
-# install_soft: true # установка софта
-dist_upd: false # обновление дистрибутивов
-port_forwards: false # проброс портов 3000,5601 для Grafana и Kibana
+# включаем(true)\выключаем(false) задачи роли
+dist_upd: true           # Установка и обновление пакетов всех машин
+port_forwards: true      # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
 EOF
 ```
 
 ```bash
-# Редактируем шаблон файла с задачами к которому идет первое обращение
-# При запуске роли ../tasks/main.yml
-# Создано обращение к отдельным файлам задач
+# Создано обращение к отдельным файлам задач для роли fops39_skv_2025
 cat > ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
 ---
 - name: Обновление и установка основных пакетов
@@ -1101,13 +1093,9 @@ cat > ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
     - inventory_hostname in groups['bastion']
 EOF
 ```
-
+#### Создание файла с отдельными задачами к которому идет обращение в ../tasks/main.yml
 ```bash
-# Создание файла с отдельными задачами к которому идет обращение в ../tasks/main.yml
-# 1. Обновление списка пакетов и обновление установленных программ
-# /usr/sbin в переменной окружения PATH для суперпользователя на удаленном хосте
-# 4. Удаление пакета xrdp для тестового прогона
-# 5. Установка пакета xrdp и обращение (notify) к обработчику если будут изменения
+# для обновления пакетов и установка необходимого минимума
 cat > ./roles/fops39_skv_2025/tasks/upd_inst.yml << 'EOF'
 ---
 - name: Обновление пакетов
@@ -1142,6 +1130,7 @@ cat > ./roles/fops39_skv_2025/tasks/upd_inst.yml << 'EOF'
 EOF
 ```
 ```bash
+# Для проброса grafana и kibana через bastion хост
 cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
 ---
 # - name: Debug hostvars
@@ -1207,6 +1196,7 @@ cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
     mode: '0600'
 EOF
 ```
+#### Обработчик для роли fops39_skv_2025
 ```bash
 cat >./roles/fops39_skv_2025/handlers/main.yml <<'EOF'
 #SPDX-License-Identifier: MIT-0
@@ -1232,13 +1222,79 @@ git commit -am 'commit_5, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ### commit_6, `cours_fops39_2025` Подготовка и запуск стенда
-#### Подготовка по ansible
+#### Подготовка ansible через коллекции ansible-galaxy
+```bash
+# Скачивание коллекции prometheus
+ansible-galaxy collection \
+install prometheus.prometheus \
+-p ./collections
+
+# "collections_paths=./collections" Выставляем папку расположения коллекций
+sed -i '/.\/roles$/a \
+collections_paths=./collections' \
+ansible.cfg
+```
+```bash
+# Создание отдельного playbook для установки Prometheus и Node Exporter
+cat>./prometheus_server.yaml<<'EOF'
+---
+- name: Установка Prometheus
+  hosts: prometheus
+  become: yes
+  gather_facts: yes
+  vars:
+    prometheus_targets:
+      node:
+        - targets:
+            - localhost:9100
+            - "{{ hostvars['prometheus'].ansible_host }}:9100"
+  roles:
+    - prometheus.prometheus.prometheus
+
+- name: Установка Node Exporter
+  hosts: webservers:prometheus
+  become: yes
+  gather_facts: yes
+  roles:
+    - prometheus.prometheus.node_exporter
+EOF
+```
+```bash
+# Добавляем в главный Playbook для установки Prometheus и Node Exporter
+cat>> cours_proj.yaml <<'EOF'
+
+
+- name: Установка Prometheus и Node Exporter
+  import_playbook: prometheus_server.yaml
+  when: install_prometheus | bool
+EOF
+```
+```bash
+echo -e \
+"\ninstall_prometheus: true  # установка Prometheus и Node Exporter" \
+>> group_vars/all.yml
+```
+
+```bash
+git add . .. \
+&& git status
+
+git commit -am 'commit_6, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
+```
+### commit_7, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка ansible через коллекции ansible-galaxy
+
 ```bash
 
-ansible-galaxy collection install prometheus.prometheus
+git clone https://github.com/grafana/grafana-ansible-collection.git
 
-ansible-galaxy collection install grafana.grafana
+mv grafana-ansible-collection ansible_grafana
+
+# Запуск Ansible ролей
+ansible-playbook cours_proj.yaml
 ```
+
 ```bash
 # Проверка tf файлов проекта и создание файла запуска terraform
 terraform validate \
@@ -1269,7 +1325,7 @@ skv@10.10.10.$ip \
 "hostnamectl | head -n1"; \
 done
 
-# Запуск Ansible роли
+# Запуск Ansible ролей
 ansible-playbook cours_proj.yaml
 ```
 

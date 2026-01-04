@@ -1,0 +1,20 @@
+---
+- name: Установка Prometheus
+  hosts: prometheus
+  become: yes
+  gather_facts: yes
+  vars:
+    prometheus_targets:
+      node:
+        - targets:
+            - localhost:9100
+            - "{{ hostvars['prometheus'].ansible_host }}:9100"
+  roles:
+    - prometheus.prometheus.prometheus
+
+- name: Установка Node Exporter
+  hosts: webservers:prometheus
+  become: yes
+  gather_facts: yes
+  roles:
+    - prometheus.prometheus.node_exporter

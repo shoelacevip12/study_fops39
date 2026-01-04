@@ -3,10 +3,11 @@
   hosts: all
   become: yes
   gather_facts: yes
-  vars:
-    # включаем(true)\выключаем(false) задачи роли
-    dist_upd: false # Установка и обновление пакетов всех машин
-    port_forwards: true # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
-    # install_soft: false # установка 
+  vars_files:
+    - group_vars/all.yml
   roles:
     - fops39_skv_2025
+
+- name: Установка Prometheus и Node Exporter
+  import_playbook: prometheus_server.yaml
+  when: install_prometheus | bool

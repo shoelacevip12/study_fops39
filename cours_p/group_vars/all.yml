@@ -1,0 +1,5 @@
+---
+# включаем(true)\выключаем(false) задачи роли
+dist_upd: false           # Установка и обновление пакетов всех машин
+port_forwards: false      # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
+install_prometheus: false  # установка Prometheus и Node Exporter

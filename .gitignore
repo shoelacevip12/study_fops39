@@ -6,6 +6,7 @@ mysql_D/
 master/db/
 slave/db/
 .terraform/
+.collections/
 
 # игнорировать расширения и файлы:
 *.deb
