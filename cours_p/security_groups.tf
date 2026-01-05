@@ -39,6 +39,20 @@ resource "yandex_vpc_security_group" "bastion_sg" {
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description    = "Разрешить для проброса доступ из интернета на порт 3000"
+    protocol       = "TCP"
+    port           = 3000
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description    = "Разрешить для проброса доступ из интернета на порт 5601"
+    protocol       = "TCP"
+    port           = 5601
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     description    = "Разрешить весь исходящий трафик"
     protocol       = "ANY"

@@ -11,3 +11,8 @@
 - name: Установка Prometheus и Node Exporter
   import_playbook: prometheus_server.yaml
   when: install_prometheus | bool
+
+
+- name: Установка Grafana
+  import_playbook: grafana_server.yaml
+  when: install_grafana | bool

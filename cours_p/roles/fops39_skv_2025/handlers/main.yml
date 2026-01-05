@@ -10,4 +10,5 @@
   loop:
     - autossh-grafana.service
     - autossh-kibana.service
+    - ssh.service
   listen: start_autossh

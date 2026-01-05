@@ -308,6 +308,20 @@ resource "yandex_vpc_security_group" "bastion_sg" {
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description    = "Разрешить для проброса доступ из интернета на порт 3000"
+    protocol       = "TCP"
+    port           = 3000
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description    = "Разрешить для проброса доступ из интернета на порт 5601"
+    protocol       = "TCP"
+    port           = 5601
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     description    = "Разрешить весь исходящий трафик"
     protocol       = "ANY"
@@ -393,10 +407,10 @@ resource "yandex_vpc_security_group" "grafana_sg" {
   network_id = yandex_vpc_network.skv.id
 
   ingress {
-    description    = "Разрешить HTTP доступ к Grafana из интернета"
-    protocol       = "TCP"
-    port           = 3000
-    v4_cidr_blocks = ["0.0.0.0/0"]
+    description       = "Разрешить доступ к Grafana только с bastion host"
+    protocol          = "TCP"
+    port              = 3000
+    security_group_id = yandex_vpc_security_group.bastion_sg.id
   }
 
   ingress {
@@ -456,10 +470,10 @@ resource "yandex_vpc_security_group" "kibana_sg" {
   network_id = yandex_vpc_network.skv.id
 
   ingress {
-    description    = "Разрешить HTTP доступ к Kibana из интернета"
-    protocol       = "TCP"
-    port           = 5601
-    v4_cidr_blocks = ["0.0.0.0/0"]
+    description       = "Разрешить доступ к Kibana только с bastion host"
+    protocol          = "TCP"
+    port              = 5601
+    security_group_id = yandex_vpc_security_group.bastion_sg.id
   }
 
   ingress {
@@ -1066,7 +1080,7 @@ cat > ./cours_proj.yaml<< 'EOF'
 EOF
 ```
 ```bash
-# Создание общих переменных для всех ролей и tasks
+# Создание общих переменных для всех групп ролей и tasks
 mkdir -p group_vars
 
 cat > group_vars/all.yml << 'EOF'
@@ -1141,6 +1155,42 @@ cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
 #   delegate_to: localhost
 #   run_once: true
 
+- name: Генерация SSH ключей для пользователя skv
+  community.crypto.openssh_keypair:
+    path: /home/skv/.ssh/id_rsa
+    owner: skv
+    group: skv
+    mode: '0600'
+  register: ssh_key
+
+- name: Чтение содержимого публичного ключа с целевого хоста
+  slurp:
+    src: /home/skv/.ssh/id_rsa.pub
+  register: public_key_content
+  changed_when: false
+
+- name: Добавление публичного ключа в authorized_keys
+  authorized_key:
+    user: skv
+    state: present
+    key: "{{ public_key_content.content | b64decode }}"
+
+- name: Настройка правильных прав доступа для .ssh директории
+  file:
+    path: /home/skv/.ssh
+    owner: skv
+    group: skv
+    mode: '0700'
+    recurse: yes
+
+- name: Настройка SSH для разрешения проброса портов на все интерфейсы
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^GatewayPorts'
+    line: 'GatewayPorts yes'
+    state: present
+  notify: start_autossh
+
 - name: Создание autossh службы для Grafana
   copy:
     content: |
@@ -1149,8 +1199,8 @@ cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
       After=network.target
 
       [Service]
-      User=root
-      ExecStart=/usr/bin/autossh -M 0 -N -L 3000:{{ hostvars['grafana'].ansible_host }}:3000 skv@localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=34
+      User=skv
+      ExecStart=/usr/bin/autossh -M 0 -N -L 0.0.0.0:3000:{{ hostvars['grafana'].ansible_host }}:3000 localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=30
       Restart=always
       RestartSec=10
 
@@ -1170,8 +1220,8 @@ cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
       After=network.target
 
       [Service]
-      User=root
-      ExecStart=/usr/bin/autossh -M 0 -N -L 5601:{{ hostvars['kibana'].ansible_host }}:5601 skv@localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=34
+      User=skv
+      ExecStart=/usr/bin/autossh -M 0 -N -L 0.0.0.0:5601:{{ hostvars['kibana'].ansible_host }}:5601 localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=30
       Restart=always
       RestartSec=10
 
@@ -1183,8 +1233,8 @@ cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
     group: root
   notify: start_autossh
 
-- name: Конфигурация SSH ля внутренних служб
-  ansible.builtin.copy:
+- name: Конфигурация SSH для внутренних служб
+  copy:
     content: |
       Host *.internal
         ProxyJump skv@localhost
@@ -1211,6 +1261,7 @@ cat >./roles/fops39_skv_2025/handlers/main.yml <<'EOF'
   loop:
     - autossh-grafana.service
     - autossh-kibana.service
+    - ssh.service
   listen: start_autossh
 EOF
 ```
@@ -1222,7 +1273,7 @@ git commit -am 'commit_5, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ### commit_6, `cours_fops39_2025` Подготовка и запуск стенда
-#### Подготовка ansible через коллекции ansible-galaxy
+#### Подготовка ansible через коллекции ansible-galaxy prometheus
 ```bash
 # Скачивание коллекции prometheus
 ansible-galaxy collection \
@@ -1270,6 +1321,7 @@ cat>> cours_proj.yaml <<'EOF'
 EOF
 ```
 ```bash
+# Создание общей переменной для всех групп ролей и tasks на включение выключения выполнения операций по развертыванию Prometheus и Node Exporter
 echo -e \
 "\ninstall_prometheus: true  # установка Prometheus и Node Exporter" \
 >> group_vars/all.yml
@@ -1283,16 +1335,100 @@ git commit -am 'commit_6, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ### commit_7, `cours_fops39_2025` Подготовка и запуск стенда
-#### Подготовка ansible через коллекции ansible-galaxy
+#### Подготовка ansible через коллекции ansible-galaxy grafana
+```bash
+# Скачивание коллекции grafana
+ansible-galaxy collection \
+install grafana.grafana \
+-p ./collections
+```
+```bash
+# Создание общих переменных для хоста grafana
+mkdir -p host_vars
+
+cat > host_vars/grafana.yml << 'EOF'
+---
+grafana_version: "12.3.1"  # Версия Grafana
+grafana_admin_user: "admin"
+grafana_admin_password: "test@skv"
+grafana_deb_url: "https://drive.usercontent.google.com/download?id=1VjodTd3ro6mCUCmyJWkcY0c4XRjc34yO&export=download&confirm=t&uuid=3c0f5a8b-e769-4e13-a774-a01ec7e04b03&at=ANTm3cy8tILZs5QZQAb61Bz1itWH%3A1767616590783"
+grafana_deb_file: "grafana_12.3.1_20271043721_linux_amd64"
+EOF
+```
 
 ```bash
+# Создание отдельного playbook для установки Grafana
+cat > ./grafana_server.yaml << 'EOF'
+---
+- name: Установка Grafana
+  hosts: grafana
+  become: yes
+  gather_facts: yes
+  vars:
+    grafana_ini:
+      security:
+        admin_user: "{{ grafana_admin_user }}"
+        admin_password: "{{ grafana_admin_password }}"
+      # server:
+      #   root_url: "%(protocol)s://%(domain)s/grafana/"
+      #   serve_from_sub_path: true
+    grafana_datasources:
+      - name: "Prometheus"
+        type: "prometheus"
+        # access: "proxy"
+        url: "http://{{ hostvars['prometheus'].ansible_host }}:9090"
+        # isDefault: true
 
-git clone https://github.com/grafana/grafana-ansible-collection.git
+  pre_tasks:
+    - name: скачивание Grafana DEB пакета
+      get_url:
+        url: "{{ grafana_deb_url }}"
+        dest: "/tmp/{{ grafana_deb_file }}"
+        mode: '0644'
+        timeout: 300
+        headers:
+          Content-Disposition: "attachment"
 
-mv grafana-ansible-collection ansible_grafana
+    - name: Установка Grafana из DEB пакета
+      apt:
+        deb: "/tmp/{{ grafana_deb_file }}"
+        state: present
 
-# Запуск Ansible ролей
-ansible-playbook cours_proj.yaml
+  roles:
+    - grafana.grafana.grafana
+EOF
+```
+```bash
+# Добавление в основной playbook grafana
+cat >> cours_proj.yaml << 'EOF'
+
+
+- name: Установка Grafana
+  import_playbook: grafana_server.yaml
+  when: install_grafana | bool
+EOF
+```
+```bash
+# Создание общей переменной для всех групп ролей и tasks на включение выключения выполнения операций по развертыванию Grafana
+echo -e "\ninstall_grafana: true  # установка Grafana" \
+>> group_vars/all.yml
+```
+```bash
+# Удаление блока добавления репозитория grafana "Add Grafana apt repository" в tasks роли коллекции
+sed -i '/Add Grafana apt repository/,+17d' \
+./collections/ansible_collections/grafana/grafana/roles/grafana/tasks/install.yml
+```
+```bash
+git add . .. \
+&& git status
+
+git commit -am 'commit_7, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
+```
+### commit_8, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка ansible через коллекции 
+
+```bash
 ```
 
 ```bash
@@ -1305,12 +1441,22 @@ terraform validate \
 # Применение файла запуска terraform
 terraform apply "tfplan"
 
+# Чистка известных хостов для подключения по ssh
+> ~/.ssh/known_hosts
+
+# Запуск Ansible ролей
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_cours_fops39_2025_ed25519 \
+&& > ~/.ssh/known_hosts \
+&& ansible-playbook cours_proj.yaml
+```
+```bash
 # Запускам агента-ssh с прописанным ключем
 eval $(ssh-agent) \
 && ssh-add ~/.ssh/id_cours_fops39_2025_ed25519
 
 # Тестовое подключение рабочих машин
-ssh -o StrictHostKeyChecking=accept-new -i \
+ssh -t -o StrictHostKeyChecking=accept-new -i \
 ~/.ssh/id_cours_fops39_2025_ed25519 \
 skv@"$(grep -A1 "bastion" hosts.ini \
       | tail -n1)" \
@@ -1326,9 +1472,8 @@ skv@10.10.10.$ip \
 done
 
 # Запуск Ansible ролей
-ansible-playbook cours_proj.yaml
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_cours_fops39_2025_ed25519 \
+&& > ~/.ssh/known_hosts \
+&& ansible-playbook cours_proj.yaml
 ```
-
-
-
-git clone https://github.com/prometheus-community/ansible.git

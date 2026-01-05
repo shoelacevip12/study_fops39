@@ -1,11 +1,39 @@
 ---
-# - name: Debug hostvars
-#   debug:
-#     msg:
-#       - "grafana IP: {{ hostvars['grafana'].ansible_host }}"
-#       - "kibana IP: {{ hostvars['kibana'].ansible_host }}"
-#   delegate_to: localhost
-#   run_once: true
+- name: Генерация SSH ключей для пользователя skv
+  community.crypto.openssh_keypair:
+    path: /home/skv/.ssh/id_rsa
+    owner: skv
+    group: skv
+    mode: '0600'
+  register: ssh_key
+
+- name: Чтение содержимого публичного ключа с целевого хоста
+  slurp:
+    src: /home/skv/.ssh/id_rsa.pub
+  register: public_key_content
+  changed_when: false
+
+- name: Добавление публичного ключа в authorized_keys
+  authorized_key:
+    user: skv
+    state: present
+    key: "{{ public_key_content.content | b64decode }}"
+
+- name: Настройка правильных прав доступа для .ssh директории
+  file:
+    path: /home/skv/.ssh
+    owner: skv
+    group: skv
+    mode: '0700'
+    recurse: yes
+
+- name: Настройка SSH для разрешения проброса портов на все интерфейсы
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^GatewayPorts'
+    line: 'GatewayPorts yes'
+    state: present
+  notify: start_autossh
 
 - name: Создание autossh службы для Grafana
   copy:
@@ -15,8 +43,8 @@
       After=network.target
 
       [Service]
-      User=root
-      ExecStart=/usr/bin/autossh -M 0 -N -L 3000:{{ hostvars['grafana'].ansible_host }}:3000 skv@localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=34
+      User=skv
+      ExecStart=/usr/bin/autossh -M 0 -N -L 0.0.0.0:3000:{{ hostvars['grafana'].ansible_host }}:3000 localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=30
       Restart=always
       RestartSec=10
 
@@ -36,8 +64,8 @@
       After=network.target
 
       [Service]
-      User=root
-      ExecStart=/usr/bin/autossh -M 0 -N -L 5601:{{ hostvars['kibana'].ansible_host }}:5601 skv@localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=34
+      User=skv
+      ExecStart=/usr/bin/autossh -M 0 -N -L 0.0.0.0:5601:{{ hostvars['kibana'].ansible_host }}:5601 localhost -o StrictHostKeyChecking=no -o ServerAliveInterval=30
       Restart=always
       RestartSec=10
 
@@ -49,8 +77,8 @@
     group: root
   notify: start_autossh
 
-- name: Конфигурация SSH ля внутренних служб
-  ansible.builtin.copy:
+- name: Конфигурация SSH для внутренних служб
+  copy:
     content: |
       Host *.internal
         ProxyJump skv@localhost
