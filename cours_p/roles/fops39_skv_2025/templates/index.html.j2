@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Курсовая работа — DevOps-инженер с нуля</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 20px; color: #333; }
+    h1, h2, h3, h4 { margin-top: 1.5em; }
+    h1 { border-bottom: 2px solid #007bff; padding-bottom: 0.3em; }
+    h2 { border-left: 4px solid #007bff; padding-left: 10px; }
+    ul, ol { margin-left: 1.5em; }
+    a { color: #0056b3; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    blockquote { background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 10px 15px; margin: 1em 0; }
+    .warning { color: #d9534f; font-weight: bold; }
+    .note { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; }
+    .task { background-color: #e7f3ff; padding: 12px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<h1>Курсовая работа на профессии «DevOps-инженер с нуля»<br>Выполнено Скворцовым Денисом<br>Группа: FOPS39<br>2025-2026 год обучения</h1>
+
+<nav>
+  <h2>Содержание</h2>
+  <ul>
+    <li><a href="#Задача">Задача</a></li>
+    <li><a href="#Инфраструктура">Инфраструктура</a>
+      <ul>
+        <li><a href="#Сайт">Сайт</a></li>
+        <li><a href="#Мониторинг">Мониторинг</a></li>
+        <li><a href="#Логи">Логи</a></li>
+        <li><a href="#Сеть">Сеть</a></li>
+        <li><a href="#Резервное-копирование">Резервное копирование</a></li>
+        <li><a href="#Дополнительно">Дополнительно</a></li>
+      </ul>
+    </li>
+    <li><a href="#Выполнение-работы">Выполнение работы</a></li>
+    <li><a href="#Критерии-сдачи">Критерии сдачи</a></li>
+    <li><a href="#Как-правильно-задавать-вопросы-дипломному-руководителю">Как правильно задавать вопросы дипломному руководителю</a></li>
+  </ul>
+</nav>
+
+<hr>
+
+<h2 id="Задача">Задача</h2>
+<p>Ключевая задача — разработать отказоустойчивую инфраструктуру для сайта, включающую мониторинг, сбор логов и резервное копирование основных данных. Инфраструктура должна размещаться в <a href="https://cloud.yandex.com/">Yandex Cloud</a>.</p>
+
+<div class="note">
+  <p><strong>Примечание</strong>: в курсовой работе используется система мониторинга Prometheus. Вместо Prometheus вы можете использовать Zabbix. Задание для курсовой работы с использованием Zabbix находится по <a href="https://github.com/netology-code/fops-sysadm-diplom/blob/diplom-zabbix/README.md">ссылке</a>.</p>
+</div>
+
+<div class="note">
+  <p><strong>Перед началом работы над дипломным заданием изучите</strong> <a href="https://github.com/netology-code/devops-materials/blob/master/cloudwork.MD">Инструкция по экономии облачных ресурсов</a>.</p>
+</div>
+
+<h2 id="Инфраструктура">Инфраструктура</h2>
+<p>Для развёртки инфраструктуры используйте Terraform и Ansible.</p>
+<p>Параметры виртуальной машины (ВМ) подбирайте по потребностям сервисов, которые будут на ней работать.</p>
+<p>Ознакомьтесь со всеми пунктами из этой секции, не беритесь сразу выполнять задание, не дочитав до конца. Пункты взаимосвязаны и могут влиять друг на друга.</p>
+
+<h3 id="Сайт">Сайт</h3>
+<ul>
+  <li>Создайте две ВМ в разных зонах, установите на них сервер <code>nginx</code>, если его там нет. ОС и содержимое ВМ должно быть идентичным — это будут наши веб-сервера.</li>
+  <li>Используйте набор статичных файлов для сайта. Можно переиспользовать сайт из домашнего задания.</li>
+  <li>Создайте <a href="https://cloud.yandex.com/docs/application-load-balancer/concepts/target-group">Target Group</a>, включите в неё две созданных ВМ.</li>
+  <li>Создайте <a href="https://cloud.yandex.com/docs/application-load-balancer/concepts/backend-group">Backend Group</a>, настройте backends на target group, ранее созданную. Настройте healthcheck на корень (<code>/</code>) и порт 80, протокол HTTP.</li>
+  <li>Создайте <a href="https://cloud.yandex.com/docs/application-load-balancer/concepts/http-router">HTTP router</a>. Путь укажите — <code>/</code>, backend group — созданную ранее.</li>
+  <li>Создайте <a href="https://cloud.yandex.com/en/docs/application-load-balancer/">Application Load Balancer</a> для распределения трафика на веб-сервера, созданные ранее. Укажите HTTP router, созданный ранее, задайте listener тип <code>auto</code>, порт 80.</li>
+  <li>Протестируйте сайт:<br>
+    <code>curl -v &lt;публичный IP балансера&gt;:80</code></li>
+</ul>
+
+<h3 id="Мониторинг">Мониторинг</h3>
+<ul>
+  <li>Создайте ВМ, разверните на ней Prometheus.</li>
+  <li>На каждую ВМ из веб-серверов установите Node Exporter и <a href="https://github.com/martin-helmich/prometheus-nginxlog-exporter">Nginx Log Exporter</a>.</li>
+  <li>Настройте Prometheus на сбор метрик с этих exporter.</li>
+  <li>Создайте ВМ, установите туда Grafana. Настройте её на взаимодействие с ранее развернутым Prometheus.</li>
+  <li>Настройте дешборды с отображением метрик, минимальный набор — Utilization, Saturation, Errors для:
+    <ul>
+      <li>CPU</li>
+      <li>RAM</li>
+      <li>диски</li>
+      <li>сеть</li>
+      <li><code>http_response_count_total</code></li>
+      <li><code>http_response_size_bytes</code></li>
+    </ul>
+  </li>
+  <li>Добавьте необходимые <a href="https://grafana.com/docs/grafana/latest/panels/thresholds/">thresholds</a> на соответствующие графики.</li>
+</ul>
+
+<h3 id="Логи">Логи</h3>
+<ul>
+  <li>Создайте ВМ, разверните на ней Elasticsearch.</li>
+  <li>Установите <code>filebeat</code> на ВМ с веб-серверами, настройте на отправку <code>access.log</code>, <code>error.log</code> nginx в Elasticsearch.</li>
+  <li>Создайте ВМ, разверните на ней Kibana, сконфигурируйте соединение с Elasticsearch.</li>
+</ul>
+
+<h3 id="Сеть">Сеть</h3>
+<ul>
+  <li>Разверните один VPC.</li>
+  <li>Сервера web, Prometheus, Elasticsearch поместите в приватные подсети.</li>
+  <li>Сервера Grafana, Kibana, application load balancer определите в публичную подсеть.</li>
+  <li>Настройте <a href="https://cloud.yandex.com/docs/vpc/concepts/security-groups">Security Groups</a> соответствующих сервисов на входящий трафик только к нужным портам.</li>
+  <li>Настройте ВМ с публичным адресом, в которой будет открыт только один порт — <code>ssh</code>. Настройте все security groups на разрешение входящего ssh из этой security group. Эта ВМ будет реализовывать концепцию bastion host. Потом можно будет подключаться по ssh ко всем хостам через этот хост.</li>
+</ul>
+
+<h3 id="Резервное-копирование">Резервное копирование</h3>
+<ul>
+  <li>Создайте snapshot дисков всех ВМ.</li>
+  <li>Ограничьте время жизни snapshot в неделю.</li>
+  <li>Сами snapshot настройте на ежедневное копирование.</li>
+</ul>
+
+<h3 id="Дополнительно">Дополнительно</h3>
+<p class="note"><em>Не входит в минимальные требования.</em></p>
+
+<ol>
+  <li><strong>Prometheus + PostgreSQL</strong>: Для Prometheus можно реализовать альтернативный способ хранения данных — в базе данных PostgreSQL. Используйте <a href="https://cloud.yandex.com/en-ru/services/managed-postgresql">Yandex Managed Service for PostgreSQL</a>. Разверните кластер из двух нод с автоматическим failover. Воспользуйтесь адаптером с <a href="https://github.com/CrunchyData/postgresql-prometheus-adapter">https://github.com/CrunchyData/postgresql-prometheus-adapter</a> для настройки отправки данных из Prometheus в новую БД.</li>
+
+  <li><strong>Instance Group</strong>: Вместо конкретных ВМ, которые входят в target group, можно создать <a href="https://cloud.yandex.com/en/docs/compute/concepts/instance-groups/">Instance Group</a>, для которой настройте следующие правила автоматического горизонтального масштабирования:
+    <ul>
+      <li>минимальное количество ВМ на зону — 1,</li>
+      <li>максимальный размер группы — 3.</li>
+    </ul>
+  </li>
+
+  <li><strong>Оповещения</strong>: Можно добавить в Grafana оповещения с помощью Grafana alerts. Как вариант, можно также установить Alertmanager в ВМ к Prometheus, настроить оповещения через него.</li>
+
+  <li><strong>Расширенный сбор логов</strong>: В Elasticsearch добавьте мониторинг логов самого себя, Kibana, Prometheus, Grafana через filebeat. Можно использовать logstash тоже.</li>
+
+  <li><strong>HTTPS</strong>: Воспользуйтесь Yandex Certificate Manager, выпустите сертификат для сайта, если есть доменное имя. Перенастройте работу балансера на HTTPS, при этом нацелен он будет на HTTP веб-серверов.</li>
+</ol>
+
+<h2 id="Выполнение-работы">Выполнение работы</h2>
+<p>На этом этапе вы непосредственно выполняете работу. При этом вы можете консультироваться с руководителем по поводу вопросов, требующих уточнения.</p>
+
+<div class="note">
+  <p>⚠️ В случае недоступности ресурсов Elastic для скачивания рекомендуется разворачивать сервисы с помощью docker контейнеров, основанных на официальных образах.</p>
+</div>
+
+<div class="warning">
+  <p><strong>Важно</strong>: Ещё можно задавать вопросы по поводу того, как реализовать ту или иную функциональность. И руководитель определяет, правильно вы её реализовали или нет. Любые вопросы, которые не освещены в этом документе, стоит уточнять у руководителя. Если его требования и указания расходятся с указанными в этом документе, то приоритетны требования и указания руководителя.</p>
+</div>
+
+<h2 id="Критерии-сдачи">Критерии сдачи</h2>
+<ol>
+  <li>Инфраструктура отвечает минимальным требованиям, описанным в <a href="#Задача">Задаче</a>.</li>
+  <li>Предоставлен доступ ко всем ресурсам, у которых предполагается веб-страница (сайт, Kibana, Grafana).</li>
+  <li>Для ресурсов, к которым предоставить доступ проблематично, предоставлены скриншоты, команды, stdout, stderr, подтверждающие работу ресурса.</li>
+  <li>Работа оформлена в отдельном репозитории в GitHub или в <a href="https://docs.google.com/">Google Docs</a>, разрешён доступ по ссылке.</li>
+  <li>Код размещён в репозитории в GitHub.</li>
+  <li>Работа оформлена так, чтобы были понятны ваши решения и компромиссы.</li>
+  <li>Если использованы дополнительные репозитории, доступ к ним открыт.</li>
+</ol>
+
+<h2 id="Как-правильно-задавать-вопросы-дипломному-руководителю">Как правильно задавать вопросы дипломному руководителю</h2>
+
+<h3>Что поможет решить большинство частых проблем:</h3>
+<ol>
+  <li>Попробовать найти ответ сначала самостоятельно в интернете или в материалах курса и только после этого спрашивать у дипломного руководителя. Навык поиска ответов пригодится вам в профессиональной деятельности.</li>
+  <li>Если вопросов больше одного, присылайте их в виде нумерованного списка. Так дипломному руководителю будет проще отвечать на каждый из них.</li>
+  <li>При необходимости прикрепите к вопросу скриншоты и стрелочкой покажите, где не получается. Программу для этого можно скачать <a href="https://app.prntscr.com/ru/">здесь</a>.</li>
+</ol>
+
+<h3>Что может стать источником проблем:</h3>
+<ol>
+  <li>Вопросы вида «Ничего не работает. Не запускается. Всё сломалось». Дипломный руководитель не сможет ответить на такой вопрос без дополнительных уточнений. Цените своё время и время других.</li>
+  <li>Откладывание выполнения дипломной работы на последний момент.</li>
+  <li>Ожидание моментального ответа на свой вопрос. Дипломные руководители — работающие инженеры, которые занимаются, кроме преподавания, своими проектами. Их время ограничено, поэтому постарайтесь задавать правильные вопросы, чтобы получать быстрые ответы :)</li>
+</ol>
+
+</body>
+</html>

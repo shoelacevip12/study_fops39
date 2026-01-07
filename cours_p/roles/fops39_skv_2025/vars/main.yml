@@ -1,3 +1,16 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # vars file for roles/fops39_skv_2025
+elasticsearch_version: "9.2.3"
+elasticsearch_deb_url: "https://drive.usercontent.google.com/download?id=1JT64hgo5h_vuSVdcEHTp38E2KKvZYUSQ&export=download&authuser=0&confirm=t&uuid=b8108253-504a-4018-8a3e-ad29864bdbde&at=ANTm3cylPIjDcgI9iM9I4hSwlGhB%3A1767798169738"
+elasticsearch_deb_file: "elasticsearch-9.2.3-amd64.deb"
+elasticsearch_checksum_url: "https://drive.usercontent.google.com/download?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK"
+elasticsearch_checksum_file: "elasticsearch-9.2.3-amd64.deb.sha512"
+
+kibana_version: "9.2.3"
+kibana_deb_url: "https://drive.usercontent.google.com/download?id=1ntG0JUFYnn8RQjAuTxZTKcyIyXsjRIbt&export=download&authuser=0&confirm=t&uuid=7d2caffc-8289-4dde-9502-556e598566e4&at=ANTm3cxCjX58M20YqewDTuGhXv47%3A1767798520197"
+kibana_deb_file: "kibana-9.2.3-amd64.deb"
+
+filebeat_version: "9.2.3"
+filebeat_deb_url: "https://drive.usercontent.google.com/download?id=1oc1mkRzUV_2b-6Ul0FsSu4xfFap7anR9&export=download&authuser=0&confirm=t&uuid=56c3d441-9b3f-4497-957b-ea4c1c292828&at=ANTm3cxIQ5mSthC6M-NMYDHiWXaj%3A1767798607518"
+filebeat_deb_file: "filebeat-9.2.3-amd64.deb"

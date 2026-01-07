@@ -1,0 +1,7 @@
+#----------------------- Elasticsearch Configuration -----------------------
+cluster.name: {{ elasticsearch_cluster_name | default('es_SKV-DV') }}
+node.name: "{{ inventory_hostname }}"
+network.host: {{ elasticsearch_network_host | default('0.0.0.0') }}
+http.port: {{ elasticsearch_http_port | default(9200) }}
+discovery.type: {{ elasticsearch_discovery_type | default('single-node') }}
+xpack.security.enabled: {{ elasticsearch_xpack_security_enabled | default(false) }}

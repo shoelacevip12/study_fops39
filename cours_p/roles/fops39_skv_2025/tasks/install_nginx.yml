@@ -1,0 +1,32 @@
+---
+- name: Установка nginx на веб-сервера
+  apt:
+    name: nginx
+    state: present
+    update_cache: no
+
+- name: Копирование конфигурации nginx (стандартная)
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/default
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart_nginx
+
+- name: Создание директории для сайта
+  file:
+    path: /var/www/html
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Копирование главной страницы сайта
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: www-data
+    group: www-data
+    mode: '0644'
+  notify: restart_nginx

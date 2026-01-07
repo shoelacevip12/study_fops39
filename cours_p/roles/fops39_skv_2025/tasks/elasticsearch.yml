@@ -1,0 +1,61 @@
+---
+- name: Скачивание Elasticsearch DEB пакета
+  get_url:
+    url: "{{ elasticsearch_deb_url }}"
+    dest: "/tmp/{{ elasticsearch_deb_file }}"
+    mode: '0644'
+    timeout: 300
+    headers:
+      Content-Disposition: "attachment"
+  register: elasticsearch_download
+  until: elasticsearch_download is succeeded
+  retries: 3
+  delay: 10
+
+- name: Скачивание файла контрольной суммы Elasticsearch
+  get_url:
+    url: "{{ elasticsearch_checksum_url }}"
+    dest: "/tmp/{{ elasticsearch_checksum_file }}"
+    mode: '0644'
+    timeout: 60
+    headers:
+      Content-Disposition: "attachment"
+  register: checksum_download
+  until: checksum_download is succeeded
+  retries: 3
+  delay: 5
+
+- name: Проверка контрольной суммы Elasticsearch
+  shell: |
+    cd /tmp
+    shasum -a 512 -c {{ elasticsearch_checksum_file }}
+  args:
+    executable: /bin/bash
+  register: checksum_result
+  failed_when: checksum_result.rc != 0
+  changed_when: false
+
+- name: Установка Elasticsearch из DEB пакета
+  apt:
+    deb: "/tmp/{{ elasticsearch_deb_file }}"
+    state: present
+    update_cache: yes
+
+- name: Конфигурация Elasticsearch
+  template:
+    src: elasticsearch.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    owner: root
+    group: elasticsearch
+    mode: '0644'
+  notify: restart_elasticsearch
+
+- name: Настройка прав доступа к данным Elasticsearch
+  file:
+    path: /var/lib/elasticsearch
+    owner: elasticsearch
+    group: elasticsearch
+    mode: '0755'
+    recurse: yes
+    state: directory
+  notify: restart_elasticsearch

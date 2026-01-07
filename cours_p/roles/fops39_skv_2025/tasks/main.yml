@@ -9,3 +9,25 @@
   when:
     - port_forwards | bool
     - inventory_hostname in groups['bastion']
+
+- name: Установка и настройка nginx
+  include_tasks: install_nginx.yml
+  when: "'webservers' in group_names"
+
+- name: Установка ELK стека для logging хостов
+  block:
+    - name: Установка Elasticsearch
+      include_tasks: elasticsearch.yml
+      when: inventory_hostname == 'elasticsearch'
+
+    - name: Установка Kibana
+      include_tasks: kibana.yml
+      when: inventory_hostname == 'kibana'
+  when:
+    - inst_elk_stack | bool
+
+- name: Установка Filebeat
+  include_tasks: filebeat.yml
+  when:
+    - inst_filebeat | bool
+    - inventory_hostname in groups['webservers']

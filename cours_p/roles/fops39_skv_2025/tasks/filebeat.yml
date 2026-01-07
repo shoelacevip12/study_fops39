@@ -1,0 +1,36 @@
+---
+- name: Скачивание Filebeat DEB пакета
+  get_url:
+    url: "{{ filebeat_deb_url }}"
+    dest: "/tmp/{{ filebeat_deb_file }}"
+    mode: '0644'
+    timeout: 300
+    headers:
+      Content-Disposition: "attachment"
+  register: filebeat_download
+  until: filebeat_download is succeeded
+  retries: 3
+  delay: 10
+
+- name: Установка Filebeat из DEB пакета
+  apt:
+    deb: "/tmp/{{ filebeat_deb_file }}"
+    state: present
+
+- name: Конфигурация Filebeat для Nginx
+  template:
+    src: filebeat.yml.j2
+    dest: /etc/filebeat/filebeat.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Включение модуля nginx для Filebeat
+  command: filebeat modules enable nginx
+  args:
+    creates: /etc/filebeat/modules.d/nginx.yml
+
+- name: Загрузка шаблонов индексов в Elasticsearch
+  command: >
+    filebeat setup --index-management
+    -E output.elasticsearch.hosts=["{{ hostvars['elasticsearch'].ansible_host }}:9200"]

@@ -1,0 +1,23 @@
+---
+- name: Скачивание и установка GPG ключа Elastic
+  get_url:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    dest: /usr/share/keyrings/elasticsearch-keyring.gpg
+    mode: '0644'
+    force: yes
+    owner: root
+    group: root
+
+- name: Создание файла репозитория Elastic 9.x
+  copy:
+    content: |
+      deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/9.x/apt stable main
+    dest: /etc/apt/sources.list.d/elastic-9.x.list
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Обновление кэша пакетов
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600

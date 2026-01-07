@@ -1,0 +1,5 @@
+#----------------------- Kibana Configuration -----------------------
+server.port: {{ kibana_server_port | default(5601) }}
+server.host: "{{ kibana_server_host | default('0.0.0.0') }}"
+elasticsearch.hosts: ["{{ kibana_elasticsearch_host | default('http://localhost:9200') }}"]
+xpack.security.enabled: {{ kibana_xpack_security_enabled | default(false) }}

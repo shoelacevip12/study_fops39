@@ -1011,8 +1011,8 @@ git commit -am 'commit_4, cours_fops39_2025' \
 ```
 ### commit_5, `cours_fops39_2025` Подготовка и запуск стенда
 #### Подготовка по ansible
+##### Создание основного конфига ansible с готовыми преднастройками
 ```bash
-# Создание основного конфига ansible с готовыми преднастройками
 # где:
 # "home=./" Выставляем домашний каталог проекта текущий каталог
 # "ssh_agent=auto" Выставляем автоматический запуск ssh-agent при подключении к узлам
@@ -1056,12 +1056,16 @@ host_key_checking=False
 [powershell]
 [vars_host_group_vars]
 EOF
-
+```
+#### Создание роли
+```bash
 # Создаем папку расположения ролей проекта
 mkdir roles
 
 # Генерация шаблона(файлов и папок) роли в папку ./roles 
 ansible-galaxy init roles/fops39_skv_2025
+
+rm -rf roles/fops39_skv_2025/{files,meta,README.md,tests}
 ```
 #### Создание playbook
 ```bash
@@ -1079,8 +1083,8 @@ cat > ./cours_proj.yaml<< 'EOF'
     - fops39_skv_2025
 EOF
 ```
+#### Создание общих переменных для всех групп ролей и tasks
 ```bash
-# Создание общих переменных для всех групп ролей и tasks
 mkdir -p group_vars
 
 cat > group_vars/all.yml << 'EOF'
@@ -1090,9 +1094,8 @@ dist_upd: true           # Установка и обновление пакет
 port_forwards: true      # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
 EOF
 ```
-
+#### Создано обращение к отдельным файлам задач для роли fops39_skv_2025
 ```bash
-# Создано обращение к отдельным файлам задач для роли fops39_skv_2025
 cat > ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
 ---
 - name: Обновление и установка основных пакетов
@@ -1107,9 +1110,9 @@ cat > ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
     - inventory_hostname in groups['bastion']
 EOF
 ```
-#### Создание файла с отдельными задачами к которому идет обращение в ../tasks/main.yml
+#### Создание файлов с отдельными задачами к которому идет обращение в ../tasks/main.yml
+##### для обновления пакетов и установка необходимого минимума
 ```bash
-# для обновления пакетов и установка необходимого минимума
 cat > ./roles/fops39_skv_2025/tasks/upd_inst.yml << 'EOF'
 ---
 - name: Обновление пакетов
@@ -1143,8 +1146,8 @@ cat > ./roles/fops39_skv_2025/tasks/upd_inst.yml << 'EOF'
     name: Europe/Moscow
 EOF
 ```
+##### Задача для проброса grafana и kibana через bastion хост
 ```bash
-# Для проброса grafana и kibana через bastion хост
 cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
 ---
 # - name: Debug hostvars
@@ -1246,7 +1249,7 @@ cat > ./roles/fops39_skv_2025/tasks/port_forwards.yml << 'EOF'
     mode: '0600'
 EOF
 ```
-#### Обработчик для роли fops39_skv_2025
+##### Обработчик для роли fops39_skv_2025
 ```bash
 cat >./roles/fops39_skv_2025/handlers/main.yml <<'EOF'
 #SPDX-License-Identifier: MIT-0
@@ -1265,6 +1268,112 @@ cat >./roles/fops39_skv_2025/handlers/main.yml <<'EOF'
   listen: start_autossh
 EOF
 ```
+#### Установка и настройка Nginx 
+##### Переименовываем подготовленный файл сайта в шаблон .j2
+```bash
+mv ./roles/fops39_skv_2025/templates/index.html{,.j2}
+```
+##### Создадим файл конфигурации nginx как шаблон
+```bash
+cat > ./roles/fops39_skv_2025/templates/nginx.conf.j2 << 'EOF'
+server {
+    listen 80;
+    listen [::]:80;
+
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+
+    server_name _;
+
+    location / {
+        try_files $uri $uri/ =404; #
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+
+    # Предотвращение распространённых атак
+    location = /favicon.ico {
+        log_not_found off;
+    }
+
+    location = /robots.txt {
+        allow all; #
+    }
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+    
+    server_tokens off;
+}
+EOF
+```
+##### Включение новой задачи в основной файл задач
+```bash
+cat >> ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
+
+- name: Установка и настройка nginx
+  include_tasks: install_nginx.yml
+  when: "'webservers' in group_names"
+EOF
+```
+```bash
+echo -e \
+"\ninstall_nginx: true  # установка и настройка nginx сервера" \
+>> group_vars/all.yml
+```
+##### файл установки ngginx в папке задач роли
+```bash
+cat > ./roles/fops39_skv_2025/tasks/install_nginx.yml << 'EOF'
+---
+- name: Установка nginx на веб-сервера
+  apt:
+    name: nginx
+    state: present
+    update_cache: no
+
+- name: Копирование конфигурации nginx (стандартная)
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/default
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart_nginx
+
+- name: Создание директории для сайта
+  file:
+    path: /var/www/html
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Копирование главной страницы сайта
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: www-data
+    group: www-data
+    mode: '0644'
+  notify: restart_nginx
+EOF
+```
+##### Обработчик для перезапуска nginx
+```bash
+cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
+
+- name: restart_nginx
+  systemd:
+    name: nginx
+    state: restarted
+    enabled: yes
+    masked: no
+    daemon_reload: yes
+  listen: restart_nginx
+EOF
+```
 ```bash
 git add . .. \
 && git status
@@ -1273,6 +1382,350 @@ git commit -am 'commit_5, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ### commit_6, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка ansible ELK
+##### Добавляем в основную задачу подзадачи
+```bash
+cat >> ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
+
+- name: Установка ELK стека для logging хостов
+  block:
+    - name: Установка Elasticsearch
+      include_tasks: elasticsearch.yml
+      when: inventory_hostname == 'elasticsearch'
+
+    - name: Установка Kibana
+      include_tasks: kibana.yml
+      when: inventory_hostname == 'kibana'
+  when:
+    - inst_elk_stack | bool
+
+- name: Установка Filebeat
+  include_tasks: filebeat.yml
+  when:
+    - inst_filebeat | bool
+    - inventory_hostname in groups['webservers']
+EOF
+```
+##### Создание общих переменных для всех групп ролей и tasks на включение выключения выполнения операций по развертыванию ELK и filebeat
+```bash
+cat >> group_vars/all.yml <<"EOF"
+
+inst_elk_stack: true  # установка ELK"
+inst_filebeat: true  # установка filebeat"
+EOF
+```
+##### Создаем переменные по умолчанию в роли для ELK компонентов
+```bash
+# Переменные для Elasticsearch
+cat >> ./roles/fops39_skv_2025/vars/main.yml << 'EOF'
+
+elasticsearch_version: "9.2.3"
+elasticsearch_deb_url: "https://drive.usercontent.google.com/download?id=1JT64hgo5h_vuSVdcEHTp38E2KKvZYUSQ&export=download&authuser=0&confirm=t&uuid=b8108253-504a-4018-8a3e-ad29864bdbde&at=ANTm3cylPIjDcgI9iM9I4hSwlGhB%3A1767798169738"
+elasticsearch_deb_file: "elasticsearch-9.2.3-amd64.deb"
+elasticsearch_checksum_url: "https://drive.usercontent.google.com/download?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK"
+elasticsearch_checksum_file: "elasticsearch-9.2.3-amd64.deb.sha512"
+EOF
+```
+```bash
+# Переменные для Kibana
+cat >> ./roles/fops39_skv_2025/vars/main.yml << 'EOF'
+
+kibana_version: "9.2.3"
+kibana_deb_url: "https://drive.usercontent.google.com/download?id=1ntG0JUFYnn8RQjAuTxZTKcyIyXsjRIbt&export=download&authuser=0&confirm=t&uuid=7d2caffc-8289-4dde-9502-556e598566e4&at=ANTm3cxCjX58M20YqewDTuGhXv47%3A1767798520197"
+kibana_deb_file: "kibana-9.2.3-amd64.deb"
+EOF
+```
+```bash
+# Переменные для Filebeat
+cat >> ./roles/fops39_skv_2025/vars/main.yml << 'EOF'
+
+filebeat_version: "9.2.3"
+filebeat_deb_url: "https://drive.usercontent.google.com/download?id=1oc1mkRzUV_2b-6Ul0FsSu4xfFap7anR9&export=download&authuser=0&confirm=t&uuid=56c3d441-9b3f-4497-957b-ea4c1c292828&at=ANTm3cxIQ5mSthC6M-NMYDHiWXaj%3A1767798607518"
+filebeat_deb_file: "filebeat-9.2.3-amd64.deb"
+EOF
+```
+
+##### Добавление постоянных переменных в роли для конфигурации ELK
+```bash
+cat >> ./roles/fops39_skv_2025/defaults/main.yml <<'EOF'
+
+# ELK Stack набор переменных
+elasticsearch_cluster_name: "es_SKV-DV"
+elasticsearch_network_host: "0.0.0.0"
+elasticsearch_http_port: 9200
+elasticsearch_discovery_type: "single-node"
+elasticsearch_xpack_security_enabled: false
+
+kibana_server_port: 5601
+kibana_server_host: "0.0.0.0"
+kibana_elasticsearch_host: "http://{{ hostvars['elasticsearch'].ansible_host }}:9200"
+kibana_xpack_security_enabled: false
+EOF
+```
+##### Создаем файл задач для установки elasticsearch
+```bash
+cat > ./roles/fops39_skv_2025/tasks/elasticsearch.yml << 'EOF'
+---
+- name: Скачивание Elasticsearch DEB пакета
+  get_url:
+    url: "{{ elasticsearch_deb_url }}"
+    dest: "/tmp/{{ elasticsearch_deb_file }}"
+    mode: '0644'
+    timeout: 300
+    headers:
+      Content-Disposition: "attachment"
+  register: elasticsearch_download
+  until: elasticsearch_download is succeeded
+  retries: 3
+  delay: 10
+
+- name: Скачивание файла контрольной суммы Elasticsearch
+  get_url:
+    url: "{{ elasticsearch_checksum_url }}"
+    dest: "/tmp/{{ elasticsearch_checksum_file }}"
+    mode: '0644'
+    timeout: 60
+    headers:
+      Content-Disposition: "attachment"
+  register: checksum_download
+  until: checksum_download is succeeded
+  retries: 3
+  delay: 5
+
+- name: Проверка контрольной суммы Elasticsearch
+  shell: |
+    cd /tmp
+    shasum -a 512 -c {{ elasticsearch_checksum_file }}
+  args:
+    executable: /bin/bash
+  register: checksum_result
+  failed_when: checksum_result.rc != 0
+  changed_when: false
+
+- name: Установка Elasticsearch из DEB пакета
+  apt:
+    deb: "/tmp/{{ elasticsearch_deb_file }}"
+    state: present
+    update_cache: yes
+
+- name: Конфигурация Elasticsearch
+  template:
+    src: elasticsearch.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    owner: root
+    group: elasticsearch
+    mode: '0644'
+  notify: restart_elasticsearch
+
+- name: Настройка прав доступа к данным Elasticsearch
+  file:
+    path: /var/lib/elasticsearch
+    owner: elasticsearch
+    group: elasticsearch
+    mode: '0755'
+    recurse: yes
+    state: directory
+  notify: restart_elasticsearch
+EOF
+```
+##### Шаблон конфигурации Elasticsearch
+```bash
+cat > ./roles/fops39_skv_2025/templates/elasticsearch.j2 << 'EOF'
+#----------------------- Elasticsearch Configuration -----------------------
+cluster.name: {{ elasticsearch_cluster_name | default('es_SKV-DV') }}
+node.name: "{{ inventory_hostname }}"
+network.host: {{ elasticsearch_network_host | default('0.0.0.0') }}
+http.port: {{ elasticsearch_http_port | default(9200) }}
+discovery.type: {{ elasticsearch_discovery_type | default('single-node') }}
+xpack.security.enabled: {{ elasticsearch_xpack_security_enabled | default(false) }}
+EOF
+```
+##### Создаем файл задач для установки kibana
+```bash
+cat > ./roles/fops39_skv_2025/tasks/kibana.yml << 'EOF'
+---
+- name: Скачивание Kibana DEB пакета
+  get_url:
+    url: "{{ kibana_deb_url }}"
+    dest: "/tmp/{{ kibana_deb_file }}"
+    mode: '0644'
+    timeout: 300
+    headers:
+      Content-Disposition: "attachment"
+  register: kibana_download
+  until: kibana_download is succeeded
+  retries: 3
+  delay: 10
+
+- name: Установка Kibana из DEB пакета
+  apt:
+    deb: "/tmp/{{ kibana_deb_file }}"
+    state: present
+
+- name: Конфигурация Kibana
+  template:
+    src: kibana.j2
+    dest: /etc/kibana/kibana.yml
+    owner: root
+    group: kibana
+    mode: '0644'
+  notify: restart_kibana
+EOF
+```
+##### Шаблон конфигурации Kibana
+```bash
+cat > ./roles/fops39_skv_2025/templates/kibana.j2 << 'EOF'
+#----------------------- Kibana Configuration -----------------------
+server.port: {{ kibana_server_port | default(5601) }}
+server.host: "{{ kibana_server_host | default('0.0.0.0') }}"
+elasticsearch.hosts: ["{{ kibana_elasticsearch_host | default('http://localhost:9200') }}"]
+xpack.security.enabled: {{ kibana_xpack_security_enabled | default(false) }}
+EOF
+```
+##### Создаем файл задач для установки filebeat на webservers
+```bash
+cat > ./roles/fops39_skv_2025/tasks/filebeat.yml << 'EOF'
+---
+- name: Скачивание Filebeat DEB пакета
+  get_url:
+    url: "{{ filebeat_deb_url }}"
+    dest: "/tmp/{{ filebeat_deb_file }}"
+    mode: '0644'
+    timeout: 300
+    headers:
+      Content-Disposition: "attachment"
+  register: filebeat_download
+  until: filebeat_download is succeeded
+  retries: 3
+  delay: 10
+
+- name: Установка Filebeat из DEB пакета
+  apt:
+    deb: "/tmp/{{ filebeat_deb_file }}"
+    state: present
+
+- name: Конфигурация Filebeat для Nginx
+  template:
+    src: filebeat.yml.j2
+    dest: /etc/filebeat/filebeat.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Включение модуля nginx для Filebeat
+  command: filebeat modules enable nginx
+  args:
+    creates: /etc/filebeat/modules.d/nginx.yml
+
+- name: Загрузка шаблонов индексов в Elasticsearch
+  command: >
+    filebeat setup --index-management
+    -E output.elasticsearch.hosts=["{{ hostvars['elasticsearch'].ansible_host }}:9200"]
+EOF
+```
+##### Шаблон конфигурации Filebeat
+```bash
+cat > ./roles/fops39_skv_2025/templates/filebeat.yml.j2 << 'EOF'
+#----------------------- Filebeat Configuration -----------------------
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: true
+
+filebeat.inputs:
+- type: filestream
+  enabled: true
+  paths:
+    - /var/log/nginx/access.log
+  fields:
+    service: nginx
+    log_type: access
+  fields_under_root: true
+  close_inactive: 5m
+
+- type: filestream
+  enabled: true
+  paths:
+    - /var/log/nginx/error.log
+  fields:
+    service: nginx
+    log_type: error
+  fields_under_root: true
+  close_inactive: 5m
+
+output.elasticsearch:
+  hosts: ["{{ hostvars['elasticsearch'].ansible_host }}:9200"]
+  indices:
+    - index: "logs-nginx-access-%{+yyyy.MM.dd}"
+      when.equals:
+        fields.log_type: "access"
+    - index: "logs-nginx-error-%{+yyyy.MM.dd}"
+      when.equals:
+        fields.log_type: "error"
+
+processors:
+  - add_host_metadata ~
+  - add_cloud_metadata ~
+EOF
+```
+##### Обработчики для задач ELK и агентов
+```bash
+cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
+
+
+- name: Перезапуск elasticsearch
+  systemd:
+    name: elasticsearch
+    state: restarted
+    daemon_reload: yes
+  listen: restart_elasticsearch
+
+- name: Проверка работы Elasticsearch
+  uri:
+    url: "http://localhost:9200"
+    status_code: 200
+    timeout: 30
+  register: elasticsearch_status
+  until: elasticsearch_status.status == 200
+  retries: 10
+  delay: 5
+  when: not ansible_check_mode
+  listen: restart_elasticsearch
+
+- name: restart kibana
+  systemd:
+    name: kibana
+    state: restarted
+    daemon_reload: yes
+  listen: restart_kibana
+
+- name: Проверка работы Kibana
+  uri:
+    url: "http://localhost:5601/api/status"
+    status_code: 200
+    timeout: 30
+  register: kibana_status
+  until: kibana_status.status == 200
+  retries: 10
+  delay: 5
+  when: not ansible_check_mode
+  listen: restart_kibana
+
+- name: restart filebeat
+  systemd:
+    name: filebeat
+    state: restarted
+    daemon_reload: yes
+  listen: restart_filebeat
+EOF
+```
+```bash
+git add . .. \
+&& git status
+
+git commit -am 'commit_7, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
+```
+### commit_8, `cours_fops39_2025` Подготовка и запуск стенда
 #### Подготовка ansible через коллекции ansible-galaxy prometheus
 ```bash
 # Скачивание коллекции prometheus
@@ -1285,8 +1738,8 @@ sed -i '/.\/roles$/a \
 collections_paths=./collections' \
 ansible.cfg
 ```
+##### Создание отдельного playbook для установки Prometheus и Node Exporter
 ```bash
-# Создание отдельного playbook для установки Prometheus и Node Exporter
 cat>./prometheus_server.yaml<<'EOF'
 ---
 - name: Установка Prometheus
@@ -1310,8 +1763,8 @@ cat>./prometheus_server.yaml<<'EOF'
     - prometheus.prometheus.node_exporter
 EOF
 ```
+##### Добавляем в главный Playbook для установки Prometheus и Node Exporter
 ```bash
-# Добавляем в главный Playbook для установки Prometheus и Node Exporter
 cat>> cours_proj.yaml <<'EOF'
 
 
@@ -1320,8 +1773,8 @@ cat>> cours_proj.yaml <<'EOF'
   when: install_prometheus | bool
 EOF
 ```
+##### Создание общей переменной для всех групп ролей и tasks на включение выключения выполнения операций по развертыванию Prometheus и Node Exporter
 ```bash
-# Создание общей переменной для всех групп ролей и tasks на включение выключения выполнения операций по развертыванию Prometheus и Node Exporter
 echo -e \
 "\ninstall_prometheus: true  # установка Prometheus и Node Exporter" \
 >> group_vars/all.yml
@@ -1342,8 +1795,8 @@ ansible-galaxy collection \
 install grafana.grafana \
 -p ./collections
 ```
+##### Создание общих переменных для хоста grafana
 ```bash
-# Создание общих переменных для хоста grafana
 mkdir -p host_vars
 
 cat > host_vars/grafana.yml << 'EOF'
@@ -1355,9 +1808,8 @@ grafana_deb_url: "https://drive.usercontent.google.com/download?id=1VjodTd3ro6mC
 grafana_deb_file: "grafana_12.3.1_20271043721_linux_amd64"
 EOF
 ```
-
+##### Создание отдельного playbook для установки Grafana
 ```bash
-# Создание отдельного playbook для установки Grafana
 cat > ./grafana_server.yaml << 'EOF'
 ---
 - name: Установка Grafana
@@ -1398,8 +1850,8 @@ cat > ./grafana_server.yaml << 'EOF'
     - grafana.grafana.grafana
 EOF
 ```
+##### Добавление в основной playbook grafana
 ```bash
-# Добавление в основной playbook grafana
 cat >> cours_proj.yaml << 'EOF'
 
 
@@ -1408,13 +1860,13 @@ cat >> cours_proj.yaml << 'EOF'
   when: install_grafana | bool
 EOF
 ```
+##### Создание общей переменной для всех групп ролей и tasks на включение выключения выполнения операций по развертыванию Grafana
 ```bash
-# Создание общей переменной для всех групп ролей и tasks на включение выключения выполнения операций по развертыванию Grafana
 echo -e "\ninstall_grafana: true  # установка Grafana" \
 >> group_vars/all.yml
 ```
+##### Удаление блока добавления репозитория grafana "Add Grafana apt repository" в tasks роли коллекции
 ```bash
-# Удаление блока добавления репозитория grafana "Add Grafana apt repository" в tasks роли коллекции
 sed -i '/Add Grafana apt repository/,+17d' \
 ./collections/ansible_collections/grafana/grafana/roles/grafana/tasks/install.yml
 ```
@@ -1422,12 +1874,10 @@ sed -i '/Add Grafana apt repository/,+17d' \
 git add . .. \
 && git status
 
-git commit -am 'commit_7, cours_fops39_2025' \
+git commit -am 'commit_8, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
-### commit_8, `cours_fops39_2025` Подготовка и запуск стенда
-#### Подготовка ansible через коллекции 
-
+### commit_9, `cours_fops39_2025`
 ```bash
 ```
 
