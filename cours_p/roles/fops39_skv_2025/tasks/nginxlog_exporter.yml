@@ -1,0 +1,42 @@
+---
+- name: Скачивание prometheus-nginxlog-exporter DEB пакета
+  get_url:
+    url: "{{ nginxlog_exporter_deb_url }}"
+    dest: "/tmp/{{ nginxlog_exporter_deb_file }}"
+    mode: '0644'
+    timeout: 300
+    headers:
+      Content-Disposition: "attachment"
+  register: download_result
+  until: download_result is succeeded
+  retries: 3
+  delay: 10
+
+- name: Установка prometheus-nginxlog-exporter из DEB пакета
+  apt:
+    deb: "/tmp/{{ nginxlog_exporter_deb_file }}"
+    state: present
+
+- name: Добавление пользователя prometheus-nginxlog-exporter в группу adm
+  user:
+    name: prometheus-nginxlog-exporter
+    groups: adm
+    append: yes
+  notify: restart_nginxlog_exporter
+
+- name: Конфигурация для prometheus-nginxlog-exporter
+  template:
+    src: nginxlog_exporter.hcl.j2
+    dest: "{{ nginxlog_exporter_config_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart_nginxlog_exporter
+
+- name: Запуск и включение prometheus-nginxlog-exporter
+  systemd:
+    name: prometheus-nginxlog-exporter
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  notify: restart_nginxlog_exporter

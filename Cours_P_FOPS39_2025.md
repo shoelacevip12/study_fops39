@@ -1315,15 +1315,18 @@ cat >> ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
 
 - name: Установка и настройка nginx
   include_tasks: install_nginx.yml
-  when: "'webservers' in group_names"
+  when:
+    - install_nginx | bool
+    - inventory_hostname in groups['webservers']
 EOF
 ```
+##### Добавление включения\выключения переменной для установки nginx
 ```bash
 echo -e \
 "\ninstall_nginx: true  # установка и настройка nginx сервера" \
 >> group_vars/all.yml
 ```
-##### файл установки ngginx в папке задач роли
+##### файл установки nginx в папке задач роли
 ```bash
 cat > ./roles/fops39_skv_2025/tasks/install_nginx.yml << 'EOF'
 ---
@@ -1333,7 +1336,7 @@ cat > ./roles/fops39_skv_2025/tasks/install_nginx.yml << 'EOF'
     state: present
     update_cache: no
 
-- name: Копирование конфигурации nginx (стандартная)
+- name: Копирование конфигурации nginx
   template:
     src: nginx.conf.j2
     dest: /etc/nginx/sites-available/default
@@ -1358,13 +1361,31 @@ cat > ./roles/fops39_skv_2025/tasks/install_nginx.yml << 'EOF'
     group: www-data
     mode: '0644'
   notify: restart_nginx
+
+- name: Настройка прав доступа к директории логов
+  file:
+    path: /var/log/nginx
+    mode: '0755'
+    owner: www-data
+    group: adm
+    recurse: yes
+  notify: restart_nginx
+
+- name: Запуск Nginx
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+    masked: no
+    daemon_reload: yes
+  notify: restart_nginx
 EOF
 ```
 ##### Обработчик для перезапуска nginx
 ```bash
 cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
 
-- name: restart_nginx
+- name: Перезапуск nginx
   systemd:
     name: nginx
     state: restarted
@@ -1421,9 +1442,9 @@ cat >> ./roles/fops39_skv_2025/vars/main.yml << 'EOF'
 
 elasticsearch_version: "9.2.3"
 elasticsearch_deb_url: "https://drive.usercontent.google.com/download?id=1JT64hgo5h_vuSVdcEHTp38E2KKvZYUSQ&export=download&authuser=0&confirm=t&uuid=b8108253-504a-4018-8a3e-ad29864bdbde&at=ANTm3cylPIjDcgI9iM9I4hSwlGhB%3A1767798169738"
-elasticsearch_deb_file: "elasticsearch-9.2.3-amd64.deb"
+elasticsearch_deb_file: "elasticsearch-{{ elasticsearch_version }}-amd64.deb"
 elasticsearch_checksum_url: "https://drive.usercontent.google.com/download?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK"
-elasticsearch_checksum_file: "elasticsearch-9.2.3-amd64.deb.sha512"
+elasticsearch_checksum_file: "elasticsearch-{{ elasticsearch_version }}-amd64.deb.sha512"
 EOF
 ```
 ```bash
@@ -1432,7 +1453,7 @@ cat >> ./roles/fops39_skv_2025/vars/main.yml << 'EOF'
 
 kibana_version: "9.2.3"
 kibana_deb_url: "https://drive.usercontent.google.com/download?id=1ntG0JUFYnn8RQjAuTxZTKcyIyXsjRIbt&export=download&authuser=0&confirm=t&uuid=7d2caffc-8289-4dde-9502-556e598566e4&at=ANTm3cxCjX58M20YqewDTuGhXv47%3A1767798520197"
-kibana_deb_file: "kibana-9.2.3-amd64.deb"
+kibana_deb_file: "kibana-{{ kibana_version }}-amd64.deb"
 EOF
 ```
 ```bash
@@ -1441,7 +1462,7 @@ cat >> ./roles/fops39_skv_2025/vars/main.yml << 'EOF'
 
 filebeat_version: "9.2.3"
 filebeat_deb_url: "https://drive.usercontent.google.com/download?id=1oc1mkRzUV_2b-6Ul0FsSu4xfFap7anR9&export=download&authuser=0&confirm=t&uuid=56c3d441-9b3f-4497-957b-ea4c1c292828&at=ANTm3cxIQ5mSthC6M-NMYDHiWXaj%3A1767798607518"
-filebeat_deb_file: "filebeat-9.2.3-amd64.deb"
+filebeat_deb_file: "filebeat-{{ filebeat_version }}-amd64.deb"
 EOF
 ```
 
@@ -1455,6 +1476,10 @@ elasticsearch_network_host: "0.0.0.0"
 elasticsearch_http_port: 9200
 elasticsearch_discovery_type: "single-node"
 elasticsearch_xpack_security_enabled: false
+elasticsearch_xpack_security_transport_ssl_enabled: false
+elasticsearch_xpack_security_http_ssl_enabled: false
+elasticsearch_xpack_security_authc_api_key_enabled: true
+elasticsearch_indices_query_bool_max_clause_count: 3072
 
 kibana_server_port: 5601
 kibana_server_host: "0.0.0.0"
@@ -1526,18 +1551,36 @@ cat > ./roles/fops39_skv_2025/tasks/elasticsearch.yml << 'EOF'
     recurse: yes
     state: directory
   notify: restart_elasticsearch
+
+- name: Запуск elasticsearch
+  systemd:
+    name: elasticsearch
+    state: started
+    daemon_reload: yes
+  notify: restart_elasticsearch
 EOF
 ```
 ##### Шаблон конфигурации Elasticsearch
 ```bash
 cat > ./roles/fops39_skv_2025/templates/elasticsearch.j2 << 'EOF'
 #----------------------- Elasticsearch Configuration -----------------------
-cluster.name: {{ elasticsearch_cluster_name | default('es_SKV-DV') }}
+cluster.name: {{ elasticsearch_cluster_name }}
 node.name: "{{ inventory_hostname }}"
-network.host: {{ elasticsearch_network_host | default('0.0.0.0') }}
-http.port: {{ elasticsearch_http_port | default(9200) }}
-discovery.type: {{ elasticsearch_discovery_type | default('single-node') }}
-xpack.security.enabled: {{ elasticsearch_xpack_security_enabled | default(false) }}
+network.host: {{ elasticsearch_network_host }}
+http.port: {{ elasticsearch_http_port }}
+discovery.type: {{ elasticsearch_discovery_type }}
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+node.roles: [master, data, ingest]
+
+# ОТКЛЮЧЕНИЕ ВСЕХ КОМПОНЕНТОВ БЕЗОПАСНОСТИ
+xpack.security.enabled: {{ elasticsearch_xpack_security_enabled }}
+xpack.security.transport.ssl.enabled: {{ elasticsearch_xpack_security_transport_ssl_enabled }}
+xpack.security.http.ssl.enabled: {{ elasticsearch_xpack_security_http_ssl_enabled }}
+xpack.security.authc.api_key.enabled: {{ elasticsearch_xpack_security_authc_api_key_enabled }}
+
+# Настройки памяти и производительности
+indices.query.bool.max_clause_count: {{ elasticsearch_indices_query_bool_max_clause_count }}
 EOF
 ```
 ##### Создаем файл задач для установки kibana
@@ -1570,16 +1613,22 @@ cat > ./roles/fops39_skv_2025/tasks/kibana.yml << 'EOF'
     group: kibana
     mode: '0644'
   notify: restart_kibana
+
+- name: Запуск kibana
+  systemd:
+    name: kibana
+    state: started
+    daemon_reload: yes
+  notify: restart_kibana
 EOF
 ```
 ##### Шаблон конфигурации Kibana
 ```bash
 cat > ./roles/fops39_skv_2025/templates/kibana.j2 << 'EOF'
 #----------------------- Kibana Configuration -----------------------
-server.port: {{ kibana_server_port | default(5601) }}
-server.host: "{{ kibana_server_host | default('0.0.0.0') }}"
-elasticsearch.hosts: ["{{ kibana_elasticsearch_host | default('http://localhost:9200') }}"]
-xpack.security.enabled: {{ kibana_xpack_security_enabled | default(false) }}
+server.port: {{ kibana_server_port }}
+server.host: "{{ kibana_server_host }}"
+elasticsearch.hosts: ["{{ kibana_elasticsearch_host }}"]
 EOF
 ```
 ##### Создаем файл задач для установки filebeat на webservers
@@ -1611,16 +1660,25 @@ cat > ./roles/fops39_skv_2025/tasks/filebeat.yml << 'EOF'
     owner: root
     group: root
     mode: '0644'
+  notify: restart_filebeat
 
 - name: Включение модуля nginx для Filebeat
   command: filebeat modules enable nginx
   args:
     creates: /etc/filebeat/modules.d/nginx.yml
+  notify: restart_filebeat
 
 - name: Загрузка шаблонов индексов в Elasticsearch
   command: >
     filebeat setup --index-management
+    -E setup.ilm.enabled=false
     -E output.elasticsearch.hosts=["{{ hostvars['elasticsearch'].ansible_host }}:9200"]
+  retries: 5
+  delay: 10
+  register: filebeat_setup
+  until: filebeat_setup is succeeded
+  changed_when: true
+  notify: restart_filebeat
 EOF
 ```
 ##### Шаблон конфигурации Filebeat
@@ -1633,6 +1691,7 @@ filebeat.config.modules:
 
 filebeat.inputs:
 - type: filestream
+  id: nginx-access-logs
   enabled: true
   paths:
     - /var/log/nginx/access.log
@@ -1643,6 +1702,7 @@ filebeat.inputs:
   close_inactive: 5m
 
 - type: filestream
+  id: nginx-error-logs
   enabled: true
   paths:
     - /var/log/nginx/error.log
@@ -1657,14 +1717,14 @@ output.elasticsearch:
   indices:
     - index: "logs-nginx-access-%{+yyyy.MM.dd}"
       when.equals:
-        fields.log_type: "access"
+        log_type: "access"
     - index: "logs-nginx-error-%{+yyyy.MM.dd}"
       when.equals:
-        fields.log_type: "error"
+        log_type: "error"
 
 processors:
-  - add_host_metadata ~
-  - add_cloud_metadata ~
+  - add_host_metadata: {}
+  - add_cloud_metadata: {}
 EOF
 ```
 ##### Обработчики для задач ELK и агентов
@@ -1691,7 +1751,7 @@ cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
   when: not ansible_check_mode
   listen: restart_elasticsearch
 
-- name: restart kibana
+- name: Перезапуск kibana
   systemd:
     name: kibana
     state: restarted
@@ -1710,7 +1770,7 @@ cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
   when: not ansible_check_mode
   listen: restart_kibana
 
-- name: restart filebeat
+- name: Перезапуск filebeat
   systemd:
     name: filebeat
     state: restarted
@@ -1722,10 +1782,10 @@ EOF
 git add . .. \
 && git status
 
-git commit -am 'commit_7, cours_fops39_2025' \
+git commit -am 'commit_6, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
-### commit_8, `cours_fops39_2025` Подготовка и запуск стенда
+### commit_7, `cours_fops39_2025` Подготовка и запуск стенда
 #### Подготовка ansible через коллекции ansible-galaxy prometheus
 ```bash
 # Скачивание коллекции prometheus
@@ -1751,7 +1811,8 @@ cat>./prometheus_server.yaml<<'EOF'
       node:
         - targets:
             - localhost:9100
-            - "{{ hostvars['prometheus'].ansible_host }}:9100"
+            - "{{ hostvars['web-a'].ansible_host }}:9100"
+            - "{{ hostvars['web-b'].ansible_host }}:9100"
   roles:
     - prometheus.prometheus.prometheus
 
@@ -1779,7 +1840,6 @@ echo -e \
 "\ninstall_prometheus: true  # установка Prometheus и Node Exporter" \
 >> group_vars/all.yml
 ```
-
 ```bash
 git add . .. \
 && git status
@@ -1787,7 +1847,162 @@ git add . .. \
 git commit -am 'commit_6, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
+
 ### commit_7, `cours_fops39_2025` Подготовка и запуск стенда
+#### Подготовка ansible nginx log-exporter
+##### Добавление задачи в основной файл роли
+```bash
+cat >> ./roles/fops39_skv_2025/tasks/main.yml << 'EOF'
+
+- name: Установка prometheus-nginxlog-exporter
+  include_tasks: nginxlog_exporter.yml
+  when:
+    - inst_nginxlog_exporter | bool
+    - inventory_hostname in groups['webservers']
+EOF
+```
+##### Создание общей переменной для всех групп ролей и tasks на включение\выключения выполнения операций по развертыванию nginxlog_exporter
+```bash
+echo -e "\ninst_nginxlog_exporter: true  # установка nginxlog_exporter" \
+>> group_vars/all.yml
+```
+##### Постоянные переменные для nginxlog-exporter в файл переменных основной роли
+```bash
+cat >> ./roles/fops39_skv_2025/vars/main.yml << 'EOF'
+
+# prometheus-nginxlog-exporter
+nginxlog_exporter_version: "1.11.0"
+nginxlog_exporter_deb_url: "https://github.com/martin-helmich/prometheus-nginxlog-exporter/releases/download/v{{ nginxlog_exporter_version }}/prometheus-nginxlog-exporter_{{ nginxlog_exporter_version }}_linux_amd64.deb"
+nginxlog_exporter_deb_file: "prometheus-nginxlog-exporter_{{ nginxlog_exporter_version }}_linux_amd64.deb"
+nginxlog_exporter_listen_port: 4040
+nginxlog_exporter_config_file: "/etc/prometheus-nginxlog-exporter.hcl"
+EOF
+```
+##### Файла задач для установки nginxlog-exporter
+```bash
+cat > ./roles/fops39_skv_2025/tasks/nginxlog_exporter.yml << 'EOF'
+---
+- name: Скачивание prometheus-nginxlog-exporter DEB пакета
+  get_url:
+    url: "{{ nginxlog_exporter_deb_url }}"
+    dest: "/tmp/{{ nginxlog_exporter_deb_file }}"
+    mode: '0644'
+    timeout: 300
+  register: download_result
+  until: download_result is succeeded
+  retries: 3
+  delay: 10
+
+- name: Установка prometheus-nginxlog-exporter из DEB пакета
+  apt:
+    deb: "/tmp/{{ nginxlog_exporter_deb_file }}"
+    state: present
+
+- name: Конфигурация для prometheus-nginxlog-exporter
+  template:
+    src: nginxlog_exporter.hcl.j2
+    dest: "{{ nginxlog_exporter_config_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart_nginxlog_exporter
+
+- name: Запуск и включение prometheus-nginxlog-exporter
+  systemd:
+    name: prometheus-nginxlog-exporter
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  notify: restart_nginxlog_exporter
+EOF
+```
+##### Шаблон конфигурационного файла
+```bash
+cat > ./roles/fops39_skv_2025/templates/nginxlog_exporter.hcl.j2 << 'EOF'
+listen {
+  port = {{ nginxlog_exporter_listen_port }}
+  address = "0.0.0.0"
+  metrics_endpoint = "/metrics"
+}
+
+namespace "nginx" {
+  format = "$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" \"$http_x_forwarded_for\""
+  
+  source {
+    files = [
+      "/var/log/nginx/access.log*"
+    ]
+  }
+  
+  labels {
+    app = "nginx"
+    environment = "production"
+    host = "{{ inventory_hostname }}"
+  }
+  
+  relabel "method" {
+    from = "request_method"
+  }
+  
+  relabel "path" {
+    from = "request_uri"
+    match "^/[^/]+/[^/]+/[^/]+" {
+      replacement = "/:path"
+    }
+    match "^/[^/]+/[^/]+" {
+      replacement = "/:path"
+    }
+    match "^/[^/]+" {
+      replacement = "/:path"
+    }
+  }
+  
+  relabel "status" {
+    from = "status"
+  }
+  
+  histogram_buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+}
+EOF
+```
+##### Обработчик для перезапуска сервиса nginxlog-exporter
+```bash
+cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
+
+- name: Перезапуск prometheus-nginxlog-exporter
+  systemd:
+    name: prometheus-nginxlog-exporter
+    state: restarted
+    enabled: yes
+    masked: no
+    daemon_reload: yes
+  listen: restart_nginxlog_exporter
+EOF
+```
+##### Создание общих переменных для хоста prometheus
+```bash
+mkdir -p host_vars
+
+cat > host_vars/prometheus.yml << 'EOF'
+---
+nginxlog:
+  - targets:
+      - "{{ hostvars['web-a'].ansible_host }}:4040"
+      - "{{ hostvars['web-b'].ansible_host }}:4040"
+    labels:
+      service: "nginxlog_exporter"
+EOF
+```
+
+```bash
+git add . .. \
+&& git status
+
+git commit -am 'commit_7, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
+```
+
+### commit_8, `cours_fops39_2025` Подготовка и запуск стенда
 #### Подготовка ansible через коллекции ansible-galaxy grafana
 ```bash
 # Скачивание коллекции grafana
@@ -1879,6 +2094,17 @@ git commit -am 'commit_8, cours_fops39_2025' \
 ```
 ### commit_9, `cours_fops39_2025`
 ```bash
+# Привязка коммита к локальной ветке
+git switch -C cours_fops39_2025
+
+# Отправка изменения с перезаписью удалённой ветки
+git push --force-with-lease study_fops39 cours_fops39_2025
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_9, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
 ```
 
 ```bash
@@ -1925,5 +2151,6 @@ done
 eval $(ssh-agent) \
 && ssh-add ~/.ssh/id_cours_fops39_2025_ed25519 \
 && > ~/.ssh/known_hosts \
-&& ansible-playbook cours_proj.yaml
+&& ansible-playbook cours_proj.yaml --syntax-check \
+&& ansible-playbook cours_proj.yaml --syntax-check
 ```

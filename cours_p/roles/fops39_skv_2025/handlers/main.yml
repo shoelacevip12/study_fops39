@@ -13,7 +13,7 @@
     - ssh.service
   listen: start_autossh
 
-- name: restart_nginx
+- name: Перезапуск nginx
   systemd:
     name: nginx
     state: restarted
@@ -41,7 +41,7 @@
   when: not ansible_check_mode
   listen: restart_elasticsearch
 
-- name: restart kibana
+- name: Перезапуск kibana
   systemd:
     name: kibana
     state: restarted
@@ -60,9 +60,18 @@
   when: not ansible_check_mode
   listen: restart_kibana
 
-- name: restart filebeat
+- name: Перезапуск filebeat
   systemd:
     name: filebeat
     state: restarted
     daemon_reload: yes
   listen: restart_filebeat
+
+- name: Перезапуск prometheus-nginxlog-exporter
+  systemd:
+    name: prometheus-nginxlog-exporter
+    state: restarted
+    enabled: yes
+    masked: no
+    daemon_reload: yes
+  listen: restart_nginxlog_exporter

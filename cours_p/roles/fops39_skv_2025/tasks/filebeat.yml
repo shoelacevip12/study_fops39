@@ -24,13 +24,22 @@
     owner: root
     group: root
     mode: '0644'
+  notify: restart_filebeat
 
 - name: Включение модуля nginx для Filebeat
   command: filebeat modules enable nginx
   args:
     creates: /etc/filebeat/modules.d/nginx.yml
+  notify: restart_filebeat
 
 - name: Загрузка шаблонов индексов в Elasticsearch
   command: >
     filebeat setup --index-management
+    -E setup.ilm.enabled=false
     -E output.elasticsearch.hosts=["{{ hostvars['elasticsearch'].ansible_host }}:9200"]
+  retries: 5
+  delay: 10
+  register: filebeat_setup
+  until: filebeat_setup is succeeded
+  changed_when: true
+  notify: restart_filebeat

@@ -1,0 +1,44 @@
+listen {
+  port = {{ nginxlog_exporter_listen_port }}
+  address = "0.0.0.0"
+  metrics_endpoint = "/metrics"
+}
+
+namespace "nginx" {
+  format = "$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" \"$http_x_forwarded_for\""
+  
+  source {
+    files = [
+      "/var/log/nginx/access.log*"
+    ]
+  }
+  
+  labels {
+    app = "nginx"
+    environment = "production"
+    host = "{{ inventory_hostname }}"
+  }
+  
+  relabel "method" {
+    from = "request_method"
+  }
+  
+  relabel "path" {
+    from = "request_uri"
+    match "^/[^/]+/[^/]+/[^/]+" {
+      replacement = "/:path"
+    }
+    match "^/[^/]+/[^/]+" {
+      replacement = "/:path"
+    }
+    match "^/[^/]+" {
+      replacement = "/:path"
+    }
+  }
+  
+  relabel "status" {
+    from = "status"
+  }
+  
+  histogram_buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+}

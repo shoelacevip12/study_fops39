@@ -1,7 +1,18 @@
 #----------------------- Elasticsearch Configuration -----------------------
-cluster.name: {{ elasticsearch_cluster_name | default('es_SKV-DV') }}
+cluster.name: {{ elasticsearch_cluster_name }}
 node.name: "{{ inventory_hostname }}"
-network.host: {{ elasticsearch_network_host | default('0.0.0.0') }}
-http.port: {{ elasticsearch_http_port | default(9200) }}
-discovery.type: {{ elasticsearch_discovery_type | default('single-node') }}
-xpack.security.enabled: {{ elasticsearch_xpack_security_enabled | default(false) }}
+network.host: {{ elasticsearch_network_host }}
+http.port: {{ elasticsearch_http_port }}
+discovery.type: {{ elasticsearch_discovery_type }}
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+node.roles: [master, data, ingest]
+
+# ОТКЛЮЧЕНИЕ ВСЕХ КОМПОНЕНТОВ БЕЗОПАСНОСТИ
+xpack.security.enabled: {{ elasticsearch_xpack_security_enabled }}
+xpack.security.transport.ssl.enabled: {{ elasticsearch_xpack_security_transport_ssl_enabled }}
+xpack.security.http.ssl.enabled: {{ elasticsearch_xpack_security_http_ssl_enabled }}
+xpack.security.authc.api_key.enabled: {{ elasticsearch_xpack_security_authc_api_key_enabled }}
+
+# Настройки памяти и производительности
+indices.query.bool.max_clause_count: {{ elasticsearch_indices_query_bool_max_clause_count }}

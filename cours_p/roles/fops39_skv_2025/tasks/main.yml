@@ -12,7 +12,9 @@
 
 - name: Установка и настройка nginx
   include_tasks: install_nginx.yml
-  when: "'webservers' in group_names"
+  when:
+    - install_nginx | bool
+    - inventory_hostname in groups['webservers']
 
 - name: Установка ELK стека для logging хостов
   block:
@@ -30,4 +32,10 @@
   include_tasks: filebeat.yml
   when:
     - inst_filebeat | bool
+    - inventory_hostname in groups['webservers']
+
+- name: Установка prometheus-nginxlog-exporter
+  include_tasks: nginxlog_exporter.yml
+  when:
+    - inst_nginxlog_exporter | bool
     - inventory_hostname in groups['webservers']

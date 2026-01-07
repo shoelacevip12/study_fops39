@@ -59,3 +59,10 @@
     recurse: yes
     state: directory
   notify: restart_elasticsearch
+
+- name: Запуск elasticsearch
+  systemd:
+    name: elasticsearch
+    state: started
+    daemon_reload: yes
+  notify: restart_elasticsearch

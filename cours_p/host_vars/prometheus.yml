@@ -1,0 +1,7 @@
+---
+nginxlog:
+  - targets:
+      - "{{ hostvars['web-a'].ansible_host }}:4040"
+      - "{{ hostvars['web-b'].ansible_host }}:4040"
+    labels:
+      service: "nginxlog_exporter"

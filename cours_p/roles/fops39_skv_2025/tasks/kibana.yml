@@ -25,3 +25,10 @@
     group: kibana
     mode: '0644'
   notify: restart_kibana
+
+- name: Запуск kibana
+  systemd:
+    name: kibana
+    state: started
+    daemon_reload: yes
+  notify: restart_kibana
