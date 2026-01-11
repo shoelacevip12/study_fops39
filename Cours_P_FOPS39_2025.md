@@ -1806,13 +1806,7 @@ cat>./prometheus_server.yaml<<'EOF'
   hosts: prometheus
   become: yes
   gather_facts: yes
-  vars:
-    prometheus_targets:
-      node:
-        - targets:
-            - localhost:9100
-            - "{{ hostvars['web-a'].ansible_host }}:9100"
-            - "{{ hostvars['web-b'].ansible_host }}:9100"
+
   roles:
     - prometheus.prometheus.prometheus
 
@@ -1985,6 +1979,12 @@ mkdir -p host_vars
 
 cat > host_vars/prometheus.yml << 'EOF'
 ---
+prometheus_targets:
+  node:
+    - targets:
+        - localhost:9100
+        - "{{ hostvars['web-a'].ansible_host }}:9100"
+        - "{{ hostvars['web-b'].ansible_host }}:9100"
 nginxlog:
   - targets:
       - "{{ hostvars['web-a'].ansible_host }}:4040"
@@ -2021,6 +2021,14 @@ grafana_admin_user: "admin"
 grafana_admin_password: "test@skv"
 grafana_deb_url: "https://drive.usercontent.google.com/download?id=1VjodTd3ro6mCUCmyJWkcY0c4XRjc34yO&export=download&confirm=t&uuid=3c0f5a8b-e769-4e13-a774-a01ec7e04b03&at=ANTm3cy8tILZs5QZQAb61Bz1itWH%3A1767616590783"
 grafana_deb_file: "grafana_12.3.1_20271043721_linux_amd64"
+grafana_ini:
+  security:
+    admin_user: "{{ grafana_admin_user }}"
+    admin_password: "{{ grafana_admin_password }}"
+grafana_datasources:
+  - name: "Prometheus"
+    type: "prometheus"
+    url: "http://{{ hostvars['prometheus'].ansible_host }}:9090"
 EOF
 ```
 ##### Создание отдельного playbook для установки Grafana
@@ -2031,21 +2039,7 @@ cat > ./grafana_server.yaml << 'EOF'
   hosts: grafana
   become: yes
   gather_facts: yes
-  vars:
-    grafana_ini:
-      security:
-        admin_user: "{{ grafana_admin_user }}"
-        admin_password: "{{ grafana_admin_password }}"
-      # server:
-      #   root_url: "%(protocol)s://%(domain)s/grafana/"
-      #   serve_from_sub_path: true
-    grafana_datasources:
-      - name: "Prometheus"
-        type: "prometheus"
-        # access: "proxy"
-        url: "http://{{ hostvars['prometheus'].ansible_host }}:9090"
-        # isDefault: true
-
+  
   pre_tasks:
     - name: скачивание Grafana DEB пакета
       get_url:
@@ -2103,7 +2097,7 @@ git push --force-with-lease study_fops39 cours_fops39_2025
 git add . .. \
 && git status
 
-git commit -am 'commit_9, cours_fops39_2025' \
+git commit -am 'commit_9_update_8, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 

@@ -4,3 +4,11 @@ grafana_admin_user: "admin"
 grafana_admin_password: "test@skv"
 grafana_deb_url: "https://drive.usercontent.google.com/download?id=1VjodTd3ro6mCUCmyJWkcY0c4XRjc34yO&export=download&confirm=t&uuid=3c0f5a8b-e769-4e13-a774-a01ec7e04b03&at=ANTm3cy8tILZs5QZQAb61Bz1itWH%3A1767616590783"
 grafana_deb_file: "grafana_12.3.1_20271043721_linux_amd64"
+grafana_ini:
+  security:
+    admin_user: "{{ grafana_admin_user }}"
+    admin_password: "{{ grafana_admin_password }}"
+grafana_datasources:
+  - name: "Prometheus"
+    type: "prometheus"
+    url: "http://{{ hostvars['prometheus'].ansible_host }}:9090"

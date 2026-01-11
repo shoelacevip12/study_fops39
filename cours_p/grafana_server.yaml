@@ -3,21 +3,7 @@
   hosts: grafana
   become: yes
   gather_facts: yes
-  vars:
-    grafana_ini:
-      security:
-        admin_user: "{{ grafana_admin_user }}"
-        admin_password: "{{ grafana_admin_password }}"
-      # server:
-      #   root_url: "%(protocol)s://%(domain)s/grafana/"
-      #   serve_from_sub_path: true
-    grafana_datasources:
-      - name: "Prometheus"
-        type: "prometheus"
-        # access: "proxy"
-        url: "http://{{ hostvars['prometheus'].ansible_host }}:9090"
-        # isDefault: true
-
+  
   pre_tasks:
     - name: скачивание Grafana DEB пакета
       get_url:
