@@ -1,16 +1,0 @@
---2026-01-07 17:58:23--  https://drive.usercontent.google.com/uc?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK
-Загружен сертификат CA «/etc/ssl/certs/ca-certificates.crt»
-Распознаётся drive.usercontent.google.com (drive.usercontent.google.com)… 108.177.14.132, 2a00:1450:4010:c0f::84
-Подключение к drive.usercontent.google.com (drive.usercontent.google.com)|108.177.14.132|:443... соединение установлено.
-HTTP-запрос отправлен. Ожидание ответа… 303 See Other
-Адрес: https://drive.usercontent.google.com/download?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK [переход]
---2026-01-07 17:58:23--  https://drive.usercontent.google.com/download?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK
-Повторное использование соединения с drive.usercontent.google.com:443.
-HTTP-запрос отправлен. Ожидание ответа… 200 OK
-Длина: 160 [application/octet-stream]
-Сохранение в: ‘uc?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK’
-
-uc?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK           0%[                                                                                                        ]       0  --.-KB/s               uc?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK         100%[=======================================================================================================>]     160  --.-KB/s    за 0s      
-
-2026-01-07 17:58:24 (8,60 MB/s) - ‘uc?id=1MVeawsJEjjZHv0vGWzEa5vaEJ2lX1-eK’ сохранён [160/160]
-

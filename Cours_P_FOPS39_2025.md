@@ -101,6 +101,9 @@ git commit -am 'commit_2, cours_fops39_2025' \
 curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh \
 | bash
 
+# Инициализация Terraform конфигурации
+terraform init
+
 # Применение новых переменных окружения в текущей сессии
 source \
 ~/.bashrc
@@ -2180,10 +2183,206 @@ git push --force-with-lease study_fops39 cours_fops39_2025
 git add . .. \
 && git status
 
-git commit -am 'commit_9_update_10, cours_fops39_2025' \
+git commit -am 'commit_9_update_11, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
+```bash
+# Создаем директорию для Grafana dashboards
+mkdir -p ./files/grafana_dashboards
 
+# Сохраняем JSON дашборда
+cat > ./files/grafana_dashboards/nginx_log_metrics.json << 'EOF'
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "builder",
+          "expr": "nginx_access_http_response_count_total{instance=\"10.10.10.201:4040\"}",
+          "legendFormat": "web-a responses",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "builder",
+          "expr": "nginx_access_http_response_count_total{instance=\"10.10.10.211:4040\"}",
+          "legendFormat": "web-b responses",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "builder",
+          "expr": "nginx_access_parse_errors_total{instance=\"10.10.10.201:4040\"}",
+          "legendFormat": "web-a errors",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "builder",
+          "expr": "nginx_access_parse_errors_total{instance=\"10.10.10.211:4040\"}",
+          "legendFormat": "web-b errors",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Fops-39_skv_nginx-access-errors",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 42,
+  "tags": ["nginx", "logs", "prometheus"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "Prometheus",
+          "value": "Prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "nginx-access-errors",
+  "uid": "nginx-access-errors-unified",
+  "version": 1
+}
+EOF
+```
 ```bash
 # Проверка tf файлов проекта и создание файла запуска terraform
 terraform validate \
