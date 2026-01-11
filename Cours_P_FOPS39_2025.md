@@ -1919,7 +1919,8 @@ listen {
   metrics_endpoint = "/metrics"
 }
 
-namespace "nginx" {
+# Namespace для access логов
+namespace "nginx_access" {
   format = "$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" \"$http_x_forwarded_for\""
   
   source {
@@ -1932,6 +1933,7 @@ namespace "nginx" {
     app = "nginx"
     environment = "production"
     host = "{{ inventory_hostname }}"
+    log_type = "access"
   }
   
   relabel "method" {
@@ -1956,6 +1958,43 @@ namespace "nginx" {
   }
   
   histogram_buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+}
+
+# Namespace для error логов
+namespace "nginx_error" {
+  # Формат стандартного error лога Nginx
+  format = "$time_local [$level] $pid#$tid: *$connection $message, client: $client, server: $server, request: \"$request\", host: \"$host\""
+  
+  source {
+    files = [
+      "/var/log/nginx/error.log*"
+    ]
+  }
+  
+  labels {
+    app = "nginx"
+    environment = "production" 
+    host = "{{ inventory_hostname }}"
+    log_type = "error"
+  }
+  
+  # Дополнительные relabel правила для error логов
+  relabel "error_level" {
+    from = "level"
+  }
+  
+  relabel "error_type" {
+    match ".*open\\(\\) \"([^\"]+)\" failed \\((\\d+): ([^\\)]+)\\).*" {
+      replacement = "$3"
+    }
+    from = "message"
+  }
+  
+  # Счетчик ошибок по уровням
+  counter "errors_total" {
+    description = "Total number of nginx errors"
+    labels = ["level", "server"]
+  }
 }
 EOF
 ```
@@ -2097,7 +2136,7 @@ git push --force-with-lease study_fops39 cours_fops39_2025
 git add . .. \
 && git status
 
-git commit -am 'commit_9_update_8, cours_fops39_2025' \
+git commit -am 'commit_9_update_9, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 
