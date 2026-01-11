@@ -1,5 +1,8 @@
 {
     "yaml.schemas": {
-        "https://www.schemastore.org/yamllint.json": "file:///home/shoel/nfs_git/gited/cours_p/host_vars/prometheus.yml"
+        "https://www.schemastore.org/yamllint.json": [
+            "file:///home/shoel/nfs_git/gited/cours_p/host_vars/prometheus.yml"
+        ],
+        "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible.json#/$defs/playbook": "file:///home/shoel/nfs_git/gited/cours_p/prometheus_server.yaml"
     }
 }

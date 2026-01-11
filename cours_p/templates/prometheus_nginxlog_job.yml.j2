@@ -1,0 +1,8 @@
+---
+- targets:
+{% for host in groups['webservers'] %}
+  - "{{ hostvars[host].ansible_host }}:4040"
+{% endfor %}
+  labels:
+    service: nginxlog_exporter
+    job: nginxlog

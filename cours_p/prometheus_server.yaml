@@ -4,6 +4,47 @@
   become: yes
   gather_facts: yes
 
+  post_tasks:
+    - name: Дополнение конфига Prometheus под nginxlog_exporter
+      block:
+        - name: Создание директории для file_sd конфигураций
+          file:
+            path: /etc/prometheus/file_sd
+            state: directory
+            owner: prometheus
+            group: prometheus
+            mode: '0755'
+          when: inst_nginxlog_exporter | bool
+
+        - name: Конфигурации для nginxlog_exporter
+          template:
+            src: prometheus_nginxlog_job.yml.j2
+            dest: /etc/prometheus/file_sd/nginxlog.yml
+            owner: prometheus
+            group: prometheus
+            mode: '0644'
+
+        - name: Обновление основной конфигурации Prometheus
+          blockinfile:
+            path: /etc/prometheus/prometheus.yml
+            marker: "# {mark} ANSIBLE MANAGED BLOCK nginxlog"
+            block: |2
+                - job_name: nginxlog
+                  file_sd_configs:
+                  - files:
+                    - '/etc/prometheus/file_sd/nginxlog.yml'
+            insertafter: "scrape_configs:"
+            state: present
+            
+        - name: Перезагрузка Prometheus
+          systemd:
+            name: prometheus
+            state: restarted
+            enabled: yes
+            masked: no
+            daemon_reload: yes
+      when: inst_nginxlog_exporter | bool
+
   roles:
     - prometheus.prometheus.prometheus
 

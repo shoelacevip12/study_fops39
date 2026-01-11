@@ -1807,6 +1807,47 @@ cat>./prometheus_server.yaml<<'EOF'
   become: yes
   gather_facts: yes
 
+  post_tasks:
+    - name: Дополнение конфига Prometheus под nginxlog_exporter
+      block:
+        - name: Создание директории для file_sd конфигураций
+          file:
+            path: /etc/prometheus/file_sd
+            state: directory
+            owner: prometheus
+            group: prometheus
+            mode: '0755'
+          when: inst_nginxlog_exporter | bool
+
+        - name: Конфигурации для nginxlog_exporter
+          template:
+            src: prometheus_nginxlog_job.yml.j2
+            dest: /etc/prometheus/file_sd/nginxlog.yml
+            owner: prometheus
+            group: prometheus
+            mode: '0644'
+
+        - name: Обновление основной конфигурации Prometheus
+          blockinfile:
+            path: /etc/prometheus/prometheus.yml
+            marker: "# {mark} ANSIBLE MANAGED BLOCK nginxlog"
+            block: |2
+                - job_name: nginxlog
+                  file_sd_configs:
+                  - files:
+                    - '/etc/prometheus/file_sd/nginxlog.yml'
+            insertafter: "scrape_configs:"
+            state: present
+            
+        - name: Перезагрузка Prometheus
+          systemd:
+            name: prometheus
+            state: restarted
+            enabled: yes
+            masked: no
+            daemon_reload: yes
+      when: inst_nginxlog_exporter | bool
+
   roles:
     - prometheus.prometheus.prometheus
 
@@ -1919,9 +1960,9 @@ listen {
   metrics_endpoint = "/metrics"
 }
 
-# Namespace для access логов
 namespace "nginx_access" {
-  format = "$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" \"$http_x_forwarded_for\""
+  # СТАНДАРТНЫЙ ФОРМАТ Nginx (7 полей, БЕЗ http_x_forwarded_for)
+  format = "$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\""
   
   source {
     files = [
@@ -1960,9 +2001,7 @@ namespace "nginx_access" {
   histogram_buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
 }
 
-# Namespace для error логов
 namespace "nginx_error" {
-  # Формат стандартного error лога Nginx
   format = "$time_local [$level] $pid#$tid: *$connection $message, client: $client, server: $server, request: \"$request\", host: \"$host\""
   
   source {
@@ -1978,19 +2017,10 @@ namespace "nginx_error" {
     log_type = "error"
   }
   
-  # Дополнительные relabel правила для error логов
   relabel "error_level" {
     from = "level"
   }
   
-  relabel "error_type" {
-    match ".*open\\(\\) \"([^\"]+)\" failed \\((\\d+): ([^\\)]+)\\).*" {
-      replacement = "$3"
-    }
-    from = "message"
-  }
-  
-  # Счетчик ошибок по уровням
   counter "errors_total" {
     description = "Total number of nginx errors"
     labels = ["level", "server"]
@@ -2012,24 +2042,38 @@ cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
   listen: restart_nginxlog_exporter
 EOF
 ```
+```bash
+mkdir -p templates
+
+cat > ./templates/prometheus_nginxlog_job.yml.j2 <<'EOF'
+---
+- targets:
+{% for host in groups['webservers'] %}
+  - "{{ hostvars[host].ansible_host }}:4040"
+{% endfor %}
+  labels:
+    service: nginxlog_exporter
+    job: nginxlog
+EOF
+```
 ##### Создание общих переменных для хоста prometheus
 ```bash
 mkdir -p host_vars
 
-cat > host_vars/prometheus.yml << 'EOF'
+cat > ./host_vars/prometheus.yml << 'EOF'
 ---
+# Node Exporter targets
 prometheus_targets:
   node:
     - targets:
         - localhost:9100
         - "{{ hostvars['web-a'].ansible_host }}:9100"
         - "{{ hostvars['web-b'].ansible_host }}:9100"
-nginxlog:
-  - targets:
-      - "{{ hostvars['web-a'].ansible_host }}:4040"
-      - "{{ hostvars['web-b'].ansible_host }}:4040"
-    labels:
-      service: "nginxlog_exporter"
+
+# Nginxlog Exporter targets
+nginxlog_targets:
+  - "{{ hostvars['web-a'].ansible_host }}:4040"
+  - "{{ hostvars['web-b'].ansible_host }}:4040"
 EOF
 ```
 
@@ -2136,7 +2180,7 @@ git push --force-with-lease study_fops39 cours_fops39_2025
 git add . .. \
 && git status
 
-git commit -am 'commit_9_update_9, cours_fops39_2025' \
+git commit -am 'commit_9_update_10, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 
@@ -2184,6 +2228,6 @@ done
 eval $(ssh-agent) \
 && ssh-add ~/.ssh/id_cours_fops39_2025_ed25519 \
 && > ~/.ssh/known_hosts \
-&& ansible-playbook cours_proj.yaml --syntax-check \
-&& ansible-playbook cours_proj.yaml --syntax-check
+&& ansible-playbook *.yaml --syntax-check \
+&& ansible-playbook cours_proj.yaml
 ```
