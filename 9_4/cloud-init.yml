@@ -1,0 +1,19 @@
+#cloud-config
+users:
+  - name: skv
+    groups: sudo
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKTzl11XrCWwF/S4sePf5u8g+c9l6P6+/lRKcEXjUH/F 9-04
+    lock_passwd: false
+package_update: true
+package_upgrade: true
+packages:
+  - wget
+  - curl
+  - gnupg
+  - software-properties-common
+  - python3-psycopg2
+  - acl
+  - locales-all

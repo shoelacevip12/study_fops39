@@ -24,7 +24,6 @@ terraform.tfstate.backup
 cloud-init.yml
 *cloud-init.yml
 .terraform.*
-collections/*
-.terraform/*
-galaxy_cache/*
-tmp/*
+
+# Исключения
+!9_*/cloud-init.yml

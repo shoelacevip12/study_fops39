@@ -1,1 +1,0 @@
-{"rsync":{"/vagrant":{"disabled":false,"guestpath":"/vagrant","hostpath":"/home/shoel/gited/8_3/gitlab","type":"rsync","rsync__args":["--verbose","--archive","--delete","--include=docker-compose.yaml","--exclude=*"],"create":true,"__vagrantfile":true,"args":["--verbose","--archive","--delete","--include=docker-compose.yaml","--exclude=*"],"owner":"vagrant","group":"vagrant"}}}

@@ -2180,10 +2180,13 @@ git switch -C cours_fops39_2025
 # Отправка изменения с перезаписью удалённой ветки
 git push --force-with-lease study_fops39 cours_fops39_2025
 
+# Удаление проигнорированных файлов .gitignore из индекса Git 
+git rm -r --cached . ..
+
 git add . .. \
 && git status
 
-git commit -am 'commit_9_update_12, cours_fops39_2025' \
+git commit -am 'commit_9_update_16, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ```bash
