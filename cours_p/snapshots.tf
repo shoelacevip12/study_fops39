@@ -5,11 +5,11 @@ resource "yandex_compute_snapshot_schedule" "daily_snapshots" {
 
   # Политика расписания - ежедневно в 2 часа ночи
   schedule_policy {
-    expression = "0 2 * * *"  # Каждый день в 02:00
+    expression = "0 2 * * *" # Каждый день в 02:00
   }
 
-  # Период хранения снимков - 7 дней (в секундах)
-  retention_period = 604800  # 7 * 24 * 3600
+  # Период хранения снимков - 7 дней (168 часов)
+  retention_period = "168h"
 
   # ID дисков всех ВМ из проекта
   disk_ids = [
