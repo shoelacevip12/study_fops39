@@ -43,6 +43,7 @@ git commit -am 'commit_1, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ### commit_2, `cours_fops39_2025` Подготовка и запуск стенда
+![](./cours_p/img/0.png)
 ```bash
 # вход в папку проекта
 cd cours_p
@@ -2418,7 +2419,7 @@ git rm -r --cached . ..
 git add . .. \
 && git status
 
-git commit -am 'commit_10_update_3, cours_fops39_2025' \
+git commit -am 'commit_10_update_4, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ```bash
