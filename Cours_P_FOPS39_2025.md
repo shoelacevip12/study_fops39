@@ -1749,8 +1749,8 @@ cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
     timeout: 30
   register: elasticsearch_status
   until: elasticsearch_status.status == 200
-  retries: 10
-  delay: 5
+  retries: 20
+  delay: 6
   when: not ansible_check_mode
   listen: restart_elasticsearch
 
@@ -1768,8 +1768,8 @@ cat >> ./roles/fops39_skv_2025/handlers/main.yml << 'EOF'
     timeout: 30
   register: kibana_status
   until: kibana_status.status == 200
-  retries: 10
-  delay: 5
+  retries: 20
+  delay: 6
   when: not ansible_check_mode
   listen: restart_kibana
 
@@ -1858,6 +1858,13 @@ cat>./prometheus_server.yaml<<'EOF'
   hosts: webservers:prometheus
   become: yes
   gather_facts: yes
+  vars:
+    prometheus_targets:
+      node:
+        - targets:
+            - localhost:9100
+            - "{{ hostvars['web-a'].ansible_host }}:9100"
+            - "{{ hostvars['web-b'].ansible_host }}:9100"
   roles:
     - prometheus.prometheus.node_exporter
 EOF
@@ -2065,14 +2072,6 @@ mkdir -p host_vars
 
 cat > ./host_vars/prometheus.yml << 'EOF'
 ---
-# Node Exporter targets
-prometheus_targets:
-  node:
-    - targets:
-        - localhost:9100
-        - "{{ hostvars['web-a'].ansible_host }}:9100"
-        - "{{ hostvars['web-b'].ansible_host }}:9100"
-
 # Nginxlog Exporter targets
 nginxlog_targets:
   - "{{ hostvars['web-a'].ansible_host }}:4040"
@@ -2102,7 +2101,8 @@ mkdir -p host_vars
 
 cat > host_vars/grafana.yml << 'EOF'
 ---
-grafana_version: "12.3.1"  # Версия Grafana
+grafana_manage_repo: false
+grafana_version: "12.3.1"
 grafana_admin_user: "admin"
 grafana_admin_password: "test@skv"
 grafana_deb_url: "https://drive.usercontent.google.com/download?id=1VjodTd3ro6mCUCmyJWkcY0c4XRjc34yO&export=download&confirm=t&uuid=3c0f5a8b-e769-4e13-a774-a01ec7e04b03&at=ANTm3cy8tILZs5QZQAb61Bz1itWH%3A1767616590783"
@@ -2115,6 +2115,7 @@ grafana_datasources:
   - name: "Prometheus"
     type: "prometheus"
     url: "http://{{ hostvars['prometheus'].ansible_host }}:9090"
+    isDefault: true
 EOF
 ```
 ##### Создание отдельного playbook для установки Grafana
@@ -2190,11 +2191,10 @@ git commit -am 'commit_9_update_16, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ```bash
-# Создаем директорию для Grafana dashboards
+# JSON dashboard
 mkdir -p ./files/grafana_dashboards
 
-# Сохраняем JSON дашборда
-cat > ./files/grafana_dashboards/nginx_log_metrics.json << 'EOF'
+cat > ./files/dashboards/nginx-access-errors.json << 'EOF'
 {
   "annotations": {
     "list": [
@@ -2220,8 +2220,7 @@ cat > ./files/grafana_dashboards/nginx_log_metrics.json << 'EOF'
   "panels": [
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "type": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -2303,8 +2302,7 @@ cat > ./files/grafana_dashboards/nginx_log_metrics.json << 'EOF'
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "type": "prometheus"
           },
           "editorMode": "builder",
           "expr": "nginx_access_http_response_count_total{instance=\"10.10.10.201:4040\"}",
@@ -2314,8 +2312,7 @@ cat > ./files/grafana_dashboards/nginx_log_metrics.json << 'EOF'
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "type": "prometheus"
           },
           "editorMode": "builder",
           "expr": "nginx_access_http_response_count_total{instance=\"10.10.10.211:4040\"}",
@@ -2325,8 +2322,7 @@ cat > ./files/grafana_dashboards/nginx_log_metrics.json << 'EOF'
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "type": "prometheus"
           },
           "editorMode": "builder",
           "expr": "nginx_access_parse_errors_total{instance=\"10.10.10.201:4040\"}",
@@ -2336,8 +2332,7 @@ cat > ./files/grafana_dashboards/nginx_log_metrics.json << 'EOF'
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "type": "prometheus"
           },
           "editorMode": "builder",
           "expr": "nginx_access_parse_errors_total{instance=\"10.10.10.211:4040\"}",
@@ -2385,6 +2380,17 @@ cat > ./files/grafana_dashboards/nginx_log_metrics.json << 'EOF'
   "version": 1
 }
 EOF
+```
+### commit_10, `cours_fops39_2025`
+```bash
+# Удаление проигнорированных файлов .gitignore из индекса Git 
+git rm -r --cached . ..
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_10_update_1, cours_fops39_2025' \
+&& git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ```bash
 # Проверка tf файлов проекта и создание файла запуска terraform

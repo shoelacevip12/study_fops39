@@ -36,8 +36,8 @@
     timeout: 30
   register: elasticsearch_status
   until: elasticsearch_status.status == 200
-  retries: 10
-  delay: 5
+  retries: 20
+  delay: 6
   when: not ansible_check_mode
   listen: restart_elasticsearch
 
@@ -55,8 +55,8 @@
     timeout: 30
   register: kibana_status
   until: kibana_status.status == 200
-  retries: 10
-  delay: 5
+  retries: 20
+  delay: 6
   when: not ansible_check_mode
   listen: restart_kibana
 

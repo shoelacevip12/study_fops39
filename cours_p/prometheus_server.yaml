@@ -52,5 +52,12 @@
   hosts: webservers:prometheus
   become: yes
   gather_facts: yes
+  vars:
+    prometheus_targets:
+      node:
+        - targets:
+            - localhost:9100
+            - "{{ hostvars['web-a'].ansible_host }}:9100"
+            - "{{ hostvars['web-b'].ansible_host }}:9100"
   roles:
     - prometheus.prometheus.node_exporter

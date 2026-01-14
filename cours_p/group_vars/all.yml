@@ -1,10 +1,10 @@
 ---
 # включаем(true)\выключаем(false) задачи роли
-dist_upd: true            # Установка и обновление пакетов всех машин
-port_forwards: true       # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
-install_nginx: true       # установка и настройка nginx сервера
-inst_elk_stack: true      # установка ELK"
-inst_filebeat: true       # установка filebeat"
+dist_upd: false            # Установка и обновление пакетов всех машин
+port_forwards: false       # проброс портов 3000,5601 для Grafana и Kibana на bastion хосте
+install_nginx: false       # установка и настройка nginx сервера
+inst_elk_stack: false      # установка ELK
+inst_filebeat: false       # установка filebeat
 install_prometheus: true  # установка Prometheus и Node Exporter
 inst_nginxlog_exporter: true  # установка nginxlog_exporter
 install_grafana: true     # установка Grafana
