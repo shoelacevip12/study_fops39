@@ -150,6 +150,7 @@ git commit -am 'commit_3, cours_fops39_2025' \
 # для archlinux установка terraform
 sudo pacman -Syu terraform
 ```
+##### Описание провайдера для работы с yandex-cloud
 ```bash
 # в папке с проектом создаем конфигурационный файл .tf:
 # source — глобальный адрес источника провайдера.
@@ -171,9 +172,9 @@ provider "yandex" {
 }
 EOF
 ```
+##### Описание часто повторяющихся переменных в других файлах .tf
 ```bash
 # в папке с проектом создаем отдельный конфигурационный файл .tf:
-# с часто повторяющимися переменными в других файлах .tf
 cat > variables.tf <<'EOF'
 variable "cours-w-skv" {
   type    = string
@@ -209,10 +210,9 @@ variable "srv" {
 }
 EOF
 ```
-
+##### Описанием CIDR локальных сетей в зонах, WAN и NAT маршрутизации
 ```bash
 # в папке с проектом создаем отдельный конфигурационный файл .tf:
-# с описанием CIDR локальных сетей в зонах, WAN и NAT маршрутизации
 cat > network.tf <<'EOF'
 # Общая облачная сеть
 resource "yandex_vpc_network" "skv" {
@@ -264,11 +264,9 @@ resource "yandex_vpc_route_table" "route" {
 }
 EOF
 ```
-
-EOF
+##### Описание security group для локальных и публичных сетей с разграничением доступа по портам и протоколам 
 ```bash
 # в папке с проектом создаем отдельный конфигурационный файл .tf:
-# с описанием security group для локальных и публичных сетей с разграничением доступа по портам и протоколам 
 cat > security_groups.tf <<'EOF'
 # Security Group для LAN (внутреннее взаимодействие между сервисами)
 resource "yandex_vpc_security_group" "LAN" {
@@ -573,6 +571,36 @@ resource "yandex_vpc_security_group" "alb_sg" {
 }
 EOF
 ```
+##### Настройка расписания снимков дисков для всех ВМ
+```bash
+cat > snapshots.tf << 'EOF'
+# Расписание создания снимков для всех виртуальных машин
+resource "yandex_compute_snapshot_schedule" "daily_snapshots" {
+  name        = "daily-snapshots-fops39-${var.cours-w-skv}"
+  description = "Ежедневные снимки дисков всех ВМ с хранением 7 дней"
+
+  # Политика расписания - ежедневно в 2 часа ночи
+  schedule_policy {
+    expression = "0 2 * * *"  # Каждый день в 02:00
+  }
+
+  # Период хранения снимков - 7 дней (в секундах)
+  retention_period = 604800  # 7 * 24 * 3600
+
+  # ID дисков всех ВМ из проекта
+  disk_ids = [
+    yandex_compute_instance.bastion.boot_disk[0].disk_id,
+    yandex_compute_instance.web-a.boot_disk[0].disk_id,
+    yandex_compute_instance.web-b.boot_disk[0].disk_id,
+    yandex_compute_instance.prometheus.boot_disk[0].disk_id,
+    yandex_compute_instance.grafana.boot_disk[0].disk_id,
+    yandex_compute_instance.elasticsearch.boot_disk[0].disk_id,
+    yandex_compute_instance.kibana.boot_disk[0].disk_id,
+  ]
+}
+EOF
+```
+
 ```bash
 cat > alb.tf << 'EOF'
 # Целевая группа для веб-серверов
@@ -689,12 +717,13 @@ resource "yandex_alb_load_balancer" "alb" {
 }
 EOF
 ```
+##### Главный файл terraform описания создания виртуальных машин
 ```bash
 # в папке с проектом создаем отдельный конфигурационный файл .tf:
 # где будет расписан какой образ из репозитория будет использоваться
-# с какими параметрами
-# Сетями
-# Будет созданы виртуальные машины
+# с какими параметрами и сетями
+# какие metadata использовать при развертывании
+# Формирование файла hosts.ini для работы с ansible
 cat > vms.tf <<'EOF'
 # Данные об образе ОС
 data "yandex_compute_image" "ubuntu_2404_lts" {
@@ -2389,7 +2418,7 @@ git rm -r --cached . ..
 git add . .. \
 && git status
 
-git commit -am 'commit_10_update_2, cours_fops39_2025' \
+git commit -am 'commit_10_update_3, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ```bash
