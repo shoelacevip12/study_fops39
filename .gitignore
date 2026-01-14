@@ -1,14 +1,15 @@
 # Игнорировать всю папку:
 cache/
-.vagrant/
-__pycache__/
+*/.vagrant/
+*/__pycache__/
 mysql_D/
 master/db/
 slave/db/
-.terraform/
-collections/
-galaxy_cache/
-./tmp/
+*/.terraform/
+*/collections/
+*/galaxy_cache/
+*/tmp/
+.vscode/
 
 # игнорировать расширения и файлы:
 *.deb
@@ -23,7 +24,7 @@ terraform.tfstate.backup
 cloud-init.yml
 *cloud-init.yml
 .terraform.*
-collections/*
+*/collections/*
 .terraform/*
-galaxy_cache/*
-./tmp/*
+*/galaxy_cache/*
+*/tmp/*
