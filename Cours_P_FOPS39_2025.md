@@ -2389,7 +2389,7 @@ git rm -r --cached . ..
 git add . .. \
 && git status
 
-git commit -am 'commit_10_update_1, cours_fops39_2025' \
+git commit -am 'commit_10_update_2, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ```bash
