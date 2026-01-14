@@ -2183,7 +2183,7 @@ git push --force-with-lease study_fops39 cours_fops39_2025
 git add . .. \
 && git status
 
-git commit -am 'commit_9_update_11, cours_fops39_2025' \
+git commit -am 'commit_9_update_12, cours_fops39_2025' \
 && git push --set-upstream study_fops39 cours_fops39_2025
 ```
 ```bash

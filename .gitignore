@@ -7,6 +7,8 @@ master/db/
 slave/db/
 .terraform/
 collections/
+galaxy_cache/
+./tmp/
 
 # игнорировать расширения и файлы:
 *.deb
@@ -21,3 +23,7 @@ terraform.tfstate.backup
 cloud-init.yml
 *cloud-init.yml
 .terraform.*
+collections/*
+.terraform/*
+galaxy_cache/*
+./tmp/*
