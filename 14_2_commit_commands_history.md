@@ -135,4 +135,15 @@ git add . ..  \
 && git push --set-upstream study_fops39 master --tags --force \
 && git push --set-upstream study_fops39_gitlab master --tags --force \
 && git push --set-upstream study_fops39_gitflic_ru master --tags --force
+
+git add . ..  \
+&& git status 
+
+git commit -am 'commit_40, master' \
+&& git tag \
+-a v0.3 \
+-m 'skv_dv_cherry_2' \
+&& git push --set-upstream study_fops39 master --tags \
+&& git push --set-upstream study_fops39_gitlab master --tags \
+&& git push --set-upstream study_fops39_gitflic_ru master --tags
 ```

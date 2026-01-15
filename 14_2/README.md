@@ -172,6 +172,10 @@ origin-https	https://github.com/andrey-borue/devops-netology.git (push)
 
 *В качестве результата работы по всем заданиям приложите ссылки на ваши репозитории в GitHub, GitLab и Bitbucket*.  
  
+---
+
+![](./img/12.png) ![](./img/13.png)
+
 ----
 
 ### Правила приёма домашнего задания
