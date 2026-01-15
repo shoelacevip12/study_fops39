@@ -137,9 +137,9 @@ git add . .. \
 git diff \
 && git diff --staged
 
-git commit -am 'commit_33_update1, master' \
+git commit -am 'commit_35_update1, master Moved and deleted' \
 && git push --set-upstream study_fops39 master
 
 echo "$(git log)" \
-| head -n11
+| head -n35
 ```
