@@ -31,6 +31,7 @@ rm -rf \
 git remote -v
 
 # Добавление нового удаленного репозитория
+git remote add \
 study_fops39 \
 https://github.com/shoelacevip12/study_fops39.git
 
