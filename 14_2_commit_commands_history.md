@@ -77,3 +77,20 @@ git commit -am 'commit_37, master' \
 && git push --set-upstream study_fops39_gitlab master \
 && git push --set-upstream study_fops39_gitflic_ru master
 ```
+
+## commit_38, master
+```bash
+#  Аннотированный тег v0.1
+git tag \
+-a v0.1 \
+-m 'skv_dv_test_anno_tag'
+
+# отображение всех тегов начинающихся с "v"
+git tag \
+-l "v*"
+
+git commit -am 'commit_38, master' \
+&& git push --set-upstream study_fops39 master \
+&& git push --set-upstream study_fops39_gitlab master \
+&& git push --set-upstream study_fops39_gitflic_ru master
+```
