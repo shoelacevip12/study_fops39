@@ -126,9 +126,20 @@ git commit -am 'commit_34, master, Prepare to delete and move' \
 rm -rf will_be_deleted.txt \
 && mv {will_be,has_been}_moved.txt
 
+git status
+
+echo "$(git log --oneline)" \
+| head
+
 git add . .. \
 && git status
 
-git commit -am 'commit_35, master, Moved and deleted' \
+git diff \
+&& git diff --staged
+
+git commit -am 'commit_33_update1, master' \
 && git push --set-upstream study_fops39 master
+
+echo "$(git log)" \
+| head -n11
 ```
