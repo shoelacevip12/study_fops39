@@ -121,3 +121,14 @@ git add . .. \
 git commit -am 'commit_34, master, Prepare to delete and move' \
 && git push --set-upstream study_fops39 master
 ```
+## commit_35, master
+```bash
+rm -rf will_be_deleted.txt \
+&& mv {will_be,has_been}_moved.txt
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_35, master, Moved and deleted' \
+&& git push --set-upstream study_fops39 master
+```
