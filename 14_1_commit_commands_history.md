@@ -106,3 +106,18 @@ git diff \
 git commit -am 'commit_33, master' \
 && git push --set-upstream study_fops39 master
 ```
+## commit_34, master
+```bash
+
+echo "will_be_deleted" \
+> will_be_deleted.txt
+
+echo "will_be_moved" \
+> will_be_moved.txt
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_34, master, Prepare to delete and move' \
+&& git push --set-upstream study_fops39 master
+```
