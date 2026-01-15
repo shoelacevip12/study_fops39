@@ -61,7 +61,7 @@ git diff \
 git log --oneline
 
 # Создание коммита со всеми изменениями и отправка в удаленные репозиторий
-git commit -am 'commit_36_update1, master' \
+git commit -am 'commit_36_update2, master' \
 && git push --set-upstream study_fops39 master \
 && git push --set-upstream study_fops39_gitlab master \
 && git push --set-upstream study_fops39_gitflic_ru master
