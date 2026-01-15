@@ -94,3 +94,45 @@ git commit -am 'commit_38_update3, master' \
 && git push --set-upstream study_fops39_gitlab master --tags \
 && git push --set-upstream study_fops39_gitflic_ru master --tags
 ```
+## commit_39, master; commit_1, fix_14_1-14_2
+```bash
+git log --oneline
+
+git checkout 8df5568
+
+git switch -c fix_14_1-14_2
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_1, fix_14_1-14_2' \
+&& git push --set-upstream study_fops39 fix_14_1-14_2 \
+&& git push --set-upstream study_fops39_gitlab fix_14_1-14_2 \
+&& git push --set-upstream study_fops39_gitflic_ru fix_14_1-14_2
+```
+## commit_2, fix_14_1-14_2
+```bash
+echo -e \
+"\nSKV_DV-git2" \
+>> ../14_1/README.md
+
+git commit -am 'commit_2, fix_14_1-14_2' \
+&& git push --set-upstream study_fops39 fix_14_1-14_2 \
+&& git push --set-upstream study_fops39_gitlab fix_14_1-14_2 \
+&& git push --set-upstream study_fops39_gitflic_ru fix_14_1-14_2
+```
+## commit_40, master
+```bash
+git checkout master
+
+git add . ..  \
+&& git commit --amend --no-edit \
+&& git tag \
+-d v0.2 \
+&& git tag \
+-a v0.2 \
+-m 'skv_dv_cherry' \
+&& git push --set-upstream study_fops39 master --tags --force \
+&& git push --set-upstream study_fops39_gitlab master --tags --force \
+&& git push --set-upstream study_fops39_gitflic_ru master --tags --force
+```
