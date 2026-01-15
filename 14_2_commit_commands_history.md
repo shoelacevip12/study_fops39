@@ -89,7 +89,7 @@ git tag \
 git tag \
 -l "v*"
 
-git commit -am 'commit_38_update2, master' \
+git commit -am 'commit_38_update3, master' \
 && git push --set-upstream study_fops39 master --tags \
 && git push --set-upstream study_fops39_gitlab master --tags \
 && git push --set-upstream study_fops39_gitflic_ru master --tags

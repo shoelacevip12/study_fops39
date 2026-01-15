@@ -131,6 +131,10 @@ origin-https	https://github.com/andrey-borue/devops-netology.git (push)
     * в GitLab — https://gitlab.com/YOUR_ACCOUNT/devops-netology/-/tags;
     * в Bitbucket — список тегов расположен в выпадающем меню веток на отдельной вкладке. 
 
+---
+
+![](./img/5.png) ![](./img/6.png) ![](./img/7.png)
+
 ## Задание 3. Ветки 
 
 Давайте посмотрим, как будет выглядеть история коммитов при создании веток. 
