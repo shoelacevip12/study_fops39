@@ -36,6 +36,11 @@ git remote add \
 study_fops39_gitlab \
 https://gitlab.com/shoelacevip12-group/study_fops39.git
 
+# Добавление нового удаленного репозитория https://gitflic.ru
+git remote add \
+study_fops39_gitflic_ru \
+https://gitflic.ru/project/shoelacevip12/fops39.git
+
 # Проверка текущего локального состояния репозитория
 git status
 
@@ -56,7 +61,8 @@ git diff \
 git log --oneline
 
 # Создание коммита со всеми изменениями и отправка в удаленные репозиторий
-git commit -am 'commit_36, master' \
+git commit -am 'commit_36_update1, master' \
 && git push --set-upstream study_fops39 master \
-&& git push --set-upstream study_fops39_gitlab master
+&& git push --set-upstream study_fops39_gitlab master \
+&& git push --set-upstream study_fops39_gitflic_ru master
 ```
