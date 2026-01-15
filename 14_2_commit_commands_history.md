@@ -66,3 +66,14 @@ git commit -am 'commit_36_update2, master' \
 && git push --set-upstream study_fops39_gitlab master \
 && git push --set-upstream study_fops39_gitflic_ru master
 ```
+## commit_37, master
+```bash
+#  Легковесный тег v0.0
+git tag \
+v0.0
+
+git commit -am 'commit_37, master' \
+&& git push --set-upstream study_fops39 master \
+&& git push --set-upstream study_fops39_gitlab master \
+&& git push --set-upstream study_fops39_gitflic_ru master
+```
