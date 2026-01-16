@@ -57,6 +57,6 @@ git add . .. \
 
 git log --oneline
 
-git commit -am 'commit_41, master' \
+git commit -am 'commit_41_update1, master, prepare for merge and rebase' \
 && git push --set-upstream study_fops39 master
 ```
