@@ -234,6 +234,6 @@ git-merge
 git add . .. \
 && git status
 
-git commit -am 'commit_43, master & git-merge' \
+git commit -am 'commit_43_update1, master & git-merge' \
 && git push study_fops39 master
 ```
