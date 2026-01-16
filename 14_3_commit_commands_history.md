@@ -60,3 +60,39 @@ git log --oneline
 git commit -am 'commit_41_update1, master, prepare for merge and rebase' \
 && git push --set-upstream study_fops39 master
 ```
+## commit_1, git-merge
+```bash
+git switch -c \
+git-merge
+
+cat > merge.sh <<'EOF'
+#!/bin/bash
+# display command line options
+
+count=1
+for param in "$@"; do
+    echo "\$@ Parameter #$count = $param"
+    count=$(( $count + 1 ))
+done
+EOF
+
+git branch -v
+
+git remote -v
+
+git status
+
+git diff \
+&& git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_1, git-merge, merge: @ instead *' \
+&& git push \
+--set-upstream \
+study_fops39 \
+git-merge
+```
