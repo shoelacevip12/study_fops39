@@ -237,3 +237,47 @@ git add . .. \
 git commit -am 'commit_43_update1, master & git-merge' \
 && git push study_fops39 master
 ```
+## commit_3, git-rebase
+```bash
+git switch \
+git-rebase
+
+git rebase -i \
+master
+
+git add rebase.sh
+
+git rebase \
+--continue
+
+git add rebase.sh
+
+git rebase \
+--continue
+
+git add . .. \
+&& git status
+
+git push \
+--set-upstream \
+study_fops39 \
+git-rebase \
+--force
+```
+## commit_44, master_git-rebase
+```bash
+git switch \
+master
+
+git merge \
+git-rebase
+
+git add . .. \
+&& git status
+
+git commit -am 'commit_44_update1, master & git-rebase' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master
+```

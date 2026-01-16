@@ -210,12 +210,15 @@ for param in "$@"; do
     count=$(( $count + 1 ))
 done
 ```
+![](./img/8.png)
 
 **Шаг 3.** Удалим метки, отдав предпочтение варианту:
 
 ```bash
 echo "\$@ Parameter #$count = $param"
 ```
+
+![](./img/9.png)
 
 **Шаг 4.** Сообщим Git, что конфликт решён `git add rebase.sh` и продолжим rebase `git rebase --continue`.
 
@@ -277,6 +280,8 @@ To github.com:andrey-borue/devops-netology.git
 Branch 'git-rebase' set up to track remote branch 'git-rebase' from 'origin'.
 ```
 
+![](./img/10.png)
+
 **Шаг 9**. Теперь можно смержить ветку `git-rebase` в main без конфликтов и без дополнительного мерж-коммита простой перемоткой: 
 
 ```
@@ -290,6 +295,8 @@ Fast-forward
  branching/rebase.sh | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
 ```
+
+![](./img/11.png)
 
 *В качестве результата работы по всем заданиям приложите ссылку на .md-файл в вашем репозитории.*
  
