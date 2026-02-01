@@ -762,7 +762,7 @@ git add . .. \
 
 git log --oneline
 
-git commit -am 'commit_45, master' \
+git commit -am 'commit_45, master_update1' \
 && git push --set-upstream study_fops39 master \
 && git push --set-upstream study_fops39_gitflic_ru master
 ```
