@@ -168,15 +168,6 @@ custom-nginx-t2
 
 docker ps -a
 
-# Запустите новый контейнер с тем же именем, но с новым портом
-# старый контейнер должен быть выключен
-docker run -d \
---name custom-nginx-t2 \
--p 127.0.0.1:8080:81 \
-shoelacevip12/custom-nginx-skv-fops39:1.0.0
-
-docker ps -a
-
 docker port \
 custom-nginx-t2
 
@@ -203,7 +194,7 @@ git add . .. \
 
 git log --oneline
 
-git commit -am 'commit_47, master' \
+git commit -am 'commit_47, master_update1' \
 && git push --set-upstream study_fops39 master \
 && git push --set-upstream study_fops39_gitflic_ru master
 ```
