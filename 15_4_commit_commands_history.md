@@ -198,3 +198,145 @@ git commit -am 'commit_47, master_update1' \
 && git push --set-upstream study_fops39 master \
 && git push --set-upstream study_fops39_gitflic_ru master
 ```
+### Задача 4
+```bash
+# скачивание и запуск контейнера CentOS
+docker pull \
+centos:centos7.9.2009
+
+docker run -d \
+--name centos_skv \
+-v $(pwd):/data \
+centos:centos7.9.2009 \
+tail -f /dev/null
+
+docker ps -a
+
+# скачивание и запуск контейнера Debian
+docker pull \
+debian:unstable-slim
+
+docker run -d \
+--name debian_skv \
+-v $(pwd):/data \
+debian:unstable-slim \
+tail -f /dev/null
+
+docker ps -a
+
+# Выполнение команды без прямого подключения 
+# создания файла в CentOS
+docker exec \
+centos_skv \
+sh -c 'echo "Хорошего спеца, производство заботит." \
+> /data/из_CentOS'
+
+# Добавление файла на хосте:
+echo "Товарищ, спецу помоги в работе." \
+> ./из_Хоста
+
+# Выполнение команды без прямого подключения
+# просмотра файлов контейнере Debian
+docker exec \
+debian_skv \
+sh -c "ls -la /data/из_* \
+&& cat \
+/data/из_*"
+
+ls -la из_* \
+&& cat \
+из_*
+```
+### Задача 5
+```bash
+cat > compose.yaml <<'EOF'
+version: "3"
+services:
+  portainer:
+    network_mode: host
+    image: portainer/portainer-ce:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+EOF
+
+cat > docker-compose.yaml <<'EOF'
+version: "3"
+services:
+  registry:
+    image: registry:2
+
+    ports:
+    - "5000:5000"
+EOF
+
+docker compose up -d
+
+sed -i '/"3"/r /dev/stdin' \
+compose.yaml << 'EOF'
+include: 
+  -  docker-compose.yaml
+EOF
+
+docker compose config
+
+docker compose up -d
+
+# Скачивание образа nginx
+docker pull \
+nginx:1.29-alpine3.23
+
+# Запуск сборки и присвоение тега
+docker build \
+-t custom-nginx-skv-fops39 \
+-f Dockerfile.nginx \
+.
+
+docker tag \
+custom-nginx-skv-fops39 \
+localhost:5000/custom-nginx-skv-fops39:latest
+
+docker push \
+localhost:5000/custom-nginx-skv-fops39:latest
+```
+```yaml
+version: '3'
+
+services:
+  nginx:
+    image: 127.0.0.1:5000/custom-nginx-skv-fops39
+    ports:
+      - "9090:80"
+```
+```bash
+docker ps -a
+
+rm compose.yaml
+
+docker compose up -d
+
+docker compose down \
+--remove-orphans
+```
+## для github и gitflic
+```bash
+/home/shoel/docker_s/clean_dockers.sh
+
+sudo systemctl stop \
+docker
+
+git remote -v
+
+git status
+
+git diff \
+&& git diff --staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_48, master_update1' \
+&& git push --set-upstream study_fops39 master \
+&& git push --set-upstream study_fops39_gitflic_ru master
+```

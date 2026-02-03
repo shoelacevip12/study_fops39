@@ -29,7 +29,7 @@ Hey, Netology
 - Соберите и отправьте созданный образ в свой dockerhub-репозитории c tag 1.0.0 (ТОЛЬКО ЕСЛИ ЕСТЬ ДОСТУП). 
 - Предоставьте ответ в виде ссылки на https://hub.docker.com/<username_repo>/custom-nginx/general .
 
-[ССЫЛКА НА GENERAL РЕПОЗИТОРИЙ](https://hub.docker.com/repository/docker/shoelacevip12/custom-nginx-skv-fops39/general)
+[ССЫЛКА НА GENERAL РЕПОЗИТОРИЯ SHOELACEVIP12](https://hub.docker.com/repository/docker/shoelacevip12/custom-nginx-skv-fops39/general)
 
 ![](./img/GIF.gif)
 
@@ -73,8 +73,6 @@ Hey, Netology
 ![](./img/GIF3.gif) ![](./img/1.png)
 
 ## Задача 4
-
-
 - Запустите первый контейнер из образа ***centos*** c любым тегом в фоновом режиме, подключив папку  текущий рабочий каталог ```$(pwd)``` на хостовой машине в ```/data``` контейнера, используя ключ -v.
 - Запустите второй контейнер из образа ***debian*** в фоновом режиме, подключив текущий рабочий каталог ```$(pwd)``` в ```/data``` контейнера. 
 - Подключитесь к первому контейнеру с помощью ```docker exec``` и создайте текстовый файл любого содержания в ```/data```.
@@ -84,9 +82,9 @@ Hey, Netology
 
 В качестве ответа приложите скриншоты консоли, где видно все введенные команды и их вывод.
 
+![](./img/GIF4.gif)
 
 ## Задача 5
-
 1. Создайте отдельную директорию(например /tmp/netology/docker/task5) и 2 файла внутри него.
 "compose.yaml" с содержимым:
 ```
@@ -111,6 +109,12 @@ services:
 
 И выполните команду "docker compose up -d". Какой из файлов был запущен и почему? (подсказка: https://docs.docker.com/compose/compose-application-model/#the-compose-file )
 
+```
+Если файлы compose и docker-compose находятся вместе в одной папке, то в последних версиях
+Compose приоритетным является наименование `compose`, так как 
+наименование `docker-compose` служит теперь для обеспечения обратной совместимости старых версий плагина программы docker
+```
+
 2. Отредактируйте файл compose.yaml так, чтобы были запущенны оба файла. (подсказка: https://docs.docker.com/compose/compose-file/14-include/)
 
 3. Выполните в консоли вашей хостовой ОС необходимые команды чтобы залить образ custom-nginx как custom-nginx:latest в запущенное вами, локальное registry. Дополнительная документация: https://distribution.github.io/distribution/about/deploying/
@@ -131,6 +135,9 @@ services:
 7. Удалите любой из манифестов compose (например compose.yaml).  Выполните команду "docker compose up -d". Прочитайте warning, объясните суть предупреждения и выполните предложенное действие. Погасите compose-проект ОДНОЙ(обязательно!!) командой.
 
 В качестве ответа приложите скриншоты консоли, где видно все введенные команды и их вывод, файл compose.yaml , скриншот portainer c задеплоенным compose.
+
+![](./img/GIF5.gif)
+![](./img/GIF6.gif)
 
 ---
 
