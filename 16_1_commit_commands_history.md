@@ -54,9 +54,9 @@ git commit -am 'commit_49, master' \
 && git push \
 --set-upstream \
 study_fops39 \
-main \
+master \
 && git push \
 --set-upstream \
 study_fops39_gitflic_ru \
-main
+master
 ```
