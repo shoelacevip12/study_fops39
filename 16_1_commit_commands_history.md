@@ -248,3 +248,38 @@ master \
 study_fops39_gitflic_ru \
 master
 ```
+## commit_1, `16_1-terr_vved`
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Переключение\формирование новой ветки git
+git checkout -b 16_1-terr_vved
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am '16_1-terr_vved' \
+&& git push \
+--set-upstream \
+study_fops39 \
+16_1-terr_vved \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+16_1-terr_vved
+```
