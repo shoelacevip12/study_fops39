@@ -1650,3 +1650,442 @@ study_fops39 \
 study_fops39_gitflic_ru \
 16_1-terr_vved
 ```
+### Формирование удаленного контекста remote docker через terraform
+#### Обновление списка провайдеров
+```bash
+cat > providers.tf <<'EOF'
+terraform {
+  required_providers {
+    yandex = {
+      source = "yandex-cloud/yandex"
+    }
+    docker = {
+      source = "kreuzwerker/docker"
+    }
+    random = {
+      source = "hashicorp/random"
+    }
+  }
+  required_version = ">= 0.13"
+}
+
+provider "yandex" {
+  zone = "<зона_доступности_по_умолчанию>"
+}
+
+provider "docker" {
+  host = "ssh://skv@${yandex_compute_instance.docker-host.network_interface.0.nat_ip_address}"
+  ssh_opts = ["-o", "StrictHostKeyChecking=accept-new", "-i", "~/.ssh/id_lab16_1_fops39_ed25519"]
+}
+EOF
+
+# Переинициализация провайдеров
+terraform init --upgrade
+```
+```
+Initializing the backend...
+Initializing provider plugins...
+- Finding latest version of hashicorp/random...
+- Finding latest version of yandex-cloud/yandex...
+- Finding latest version of hashicorp/local...
+- Finding latest version of kreuzwerker/docker...
+- Installing hashicorp/random v3.8.1...
+- Installed hashicorp/random v3.8.1 (unauthenticated)
+- Using previously-installed yandex-cloud/yandex v0.191.0
+- Using previously-installed hashicorp/local v2.7.0
+- Installing kreuzwerker/docker v3.6.2...
+- Installed kreuzwerker/docker v3.6.2 (unauthenticated)
+Terraform has made some changes to the provider dependency selections recorded
+in the .terraform.lock.hcl file. Review those changes and commit them to your
+version control system if they represent changes you intended to make.
+
+╷
+│ Warning: Incomplete lock file information for providers
+│ 
+│ Due to your customized provider installation methods, Terraform was forced to calculate lock file checksums locally for the following providers:
+│   - hashicorp/random
+│   - kreuzwerker/docker
+│ 
+│ The current .terraform.lock.hcl file only includes checksums for linux_amd64, so Terraform running on another platform will fail to install these providers.
+│ 
+│ To calculate additional checksums for another platform, run:
+│   terraform providers lock -platform=linux_amd64
+│ (where linux_amd64 is the platform to generate)
+╵
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+```
+#### Добавление новых часто повторяемых переменных переменных
+```bash
+cat >> variables.tf <<'EOF'
+
+variable "password_strong" {
+  type = map(number)
+  default = {
+    length        = 16
+    min_lower     = 1
+    min_upper     = 1
+    min_numeric   = 1
+  }
+}
+EOF
+```
+#### TF файл конфигурации для MySQL контейнера
+```bash
+cat > mysql.tf <<'EOF'
+# Генерация паролей
+resource "random_password" "mysql_root_password" {
+  length      = var.password_strong.length
+  special     = true
+  min_lower   = var.password_strong.min_lower
+  min_upper   = var.password_strong.min_upper
+  min_numeric = var.password_strong.min_numeric
+}
+
+resource "random_password" "mysql_password" {
+  length      = var.password_strong.length
+  special     = true
+  min_lower   = var.password_strong.min_lower
+  min_upper   = var.password_strong.min_upper
+  min_numeric = var.password_strong.min_numeric
+}
+
+# MySQL контейнер
+resource "docker_image" "mysql" {
+  name         = "mysql:8"
+  keep_locally = true
+}
+
+resource "docker_container" "mysql" {
+  name     = "db-skv"
+  image    = docker_image.mysql.image_id
+  must_run = true
+
+  ports {
+    internal = 3306
+    external = 3306
+    ip       = "127.0.0.1"
+    protocol = "tcp"
+  }
+
+  env = [
+    "MYSQL_ROOT_PASSWORD=${random_password.mysql_root_password.result}",
+    "MYSQL_DATABASE=wordpress",
+    "MYSQL_USER=wordpress",
+    "MYSQL_PASSWORD=${random_password.mysql_password.result}",
+    "MYSQL_ROOT_HOST=%"
+  ]
+
+  restart = "always"
+}
+
+# Для вывода паролей через output
+output "mysql_root_password" {
+  value     = random_password.mysql_root_password.result
+  sensitive = true
+}
+
+output "mysql_password" {
+  value     = random_password.mysql_password.result
+  sensitive = true
+}
+
+output "container_name" {
+  value     = docker_container.mysql.name
+  sensitive = true
+}
+EOF
+```
+### Применение в структуру существующего проекта terraform
+```bash
+# Инициализация Terraform, Проверка конфигурации, Авто-Форматирование конфигов, вывод плана в отдельный файл tfplan
+terraform init --upgrade \
+&& terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Success! The configuration is valid.
+
+mysql.tf
+data.yandex_compute_image.ubuntu_2404_lts: Reading...
+yandex_vpc_gateway.nat-gateway: Refreshing state... [id=enpkq1fdnv3huhbfjpaf]
+yandex_vpc_network.skv: Refreshing state... [id=enp9psj3b1pm2pqgbhi1]
+data.yandex_compute_image.ubuntu_2404_lts: Read complete after 0s [id=fd8bnpa9t8d5cql6rfdl]
+yandex_vpc_route_table.route: Refreshing state... [id=enp0o3ibjd0qo33hsi15]
+yandex_vpc_security_group.host_sg: Refreshing state... [id=enpibequj73jnskcmrr2]
+yandex_vpc_security_group.LAN: Refreshing state... [id=enpc1fv437gjeojcd53f]
+yandex_vpc_subnet.skv-locnet-a: Refreshing state... [id=e9bu1hfr585s0chs4sqc]
+yandex_compute_instance.docker-host: Refreshing state... [id=fhm6t69hr0o48p0ialfc]
+local_file.hosts_docker: Refreshing state... [id=b4b8e5ec9e4d5df59a3b9e380b0a45dbf17cd153]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # docker_container.mysql will be created
+  + resource "docker_container" "mysql" {
+      + attach                                      = false
+      + bridge                                      = (known after apply)
+      + command                                     = (known after apply)
+      + container_logs                              = (known after apply)
+      + container_read_refresh_timeout_milliseconds = 15000
+      + entrypoint                                  = (known after apply)
+      + env                                         = (sensitive value)
+      + exit_code                                   = (known after apply)
+      + hostname                                    = (known after apply)
+      + id                                          = (known after apply)
+      + image                                       = (known after apply)
+      + init                                        = (known after apply)
+      + ipc_mode                                    = (known after apply)
+      + log_driver                                  = (known after apply)
+      + logs                                        = false
+      + must_run                                    = true
+      + name                                        = (sensitive value)
+      + network_data                                = (known after apply)
+      + network_mode                                = "bridge"
+      + read_only                                   = false
+      + remove_volumes                              = true
+      + restart                                     = "always"
+      + rm                                          = false
+      + runtime                                     = (known after apply)
+      + security_opts                               = (known after apply)
+      + shm_size                                    = (known after apply)
+      + start                                       = true
+      + stdin_open                                  = false
+      + stop_signal                                 = (known after apply)
+      + stop_timeout                                = (known after apply)
+      + tty                                         = false
+      + wait                                        = false
+      + wait_timeout                                = 60
+
+      + healthcheck (known after apply)
+
+      + labels (known after apply)
+
+      + ports {
+          + external = 3306
+          + internal = 3306
+          + ip       = "127.0.0.1"
+          + protocol = "tcp"
+        }
+    }
+
+  # docker_image.mysql will be created
+  + resource "docker_image" "mysql" {
+      + id           = (known after apply)
+      + image_id     = (known after apply)
+      + keep_locally = true
+      + name         = "mysql:8"
+      + repo_digest  = (known after apply)
+    }
+
+  # random_password.mysql_password will be created
+  + resource "random_password" "mysql_password" {
+      + bcrypt_hash = (sensitive value)
+      + id          = (known after apply)
+      + length      = 16
+      + lower       = true
+      + min_lower   = 1
+      + min_numeric = 1
+      + min_special = 0
+      + min_upper   = 1
+      + number      = true
+      + numeric     = true
+      + result      = (sensitive value)
+      + special     = true
+      + upper       = true
+    }
+
+  # random_password.mysql_root_password will be created
+  + resource "random_password" "mysql_root_password" {
+      + bcrypt_hash = (sensitive value)
+      + id          = (known after apply)
+      + length      = 16
+      + lower       = true
+      + min_lower   = 1
+      + min_numeric = 1
+      + min_special = 0
+      + min_upper   = 1
+      + number      = true
+      + numeric     = true
+      + result      = (sensitive value)
+      + special     = true
+      + upper       = true
+    }
+
+Plan: 4 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + container_name      = (sensitive value)
+  + mysql_password      = (sensitive value)
+  + mysql_root_password = (sensitive value)
+
+Saved the plan to: tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "tfplan"
+```
+```bash
+# Применение
+terraform apply "tfplan"
+```
+```
+docker_container.mysql: Creating...
+docker_container.mysql: Creation complete after 1s [id=0f284fc59fca9542adba8c5712839766e152b9186fd2fe668e39c42bc1626d4d]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+container_name = <sensitive>
+mysql_password = <sensitive>
+mysql_root_password = <sensitive>
+```
+```bash
+# Структура файлов рабочего проекта
+tree -a
+.
+├── cloud-init.yml
+├── hosts_docker.sh
+├── lab16_1.sh
+├── mysql.tf
+├── network.tf
+├── providers.tf
+├── security_groups.tf
+├── .terraform
+│   └── providers
+│       └── registry.terraform.io
+│           ├── hashicorp
+│           │   ├── local
+│           │   │   └── 2.7.0
+│           │   │       └── linux_amd64
+│           │   │           ├── LICENSE.txt
+│           │   │           └── terraform-provider-local_v2.7.0_x5
+│           │   └── random
+│           │       └── 3.8.1
+│           │           └── linux_amd64
+│           │               ├── LICENSE.txt
+│           │               └── terraform-provider-random_v3.8.1_x5
+│           ├── kreuzwerker
+│           │   └── docker
+│           │       └── 3.6.2
+│           │           └── linux_amd64
+│           │               ├── CHANGELOG.md
+│           │               ├── LICENSE
+│           │               ├── README.md
+│           │               └── terraform-provider-docker_v3.6.2
+│           └── yandex-cloud
+│               └── yandex
+│                   └── 0.191.0
+│                       └── linux_amd64
+│                           ├── CHANGELOG.md
+│                           ├── LICENSE
+│                           ├── README.md
+│                           └── terraform-provider-yandex_v0.191.0
+├── .terraform.lock.hcl
+├── .terraformrc
+├── terraform.tfstate
+├── terraform.tfstate.backup
+├── tfplan
+├── variables.tf
+└── vms.tf
+
+19 directories, 26 files
+```
+### Проверка вывода переменных
+```bash
+terraform output  container_name
+```
+```
+"db-skv"
+```
+```bash
+terraform output mysql_password
+```
+```
+"x]UEx{LR-K7_51c7"
+```
+```bash
+terraform output mysql_root_password
+```
+```
+"Kx5K%zNzMJ:f&[vr"
+```
+```bash
+# Проверка работы по ssh
+ssh -t -p 22 \
+-o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_lab16_1_fops39_ed25519 \
+skv@$(yc compute instance list \
+     | grep docker \
+     | awk '{print $10}') \
+"docker ps -a"
+```
+```
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                                 NAMES
+0f284fc59fca   a2d126916bc2   "docker-entrypoint.s…"   18 minutes ago   Up 18 minutes   127.0.0.1:3306->3306/tcp, 33060/tcp   db-skv
+Connection to 62.84.125.162 closed.
+```
+```bash
+ssh -t -p 22 \
+-o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_lab16_1_fops39_ed25519 \
+skv@$(yc compute instance list \
+     | grep docker \
+     | awk '{print $10}') \
+"docker exec -ti \
+db-skv \
+env"
+```
+```
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=0f284fc59fca
+TERM=xterm
+MYSQL_ROOT_HOST=%
+MYSQL_ROOT_PASSWORD=Kx5K%zNzMJ:f&[vr
+MYSQL_PASSWORD=x]UEx{LR-K7_51c7
+MYSQL_DATABASE=wordpress
+MYSQL_USER=wordpress
+GOSU_VERSION=1.19
+MYSQL_MAJOR=8.4
+MYSQL_VERSION=8.4.8-1.el9
+MYSQL_SHELL_VERSION=8.4.8-1.el9
+HOME=/root
+Connection to 62.84.125.162 closed.
+```
+```bash
+cd ..
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am '16_1-terr_vved_2_2' \
+&& git push \
+--set-upstream \
+study_fops39 \
+16_1-terr_vved \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+16_1-terr_vved
+```

@@ -196,7 +196,7 @@ CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS  
 -auto-approve отвечает за автоматическое подтверждение ЛЮБЫХ внесенных изменений в структуре tf проекта,
 не все случаи, но в данном, смена имени контейнера, привела к удалению и пересозданию контейнера.
 Данные случаи могут скажем перезапустить часть работающих критически важных сервисов, а не всего стека,
-изменить критически важные, используемые в режиме реального времени, данные и все что используется в продакшен среде использование данного ключа КРАЙНЕ не желательно.
+изменить критически важные, используемые в режиме реального времени, данные и все что используется в продакшн среде использование данного ключа КРАЙНЕ не желательно.
 
 Данный ключ с авто-подтверждение подходит для закрытых CI/CD проектов, для первоначального автоматического развертывания и в нестабильных тестовых инфраструктурах.
 ```
@@ -274,6 +274,135 @@ keep_locally (Boolean) If true, then the Docker image wont be deleted on destroy
 ```
 
 6. Зайдите на вашу ВМ , подключитесь к контейнеру и проверьте наличие секретных env-переменных с помощью команды ```env```. Запишите ваш финальный код в репозиторий.
+
+```bash
+# Применение
+terraform apply "tfplan"
+```
+```
+docker_container.mysql: Creating...
+docker_container.mysql: Creation complete after 1s [id=0f284fc59fca9542adba8c5712839766e152b9186fd2fe668e39c42bc1626d4d]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+container_name = <sensitive>
+mysql_password = <sensitive>
+mysql_root_password = <sensitive>
+```
+```bash
+# Структура файлов рабочего проекта
+tree -a
+.
+├── cloud-init.yml
+├── hosts_docker.sh
+├── lab16_1.sh
+├── mysql.tf
+├── network.tf
+├── providers.tf
+├── security_groups.tf
+├── .terraform
+│   └── providers
+│       └── registry.terraform.io
+│           ├── hashicorp
+│           │   ├── local
+│           │   │   └── 2.7.0
+│           │   │       └── linux_amd64
+│           │   │           ├── LICENSE.txt
+│           │   │           └── terraform-provider-local_v2.7.0_x5
+│           │   └── random
+│           │       └── 3.8.1
+│           │           └── linux_amd64
+│           │               ├── LICENSE.txt
+│           │               └── terraform-provider-random_v3.8.1_x5
+│           ├── kreuzwerker
+│           │   └── docker
+│           │       └── 3.6.2
+│           │           └── linux_amd64
+│           │               ├── CHANGELOG.md
+│           │               ├── LICENSE
+│           │               ├── README.md
+│           │               └── terraform-provider-docker_v3.6.2
+│           └── yandex-cloud
+│               └── yandex
+│                   └── 0.191.0
+│                       └── linux_amd64
+│                           ├── CHANGELOG.md
+│                           ├── LICENSE
+│                           ├── README.md
+│                           └── terraform-provider-yandex_v0.191.0
+├── .terraform.lock.hcl
+├── .terraformrc
+├── terraform.tfstate
+├── terraform.tfstate.backup
+├── tfplan
+├── variables.tf
+└── vms.tf
+
+19 directories, 26 files
+```
+### Проверка вывода переменных
+```bash
+terraform output  container_name
+```
+```
+"db-skv"
+```
+```bash
+terraform output mysql_password
+```
+```
+"x]UEx{LR-K7_51c7"
+```
+```bash
+terraform output mysql_root_password
+```
+```
+"Kx5K%zNzMJ:f&[vr"
+```
+```bash
+# Проверка работы по ssh
+ssh -t -p 22 \
+-o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_lab16_1_fops39_ed25519 \
+skv@$(yc compute instance list \
+     | grep docker \
+     | awk '{print $10}') \
+"docker ps -a"
+```
+```
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                                 NAMES
+0f284fc59fca   a2d126916bc2   "docker-entrypoint.s…"   18 minutes ago   Up 18 minutes   127.0.0.1:3306->3306/tcp, 33060/tcp   db-skv
+Connection to 62.84.125.162 closed.
+```
+```bash
+ssh -t -p 22 \
+-o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_lab16_1_fops39_ed25519 \
+skv@$(yc compute instance list \
+     | grep docker \
+     | awk '{print $10}') \
+"docker exec -ti \
+db-skv \
+env"
+```
+```
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=0f284fc59fca
+TERM=xterm
+MYSQL_ROOT_HOST=%
+MYSQL_ROOT_PASSWORD=Kx5K%zNzMJ:f&[vr
+MYSQL_PASSWORD=x]UEx{LR-K7_51c7
+MYSQL_DATABASE=wordpress
+MYSQL_USER=wordpress
+GOSU_VERSION=1.19
+MYSQL_MAJOR=8.4
+MYSQL_VERSION=8.4.8-1.el9
+MYSQL_SHELL_VERSION=8.4.8-1.el9
+HOME=/root
+Connection to 62.84.125.162 closed.
+```
 
 ### Правила приёма работы
 

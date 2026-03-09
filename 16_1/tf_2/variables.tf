@@ -21,3 +21,13 @@ variable "host" {
     core_fraction = 5
   }
 }
+
+variable "password_strong" {
+  type = map(number)
+  default = {
+    length      = 16
+    min_lower   = 1
+    min_upper   = 1
+    min_numeric = 1
+  }
+}
