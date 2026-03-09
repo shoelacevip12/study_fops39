@@ -2089,3 +2089,52 @@ study_fops39 \
 study_fops39_gitflic_ru \
 16_1-terr_vved
 ```
+## commit_51, master
+```bash
+cd ~/nfs_git/gited/16_1
+
+git checkout master
+
+git branch -v
+
+git merge 16_1-terr_vved
+
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_51, master' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master
+
+cd tf_2
+terraform destroy
+
+git add . .. \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force
+```
