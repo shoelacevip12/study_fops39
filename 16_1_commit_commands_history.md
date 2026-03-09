@@ -53,10 +53,10 @@ git log --oneline
 git commit -am 'commit_49, master' \
 && git push \
 --set-upstream \
-altlinux \
+study_fops39 \
 main \
 && git push \
 --set-upstream \
-altlinux_gf \
+study_fops39_gitflic_ru \
 main
 ```
