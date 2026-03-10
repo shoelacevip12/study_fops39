@@ -1,4 +1,4 @@
-# Домашнее задание к занятию «Основы Terraform. Yandex Cloud»
+# Домашнее задание к занятию «`Основы Terraform. Yandex Cloud`» `Скворцов Денис`
 
 ### Цели задания
 
@@ -28,8 +28,138 @@
 
 1. Изучите проект. В файле variables.tf объявлены переменные для Yandex provider.
 2. Создайте сервисный аккаунт и ключ. [service_account_key_file](https://terraform-provider.yandexcloud.net).
+```
+# Создание сервисного аккаунта по ранее подключенному yandex cloud
+yc iam \
+service-account \
+create \
+--name skv-seracc
+```
+```
+id: ajexxxxxxxxxxxx3micr
+folder_id: b1g7qviodfc9v4k81sr5
+created_at: "2026-03-10T19:04:52Z"
+name: skv-seracc
+```
+```bash
+# Добавление сервисного аккаунта в заранее созданную группу с правами admin на организацию
+# Где:
+# --id — id группы пользователей. Обязательный параметр.
+# --organization-id — идентификатор организации. Обязательный параметр.
+# --subject-id — идентификатор участника, которого добавляют в группу.
+
+yc organization-manager group add-members \
+--id ajexxxxxxxxxxxxxdk37 \
+--organization-id bpxxxxxxxxxxxxxxxk2m \
+--subject-id ajexxxxxxxxxxxx3micr
+
+# Создание json ключа к сервисному аккаунту c использованием переменных в ~/.bashrc Для YC
+yc iam key create \
+--service-account-name $(yc iam \
+                        service-account \
+                        --folder-id  $YC_FOLDER_ID list \
+                        | awk '/skv/{print $4}') \
+--output ~/.authorized_key.json \
+--folder-id $YC_FOLDER_ID
+```
+```
+id: ajexxxxxxxxxxxx7o215
+service_account_id: ajexxxxxxxxxxxx3micr
+created_at: "2026-03-10T19:16:05.289441568Z"
+key_algorithm: RSA_2048
+```
+```bash
+# Проверка наличия файла
+file ~/.authorized_key.json
+```
+```
+/home/shoel/.authorized_key.json: JSON text data
+```
 4. Сгенерируйте новый или используйте свой текущий ssh-ключ. Запишите его открытую(public) часть в переменную **vms_ssh_public_root_key**.
+```bash
+# использование ранее сгенерированного ключа в файле tf для переменных variables.tf
+sed -i "s|<your_ssh_ed25519_key>|\
+$(cat ~/.ssh/id_lab16_1_fops39_ed25519.pub)|" \
+variables.tf
+
+# Смена требований к версии terraform c 1.2.X, на 1.X
+sed -i 's/1.12.0/1.12/' \
+providers.tf
+```
 5. Инициализируйте проект, выполните код. Исправьте намеренно допущенные синтаксические ошибки. Ищите внимательно, посимвольно. Ответьте, в чём заключается их суть.
+```
+При выполнении
+```
+```bash
+terraform init --upgrade \
+&& terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Прошла инициализация, валидация и авто-форматирование, 
+но при формировании плана проекта произошло обращение к переменным cloud_id и folder_id,
+default значение которых не было прописано, по этому terraform запросил ввести значение для этих переменных вручную.
+Для исправления добавил значение default для этих переменных
+```
+```bash
+# Добавление переменных значений default к переменным cloud_id и folder_id
+sed -i '/\/cloud\/get-id"/a\
+  default     = "'"$YC_CLOUD_ID"'"
+' variables.tf
+
+sed -i '/\/folder\/get-id"/a\
+  default     = "'"$YC_FOLDER_ID"'"
+' variables.tf
+```
+```
+в файле
+./src/main.tf
+
+в описании развертываемой машины допущены 3 ошибки
+```
+```h
+resource "yandex_compute_instance" "platform" {
+  name        = "netology-develop-platform-web"
+  platform_id = "standart-v4"
+  resources {
+    cores         = 1
+    memory        = 1
+    core_fraction = 5
+  }
+```
+```
+1-ая в platform_id = "standart-v4" 
+ошибка в значении standart должно быть standard
+
+2-ая в версии стандарта платформы,
+согласно описанию 
+```
+[vm-platforms](https://yandex.cloud/ru/docs/compute/concepts/vm-platforms)
+
+| Платформа   |
+|---------------|
+| (standard-v1) |
+| (standard-v2) |
+| (standard-v3) |
+| (amd-v1)      |
+| (standard-v4a)|
+```
+3-я использование количества ядер, 
+для примера я использовал standard-v2, что требует указания 2 или 4 ядра.
+
+Рабочей конфигурацией получается
+```
+```h
+resource "yandex_compute_instance" "platform" {
+  name        = "netology-develop-platform-web"
+  platform_id = "standard-v2"
+  resources {
+    cores         = 2
+    memory        = 1
+    core_fraction = 5
+  }
+```
 6. Подключитесь к консоли ВМ через ssh и выполните команду ``` curl ifconfig.me```.
 Примечание: К OS ubuntu "out of a box, те из коробки" необходимо подключаться под пользователем ubuntu: ```"ssh ubuntu@vm_ip_address"```. Предварительно убедитесь, что ваш ключ добавлен в ssh-агент: ```eval $(ssh-agent) && ssh-add``` Вы познакомитесь с тем как при создании ВМ создать своего пользователя в блоке metadata в следующей лекции.;
 8. Ответьте, как в процессе обучения могут пригодиться параметры ```preemptible = true``` и ```core_fraction=5``` в параметрах ВМ.
