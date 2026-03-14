@@ -529,16 +529,6 @@ terraform output \
 3. Примените изменения.
 
 ```bash
-# Проверка tf файлов проекта и создание файла запуска terraform
-terraform init --upgrade \
-&& terraform validate \
-&& terraform fmt \
-&& terraform plan -out=tfplan
-```
-```
-No changes. Your infrastructure matches the configuration.
-```
-```bash
 # Создание списка locals
 cat > locals.tf <<'EOF'
 locals {
@@ -609,6 +599,8 @@ No changes. Your infrastructure matches the configuration.
   
 5. Найдите и закоментируйте все, более не используемые переменные проекта.
 6. Проверьте terraform plan. Изменений быть не должно.
+
+------
 
 ```bash
 # Создание map блока переменных в файле variables.tf под характеристик работы
@@ -748,63 +740,7 @@ yandex_compute_instance.platform2: Refreshing state... [id=epd8klpvsaue50udi9u3]
 No changes. Your infrastructure matches the configuration.
 ```
 
-
-------
-
-## Дополнительное задание (со звёздочкой*)
-
-**Настоятельно рекомендуем выполнять все задания со звёздочкой.**   
-Они помогут глубже разобраться в материале. Задания со звёздочкой дополнительные, не обязательные к выполнению и никак не повлияют на получение вами зачёта по этому домашнему заданию. 
-
-
-------
-### Задание 7*
-
-Изучите содержимое файла console.tf. Откройте terraform console, выполните следующие задания: 
-
-1. Напишите, какой командой можно отобразить **второй** элемент списка test_list.
-2. Найдите длину списка test_list с помощью функции length(<имя переменной>).
-3. Напишите, какой командой можно отобразить значение ключа admin из map test_map.
-4. Напишите interpolation-выражение, результатом которого будет: "John is admin for production server based on OS ubuntu-20-04 with X vcpu, Y ram and Z virtual disks", используйте данные из переменных test_list, test_map, servers и функцию length() для подстановки значений.
-
-**Примечание**: если не догадаетесь как вычленить слово "admin", погуглите: "terraform get keys of map"
-
-В качестве решения предоставьте необходимые команды и их вывод.
-
-------
-
-### Задание 8*
-1. Напишите и проверьте переменную test и полное описание ее type в соответствии со значением из terraform.tfvars:
-```
-test = [
-  {
-    "dev1" = [
-      "ssh -o 'StrictHostKeyChecking=no' ubuntu@62.84.124.117",
-      "10.0.1.7",
-    ]
-  },
-  {
-    "dev2" = [
-      "ssh -o 'StrictHostKeyChecking=no' ubuntu@84.252.140.88",
-      "10.0.2.29",
-    ]
-  },
-  {
-    "prod1" = [
-      "ssh -o 'StrictHostKeyChecking=no' ubuntu@51.250.2.101",
-      "10.0.1.30",
-    ]
-  },
-]
-```
-2. Напишите выражение в terraform console, которое позволит вычленить строку "ssh -o 'StrictHostKeyChecking=no' ubuntu@62.84.124.117" из этой переменной.
-------
-
-------
-
-### Задание 9*
-
-Используя инструкцию https://cloud.yandex.ru/ru/docs/vpc/operations/create-nat-gateway#tf_1, настройте для ваших ВМ nat_gateway. Для проверки уберите внешний IP адрес (nat=false) у ваших ВМ и проверьте доступ в интернет с ВМ, подключившись к ней через serial console. Для подключения предварительно через ssh измените пароль пользователя: ```sudo passwd ubuntu```
+![](img/GIF.gif)
 
 ### Правила приёма работыДля подключения предварительно через ssh измените пароль пользователя: sudo passwd ubuntu
 В качестве результата прикрепите ссылку на MD файл с описанием выполненой работы в вашем репозитории. Так же в репозитории должен присутсвовать ваш финальный код проекта.
