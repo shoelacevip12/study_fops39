@@ -446,11 +446,34 @@ yandex_compute_instance.platform: Creation complete after 40s [id=fhmg9nh2d1jdb2
 Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
 ```
 ```bash
+# Добавление ключа к агенту для подключения по ssh
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_lab16_1_fops39_ed25519
+
+# Подключение по ssh с подтверждением о новом хосте и получении о внешнем Ip через yandex console  
+ssh -t -p 22 \
+-o StrictHostKeyChecking=accept-new \
+ubuntu@$(yc compute instance list \
+     | grep web \
+     | awk '{print $10}') \
+"curl ifconfig.me \
+&& echo -e "\\" \
+&& curl 2ip.ru"
+```
+```
+Warning: Permanently added '130.193.36.225' (ED25519) to the list of known hosts.
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+130.193.36.225 
+130.193.36.225
+Connection to 130.193.36.225 closed.
+```
+```bash
 #
 terraform destroy
 
 cd ..
-
 
 # Вывод всех веток
 git branch -v
@@ -479,3 +502,322 @@ study_fops39 \
 study_fops39_gitflic_ru \
 16_2-terr_osnovy
 ```
+## commit_3, `16_2-terr_osnovy`
+```bash
+# создадим неизменяемый, индексированный список переменных "vm_web_"
+cat >> variables.tf <<'EOF'
+
+variable "vm_web_" {
+  type = tuple([
+    string,
+    string,
+    string,
+    number,
+    number,
+    number,
+    bool
+  ])
+  default = [
+    "ubuntu-2004-lts",
+    "netology-develop-platform-web",
+    "standard-v2",
+    2,
+    1,
+    5,
+    true
+  ]
+}
+EOF
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt
+```
+```
+Success! The configuration is valid.
+```
+```bash
+# Изменим содержимое main.tf ресурса yandex_compute_image переменной family, подставив индекс=0 переменной vm_web_
+sed -i 's/"ubuntu-2004-lts"/var.vm_web_.0/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной name, подставив индекс=1 переменной vm_web_
+sed -i 's/"netology-develop-platform-web"/var.vm_web_.1/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной platform_id, подставив индекс=2 переменной vm_web_
+sed -i 's/"standard-v2"/var.vm_web_.2/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной cores, подставив индекс=3 переменной vm_web_
+sed -i 's/res[[:space:]]*= 2/res = var.vm_web_.3/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной memory, подставив индекс=4 переменной vm_web_
+sed -i 's/ory[[:space:]]*= 1/ory = var.vm_web_.4/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной core_fraction, подставив индекс=5 переменной vm_web_
+sed -i 's/ion[[:space:]]*= 5/ion = var.vm_web_.5/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса scheduling_policy переменной preemptible, подставив индекс=6 переменной vm_web_
+sed -i 's/ble[[:space:]]*= true/ble = var.vm_web_.6/' \
+main.tf
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Success! The configuration is valid.
+
+main.tf
+data.yandex_compute_image.ubuntu: Reading...
+yandex_vpc_network.develop: Refreshing state... [id=enpqg9435cc98d44nejr]
+data.yandex_compute_image.ubuntu: Read complete after 0s [id=fd8vn6ra61c01hq58q75]
+yandex_vpc_subnet.develop: Refreshing state... [id=e9b3k10opqqhntav0pkr]
+yandex_compute_instance.platform: Refreshing state... [id=fhm73aafu6u53ojul9dn]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
+```
+```bash
+# создаем новый файл переменных для новой ВМ,где:
+## добавлена нова переменная для работы в зоне "ru-central1-b"
+## изменены переменные под cores=2, memory=2 и core_fraction=20
+cat > vms_platform.tf <<'EOF'
+
+variable "vm_db_" {
+  type = tuple([
+    string,
+    string,
+    list(string),
+    string,
+    string,
+    number,
+    number,
+    number,
+    bool
+  ])
+  default = [
+    "skv-locnet-b",
+    "ru-central1-b",
+    ["10.0.2.0/26"],
+    "netology-develop-platform-db",
+    "standard-v2",
+    2,
+    2,
+    20,
+    true
+  ]
+}
+EOF
+
+
+# создание нового ресурса со своим набором переменных netology-develop-platform-db в главном файле 
+cat >> main.tf <<'EOF'
+
+# Подсеть zone B
+resource "yandex_vpc_subnet" "skv-locnet-b" {
+  name           = var.vm_db_.0
+  zone           = var.vm_db_.1
+  network_id     = yandex_vpc_network.develop.id
+  v4_cidr_blocks = var.vm_db_.2
+}
+
+# ВМ netology-develop-platform-db
+resource "yandex_compute_instance" "platform2" {
+  name        = var.vm_db_.3
+  platform_id = var.vm_db_.4
+  zone        = var.vm_db_.1
+  resources {
+    cores         = var.vm_db_.5
+    memory        = var.vm_db_.6
+    core_fraction = var.vm_db_.7
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = var.vm_db_.8
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.skv-locnet-b.id
+    nat       = true
+  }
+
+  metadata = {
+    serial-port-enable = 1
+    ssh-keys           = "ubuntu:${var.vms_ssh_root_key}"
+  }
+
+}
+EOF
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt
+```
+```
+Success! The configuration is valid.
+```
+```bash
+# Создание плана изменений
+terraform plan -out=tfplan
+```
+```
+data.yandex_compute_image.ubuntu: Reading...
+yandex_vpc_network.develop: Refreshing state... [id=enpqg9435cc98d44nejr]
+data.yandex_compute_image.ubuntu: Read complete after 0s [id=fd8vn6ra61c01hq58q75]
+yandex_vpc_subnet.develop: Refreshing state... [id=e9b3k10opqqhntav0pkr]
+yandex_compute_instance.platform: Refreshing state... [id=fhm73aafu6u53ojul9dn]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # yandex_compute_instance.platform2 will be created
+  + resource "yandex_compute_instance" "platform2" {
+      + created_at                = (known after apply)
+      + folder_id                 = (known after apply)
+      + fqdn                      = (known after apply)
+      + gpu_cluster_id            = (known after apply)
+      + hardware_generation       = (known after apply)
+      + hostname                  = (known after apply)
+      + id                        = (known after apply)
+      + maintenance_grace_period  = (known after apply)
+      + maintenance_policy        = (known after apply)
+      + metadata                  = {
+          + "serial-port-enable" = "1"
+          + "ssh-keys"           = "ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPMT2pZfiY4KUIeybtsJjbp42JjiUySw5e34KiNprFsc lab16_1_fops39"
+        }
+      + name                      = "netology-develop-platform-db"
+      + network_acceleration_type = "standard"
+      + platform_id               = "standard-v2"
+      + status                    = (known after apply)
+      + zone                      = "ru-central1-b"
+
+      + boot_disk {
+          + auto_delete = true
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = (known after apply)
+
+          + initialize_params {
+              + block_size  = (known after apply)
+              + description = (known after apply)
+              + image_id    = "fd8vn6ra61c01hq58q75"
+              + name        = (known after apply)
+              + size        = (known after apply)
+              + snapshot_id = (known after apply)
+              + type        = "network-hdd"
+            }
+        }
+
+      + metadata_options (known after apply)
+
+      + network_interface {
+          + index          = (known after apply)
+          + ip_address     = (known after apply)
+          + ipv4           = true
+          + ipv6           = (known after apply)
+          + ipv6_address   = (known after apply)
+          + mac_address    = (known after apply)
+          + nat            = true
+          + nat_ip_address = (known after apply)
+          + nat_ip_version = (known after apply)
+          + subnet_id      = "e9b3k10opqqhntav0pkr"
+        }
+
+      + placement_policy (known after apply)
+
+      + resources {
+          + core_fraction = 20
+          + cores         = 2
+          + memory        = 2
+        }
+
+      + scheduling_policy {
+          + preemptible = true
+        }
+    }
+
+  # yandex_vpc_subnet.skv-locnet-b will be created
+  + resource "yandex_vpc_subnet" "skv-locnet-b" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "skv-locnet-b"
+      + network_id     = "enpqg9435cc98d44nejr"
+      + v4_cidr_blocks = [
+          + "10.0.2.0/26",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-b"
+    }
+
+Plan: 2 to add, 0 to change, 0 to destroy.
+
+Saved the plan to: tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "tfplan
+```
+```bash
+# Подтверждение и создание нового ресурса
+terraform apply "tfplan"
+```
+```
+yandex_vpc_subnet.skv-locnet-b: Creating...
+yandex_compute_instance.platform2: Creating...
+yandex_vpc_subnet.skv-locnet-b: Creation complete after 1s [id=e2l9kt5490nqchm59qi3]
+yandex_compute_instance.platform2: Still creating... [00m10s elapsed]
+yandex_compute_instance.platform2: Still creating... [00m20s elapsed]
+yandex_compute_instance.platform2: Still creating... [00m30s elapsed]
+yandex_compute_instance.platform2: Still creating... [00m40s elapsed]
+yandex_compute_instance.platform2: Creation complete after 45s [id=epd8klpvsaue50udi9u3]
+
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+```
+```bash
+#
+terraform destroy
+
+cd ..
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am '16_2-terr_osnovy_3' \
+&& git push \
+--set-upstream \
+study_fops39 \
+16_2-terr_osnovy \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+16_2-terr_osnovy
+```
+## commit_4, `16_2-terr_osnovy`
+```bash

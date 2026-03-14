@@ -150,6 +150,21 @@ resource "yandex_compute_instance" "platform" {
 
 Рабочей конфигурацией получается
 ```
+в файле variables.tf добавление default для подключения к облаку
+```h
+variable "cloud_id" {
+  type        = string
+  description = "https://cloud.yandex.ru/docs/resource-manager/operations/cloud/get-id"
+  default     = "b1gkumrn87pei2831blp"
+}
+
+variable "folder_id" {
+  type        = string
+  description = "https://cloud.yandex.ru/docs/resource-manager/operations/folder/get-id"
+  default     = "b1g7qviodfc9v4k81sr5"
+}
+```
+в файле ./src/main.tf нормализация требований к ресурсам под работу с yandex cloud
 ```h
 resource "yandex_compute_instance" "platform" {
   name        = "netology-develop-platform-web"
@@ -160,16 +175,66 @@ resource "yandex_compute_instance" "platform" {
     core_fraction = 5
   }
 ```
+```bash
+terraform apply "tfplan"
+```
+```
+yandex_vpc_network.develop: Creating...
+yandex_vpc_network.develop: Creation complete after 2s [id=enpqg9435cc98d44nejr]
+yandex_vpc_subnet.develop: Creating...
+yandex_vpc_subnet.develop: Creation complete after 1s [id=e9b3k10opqqhntav0pkr]
+yandex_compute_instance.platform: Creating...
+yandex_compute_instance.platform: Still creating... [00m10s elapsed]
+yandex_compute_instance.platform: Still creating... [00m20s elapsed]
+yandex_compute_instance.platform: Still creating... [00m30s elapsed]
+yandex_compute_instance.platform: Still creating... [00m40s elapsed]
+yandex_compute_instance.platform: Creation complete after 47s [id=fhm73aafu6u53ojul9dn]
+
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+```
 6. Подключитесь к консоли ВМ через ssh и выполните команду ``` curl ifconfig.me```.
 Примечание: К OS ubuntu "out of a box, те из коробки" необходимо подключаться под пользователем ubuntu: ```"ssh ubuntu@vm_ip_address"```. Предварительно убедитесь, что ваш ключ добавлен в ssh-агент: ```eval $(ssh-agent) && ssh-add``` Вы познакомитесь с тем как при создании ВМ создать своего пользователя в блоке metadata в следующей лекции.;
-8. Ответьте, как в процессе обучения могут пригодиться параметры ```preemptible = true``` и ```core_fraction=5``` в параметрах ВМ.
+```bash
+# Добавление ключа к агенту для подключения по ssh
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_lab16_1_fops39_ed25519
 
+# Подключение по ssh с подтверждением о новом хосте и получении о внешнем Ip через yandex console  
+ssh -t -p 22 \
+-o StrictHostKeyChecking=accept-new \
+ubuntu@$(yc compute instance list \
+     | grep web \
+     | awk '{print $10}') \
+"curl ifconfig.me \
+&& echo -e "\\" \
+&& curl 2ip.ru"
+```
+```
+Warning: Permanently added '130.193.36.225' (ED25519) to the list of known hosts.
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+130.193.36.225 
+130.193.36.225
+Connection to 130.193.36.225 closed.
+```
+8. Ответьте, как в процессе обучения могут пригодиться параметры ```preemptible = true``` и ```core_fraction=5``` в параметрах ВМ.
+```
+``preemptible = true`` отвечает за работоспособность машины по расписанию не более 24 часов,
+после чего она просто останавливается и остается как не используемый ресурс.
+
+``core_fraction=5`` относится к особенности работы в виртуальной среде.
+В данном значении = 5 это гарантированный процент мощностей от 100%, указанных нами ресурсов CPU.
+Т.Е. если физический сервер с нашей ВМ будет перегружен, то мы при любых обстоятельствах получим свои 5% указанных нами ресурсов.
+```
 В качестве решения приложите:
 
 - скриншот ЛК Yandex Cloud с созданной ВМ, где видно внешний ip-адрес;
 - скриншот консоли, curl должен отобразить тот же внешний ip-адрес;
 - ответы на вопросы.
 
+![](img/1.png)
+![](img/2.png)
 
 ### Задание 2
 
@@ -177,6 +242,87 @@ resource "yandex_compute_instance" "platform" {
 2. Объявите нужные переменные в файле variables.tf, обязательно указывайте тип переменной. Заполните их **default** прежними значениями из main.tf. 
 3. Проверьте terraform plan. Изменений быть не должно. 
 
+```bash
+# создадим неизменяемый, индексированный список переменных "vm_web_"
+cat >> variables.tf <<'EOF'
+
+variable "vm_web_" {
+  type = tuple([
+    string,
+    string,
+    string,
+    number,
+    number,
+    number,
+    bool
+  ])
+  default = [
+    "ubuntu-2004-lts",
+    "netology-develop-platform-web",
+    "standard-v2",
+    2,
+    1,
+    5,
+    true
+  ]
+}
+EOF
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt
+```
+```
+Success! The configuration is valid.
+```
+```bash
+# Изменим содержимое main.tf ресурса yandex_compute_image переменной family, подставив индекс=0 переменной vm_web_
+sed -i 's/"ubuntu-2004-lts"/var.vm_web_.0/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной name, подставив индекс=1 переменной vm_web_
+sed -i 's/"netology-develop-platform-web"/var.vm_web_.1/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной platform_id, подставив индекс=2 переменной vm_web_
+sed -i 's/"standard-v2"/var.vm_web_.2/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной cores, подставив индекс=3 переменной vm_web_
+sed -i 's/res[[:space:]]*= 2/res = var.vm_web_.3/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной memory, подставив индекс=4 переменной vm_web_
+sed -i 's/ory[[:space:]]*= 1/ory = var.vm_web_.4/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса yandex_compute_instance переменной core_fraction, подставив индекс=5 переменной vm_web_
+sed -i 's/ion[[:space:]]*= 5/ion = var.vm_web_.5/' \
+main.tf
+
+# Изменим содержимое main.tf ресурса scheduling_policy переменной preemptible, подставив индекс=6 переменной vm_web_
+sed -i 's/ble[[:space:]]*= true/ble = var.vm_web_.6/' \
+main.tf
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Success! The configuration is valid.
+
+main.tf
+data.yandex_compute_image.ubuntu: Reading...
+yandex_vpc_network.develop: Refreshing state... [id=enpqg9435cc98d44nejr]
+data.yandex_compute_image.ubuntu: Read complete after 0s [id=fd8vn6ra61c01hq58q75]
+yandex_vpc_subnet.develop: Refreshing state... [id=e9b3k10opqqhntav0pkr]
+yandex_compute_instance.platform: Refreshing state... [id=fhm73aafu6u53ojul9dn]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration and found no differences, so no changes are needed.
+```
 
 ### Задание 3
 
@@ -184,6 +330,120 @@ resource "yandex_compute_instance" "platform" {
 2. Скопируйте блок ресурса и создайте с его помощью вторую ВМ в файле main.tf: **"netology-develop-platform-db"** ,  ```cores  = 2, memory = 2, core_fraction = 20```. Объявите её переменные с префиксом **vm_db_** в том же файле ('vms_platform.tf').  ВМ должна работать в зоне "ru-central1-b"
 3. Примените изменения.
 
+
+```bash
+# создаем новый файл переменных для новой ВМ,где:
+## добавлена нова переменная для работы в зоне "ru-central1-b"
+## изменены переменные под cores=2, memory=2 и core_fraction=20
+cat > vms_platform.tf <<'EOF'
+
+variable "vm_db_" {
+  type = tuple([
+    string,
+    string,
+    list(string),
+    string,
+    string,
+    number,
+    number,
+    number,
+    bool
+  ])
+  default = [
+    "skv-locnet-b",
+    "ru-central1-b",
+    ["10.0.2.0/26"],
+    "netology-develop-platform-db",
+    "standard-v2",
+    2,
+    2,
+    20,
+    true
+  ]
+}
+EOF
+
+
+# создание нового ресурса со своим набором переменных netology-develop-platform-db в главном файле 
+cat >> main.tf <<'EOF'
+
+# Подсеть zone B
+resource "yandex_vpc_subnet" "skv-locnet-b" {
+  name           = var.vm_db_.0
+  zone           = var.vm_db_.1
+  network_id     = yandex_vpc_network.develop.id
+  v4_cidr_blocks = var.vm_db_.2
+}
+
+# ВМ netology-develop-platform-db
+resource "yandex_compute_instance" "platform2" {
+  name        = var.vm_db_.3
+  platform_id = var.vm_db_.4
+  zone        = var.vm_db_.1
+  resources {
+    cores         = var.vm_db_.5
+    memory        = var.vm_db_.6
+    core_fraction = var.vm_db_.7
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = var.vm_db_.8
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.skv-locnet-b.id
+    nat       = true
+  }
+
+  metadata = {
+    serial-port-enable = 1
+    ssh-keys           = "ubuntu:${var.vms_ssh_root_key}"
+  }
+
+}
+EOF
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt
+```
+```
+Success! The configuration is valid.
+```
+
+```bash
+# Создание плана изменений
+terraform plan -out=tfplan
+```
+```
+....
+# yandex_compute_instance.platform2 will be created
+....
+Plan: 2 to add, 0 to change, 0 to destroy.
+....
+```
+```
+# Подтверждение и создание нового ресурса
+terraform apply "tfplan"
+```
+```bash
+# Подтверждение и создание нового ресурса
+terraform apply "tfplan"
+```
+```
+yandex_vpc_subnet.skv-locnet-b: Creating...
+yandex_compute_instance.platform2: Creating...
+yandex_vpc_subnet.skv-locnet-b: Creation complete after 1s [id=e2l9kt5490nqchm59qi3]
+....
+yandex_compute_instance.platform2: Creation complete after 45s [id=epd8klpvsaue50udi9u3]
+
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+```
+
+![](img/3.png)
 
 ### Задание 4
 

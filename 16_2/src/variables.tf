@@ -38,3 +38,24 @@ variable "vms_ssh_root_key" {
   default     = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPMT2pZfiY4KUIeybtsJjbp42JjiUySw5e34KiNprFsc lab16_1_fops39"
   description = "ssh-keygen -t ed25519"
 }
+
+variable "vm_web_" {
+  type = tuple([
+    string,
+    string,
+    string,
+    number,
+    number,
+    number,
+    bool
+  ])
+  default = [
+    "ubuntu-2004-lts",
+    "netology-develop-platform-web",
+    "standard-v2",
+    2,
+    1,
+    5,
+    true
+  ]
+}
