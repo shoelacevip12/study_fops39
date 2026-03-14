@@ -13,12 +13,12 @@ data "yandex_compute_image" "ubuntu" {
   family = var.vm_web_.0
 }
 resource "yandex_compute_instance" "platform" {
-  name        = var.vm_web_.1
+  name        = local.platf_name[0].p1
   platform_id = var.vm_web_.2
   resources {
-    cores         = var.vm_web_.3
-    memory        = var.vm_web_.4
-    core_fraction = var.vm_web_.5
+    cores         = var.vms_resources["vm_web"].cores
+    memory        = var.vms_resources["vm_web"].memory
+    core_fraction = var.vms_resources["vm_web"].core_fraction
   }
   boot_disk {
     initialize_params {
@@ -26,17 +26,14 @@ resource "yandex_compute_instance" "platform" {
     }
   }
   scheduling_policy {
-    preemptible = var.vm_web_.6
+    preemptible = var.vm_web_.3
   }
   network_interface {
     subnet_id = yandex_vpc_subnet.develop.id
     nat       = true
   }
 
-  metadata = {
-    serial-port-enable = 1
-    ssh-keys           = "ubuntu:${var.vms_ssh_root_key}"
-  }
+  metadata = var.vms_ssh
 
 }
 
@@ -50,13 +47,13 @@ resource "yandex_vpc_subnet" "skv-locnet-b" {
 
 # ВМ netology-develop-platform-db
 resource "yandex_compute_instance" "platform2" {
-  name        = var.vm_db_.3
+  name        = local.platf_name[1].p2
   platform_id = var.vm_db_.4
   zone        = var.vm_db_.1
   resources {
-    cores         = var.vm_db_.5
-    memory        = var.vm_db_.6
-    core_fraction = var.vm_db_.7
+    cores         = var.vms_resources["vm_db"].cores
+    memory        = var.vms_resources["vm_db"].memory
+    core_fraction = var.vms_resources["vm_db"].core_fraction
   }
   boot_disk {
     initialize_params {
@@ -64,16 +61,12 @@ resource "yandex_compute_instance" "platform2" {
     }
   }
   scheduling_policy {
-    preemptible = var.vm_web_.6
+    preemptible = var.vm_web_.3
   }
   network_interface {
     subnet_id = yandex_vpc_subnet.skv-locnet-b.id
     nat       = true
   }
 
-  metadata = {
-    serial-port-enable = 1
-    ssh-keys           = "ubuntu:${var.vms_ssh_root_key}"
-  }
-
+  metadata = var.vms_ssh
 }

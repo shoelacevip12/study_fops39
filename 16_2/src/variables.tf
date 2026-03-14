@@ -33,29 +33,50 @@ variable "vpc_name" {
 
 ###ssh vars
 
-variable "vms_ssh_root_key" {
-  type        = string
-  default     = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPMT2pZfiY4KUIeybtsJjbp42JjiUySw5e34KiNprFsc lab16_1_fops39"
-  description = "ssh-keygen -t ed25519"
-}
 
 variable "vm_web_" {
   type = tuple([
     string,
     string,
     string,
-    number,
-    number,
-    number,
     bool
   ])
   default = [
     "ubuntu-2004-lts",
     "netology-develop-platform-web",
     "standard-v2",
-    2,
-    1,
-    5,
     true
   ]
+}
+
+# Объединение в единую map-переменную vms_resources "cores","memory","core_fraction"
+variable "vms_resources" {
+  type = map(object({
+    cores         = number
+    memory        = number
+    core_fraction = number
+
+  }))
+
+  default = {
+    vm_web = {
+      cores         = 2
+      memory        = 1
+      core_fraction = 5
+    },
+    vm_db = {
+      cores         = 2
+      memory        = 2
+      core_fraction = 20
+    }
+  }
+}
+
+#  Отдельный map(object) переменной для блока metadata
+variable "vms_ssh" {
+  type = map(any)
+  default = {
+    serial-port-enable = 1
+    "ssh-keys"         = "ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPMT2pZfiY4KUIeybtsJjbp42JjiUySw5e34KiNprFsc lab16_1_fops39"
+  }
 }

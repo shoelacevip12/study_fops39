@@ -956,3 +956,216 @@ study_fops39_gitflic_ru \
 ```bash
 # возвращение в рабочий каталог работы
 cd -
+
+# Проверка tf файлов проекта и создание файла запуска terraform
+terraform init --upgrade \
+&& terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+No changes. Your infrastructure matches the configuration.
+```
+```bash
+# Создание списка locals
+cat > locals.tf <<'EOF'
+locals {
+  platf_name = [
+    {
+      "p1" = "${var.vm_web_.1}"
+    },
+    {
+      "p2" = "${var.vm_db_.3}"
+    },
+  ]
+}
+EOF
+
+# Подмена переменных имен виртуальных машин YC на local значения
+sed -i 's/var.vm_web_.1/local.platf_name[0].p1/' \
+main.tf
+
+sed -i 's/var.vm_db_.3/local.platf_name[1].p2/' \
+main.tf
+
+# Проверка tf файлов проекта и создание файла запуска terraform
+terraform init --upgrade \
+&& terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Success! The configuration is valid.
+
+No changes. Your infrastructure matches the configuration.
+```
+```bash
+# Создание map блока переменных в файле variables.tf под характеристик работы
+cat >> variables.tf <<'EOF'
+
+# Объединение в единую map-переменную vms_resources "cores","memory","core_fraction"
+variable "vms_resources" {
+  type = map(object({
+    cores         = number
+    memory        = number
+    core_fraction = number
+
+  }))
+
+  default = {
+    vm_web = {
+      cores         = 2
+      memory        = 1
+      core_fraction = 5
+    },
+    vm_db = {
+      cores         = 2
+      memory        = 2
+      core_fraction = 20
+    }
+  }
+}
+EOF
+
+# Создание map блока переменных в файле variables.tf для блока metadata
+cat >> variables.tf <<'EOF'
+
+#  Отдельный map(object) переменной для блока metadata
+variable "vms_ssh" {
+  type = map(any)
+  default = {
+    serial-port-enable = 1
+    "ssh-keys"         = "ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPMT2pZfiY4KUIeybtsJjbp42JjiUySw5e34KiNprFsc lab16_1_fops39"
+  }
+}
+EOF
+
+# Проверка tf файлов проекта и обновление файла terraform.tfstate в соответствии рабочей конфигурации без внесения изменений
+terraform validate \
+&& terraform fmt \
+&& terraform refresh
+```
+```
+Success! The configuration is valid.
+
+variables.tf
+```
+#### Подмена в главном файле mani.tf на новые переменные
+```bash
+# Где:
+# /variable "vms_ssh_root_key" {/ - находит начало блока
+# ,/^}/ - указывает диапазон до строки, содержащей только закрывающую фигурную скобку }
+# c\ - команда замены для всего найденного диапазона
+#   metadata = var.vms_ssh - на что заменить весь блок
+sed -i '/^\s*metadata\s*=\s*{/,/^\s*}\s*$/c\  \metadata = var.vms_ssh' \
+main.tf
+
+# Замена "cores","memory","core_fraction" для переменных под vm_web
+sed -i 's/var.vm_web_.3/var.vms_resources["vm_web"].cores/' \
+main.tf
+
+sed -i 's/var.vm_web_.4/var.vms_resources["vm_web"].memory/' \
+main.tf
+
+sed -i 's/var.vm_web_.5/var.vms_resources["vm_web"].core_fraction/' \
+main.tf
+
+# Замена "cores","memory","core_fraction" для переменных под vm_db
+sed -i 's/var.vm_db_.5/var.vms_resources["vm_db"].cores/' \
+main.tf
+
+sed -i 's/var.vm_db_.6/var.vms_resources["vm_db"].memory/' \
+main.tf
+
+sed -i 's/var.vm_db_.7/var.vms_resources["vm_db"].core_fraction/' \
+main.tf
+```
+#### Чистка старых переменных
+```bash
+# Удаление tuple переменных для "cores","memory","core_fraction" в файле variables.tf
+sed  -i '/number,/d; /2,/d; /1,/d; /5,/d' \
+variables.tf
+
+# Замена подставленной preemptible переменной под новую индексацию vm_web в main.tf
+sed -i 's/vm_web_.6/vm_web_.3/' \
+main.tf
+
+# Удаление tuple переменных для "cores","memory","core_fraction" в файле vms_platform.tf
+cat > vms_platform.tf <<'EOF'
+variable "vm_db_" {
+  type = tuple([
+    string,
+    string,
+    list(string),
+    string,
+    string
+  ])
+  default = [
+    "skv-locnet-b",
+    "ru-central1-b",
+    ["10.0.2.0/26"],
+    "netology-develop-platform-db",
+    "standard-v2"
+  ]
+}
+EOF
+
+# Где:
+# /variable "vms_ssh_root_key" {/ - находит начало блока
+# ,/^}/ - указывает диапазон до строки, содержащей только закрывающую фигурную скобку }
+sed -i '/variable "vms_ssh_root_key" {/,/^}/d' \
+variables.tf
+```
+```bash
+# Проверка tf файлов проекта и создание файла запуска terraform
+terraform init --upgrade \
+&& terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Success! The configuration is valid.
+
+data.yandex_compute_image.ubuntu: Reading...
+yandex_vpc_network.develop: Refreshing state... [id=enpqg9435cc98d44nejr]
+data.yandex_compute_image.ubuntu: Read complete after 0s [id=fd8vn6ra61c01hq58q75]
+yandex_vpc_subnet.develop: Refreshing state... [id=e9b3k10opqqhntav0pkr]
+yandex_vpc_subnet.skv-locnet-b: Refreshing state... [id=e2l9kt5490nqchm59qi3]
+yandex_compute_instance.platform: Refreshing state... [id=fhm73aafu6u53ojul9dn]
+yandex_compute_instance.platform2: Refreshing state... [id=epd8klpvsaue50udi9u3]
+
+No changes. Your infrastructure matches the configuration.
+```
+```bash
+#
+terraform destroy
+
+cd ..
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am '16_2-terr_osnovy_5' \
+&& git push \
+--set-upstream \
+study_fops39 \
+16_2-terr_osnovy \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+16_2-terr_osnovy
+```
