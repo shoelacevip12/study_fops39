@@ -586,7 +586,10 @@ Terraform has compared your real infrastructure against your configuration and f
 ```
 ```bash
 # создаем новый файл переменных для новой ВМ,где:
-## добавлена нова переменная для работы в зоне "ru-central1-b"
+## добавлены новые переменная для работы:
+### с именем новой сети
+### в зоне "ru-central1-b"
+### с новой ipv4 cidr адресацией
 ## изменены переменные под cores=2, memory=2 и core_fraction=20
 cat > vms_platform.tf <<'EOF'
 
@@ -599,8 +602,7 @@ variable "vm_db_" {
     string,
     number,
     number,
-    number,
-    bool
+    number
   ])
   default = [
     "skv-locnet-b",
@@ -610,14 +612,13 @@ variable "vm_db_" {
     "standard-v2",
     2,
     2,
-    20,
-    true
+    20
   ]
 }
 EOF
 
 
-# создание нового ресурса со своим набором переменных netology-develop-platform-db в главном файле 
+# создание новых ресурсов со своим набором переменных для netology-develop-platform-db в главном файле main.tf 
 cat >> main.tf <<'EOF'
 
 # Подсеть zone B
@@ -644,7 +645,7 @@ resource "yandex_compute_instance" "platform2" {
     }
   }
   scheduling_policy {
-    preemptible = var.vm_db_.8
+    preemptible = var.vm_web_.6
   }
   network_interface {
     subnet_id = yandex_vpc_subnet.skv-locnet-b.id
@@ -821,3 +822,137 @@ study_fops39_gitflic_ru \
 ```
 ## commit_4, `16_2-terr_osnovy`
 ```bash
+# возвращение в рабочий каталог работы
+cd -
+
+# создание output
+cat > outputs.tf <<'EOF'
+output "odin_output" {
+  value = [
+    { platform = [
+      yandex_compute_instance.platform.name,
+      yandex_compute_instance.platform.network_interface[0].nat_ip_address,
+      yandex_compute_instance.platform.fqdn
+      ]
+    },
+    { platform2 = [
+      yandex_compute_instance.platform2.name,
+      yandex_compute_instance.platform2.network_interface[0].nat_ip_address,
+      yandex_compute_instance.platform2.fqdn
+      ]
+    }
+  ]
+}
+EOF
+
+# Авто-форматирование и обновление файла terraform.tfstate в соответствии рабочей конфигурации без внесения изменений
+terraform fmt \
+&& terraform refresh
+```
+```
+outputs.tf
+data.yandex_compute_image.ubuntu: Reading...
+yandex_vpc_network.develop: Refreshing state... [id=enpqg9435cc98d44nejr]
+data.yandex_compute_image.ubuntu: Read complete after 0s [id=fd8vn6ra61c01hq58q75]
+yandex_vpc_subnet.develop: Refreshing state... [id=e9b3k10opqqhntav0pkr]
+yandex_vpc_subnet.skv-locnet-b: Refreshing state... [id=e2l9kt5490nqchm59qi3]
+yandex_compute_instance.platform: Refreshing state... [id=fhm73aafu6u53ojul9dn]
+yandex_compute_instance.platform2: Refreshing state... [id=epd8klpvsaue50udi9u3]
+
+Outputs:
+
+odin_output = [
+  {
+    "platform" = [
+      "netology-develop-platform-web",
+      "130.193.36.225",
+      "fhm73aafu6u53ojul9dn.auto.internal",
+    ]
+  },
+  {
+    "platform2" = [
+      "netology-develop-platform-db",
+      "178.154.216.95",
+      "epd8klpvsaue50udi9u3.auto.internal",
+    ]
+  },
+]
+```
+#### Обращение к одному из блоков value
+```
+Nак как Terraform не поддерживает обращение к вложенным спискам элементов через terraform output,
+то как вариант можно через извлечение данных json и обработкой Command-line JSON процессором
+```
+```bash
+# Установка Command-line JSON processor
+sudo pacman \
+-Sy \
+jq
+
+# Обращение к одному из value списка odin_output вывода terraform output
+terraform output \
+-json odin_output \
+| jq \
+.[0]
+```
+```json
+{
+  "platform": [
+    "netology-develop-platform-web",
+    "130.193.36.225",
+    "fhm73aafu6u53ojul9dn.auto.internal"
+  ]
+}
+```
+```bash
+terraform output \
+-json odin_output \
+| jq \
+.[1]
+```
+```json
+{
+  "platform2": [
+    "netology-develop-platform-db",
+    "178.154.216.95",
+    "epd8klpvsaue50udi9u3.auto.internal"
+  ]
+}
+```
+```bash
+#
+terraform destroy
+
+cd ..
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am '16_2-terr_osnovy_4' \
+&& git push \
+--set-upstream \
+study_fops39 \
+16_2-terr_osnovy \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+16_2-terr_osnovy
+```
+## commit_5, `16_2-terr_osnovy`
+```bash
+# возвращение в рабочий каталог работы
+cd -

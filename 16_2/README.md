@@ -303,7 +303,26 @@ main.tf
 # Изменим содержимое main.tf ресурса scheduling_policy переменной preemptible, подставив индекс=6 переменной vm_web_
 sed -i 's/ble[[:space:]]*= true/ble = var.vm_web_.6/' \
 main.tf
-
+```
+#### получившийся код под переменные
+```h
+data "yandex_compute_image" "ubuntu" {
+  family = var.vm_web_.0
+}
+resource "yandex_compute_instance" "platform" {
+  name        = var.vm_web_.1
+  platform_id = var.vm_web_.2
+  resources {
+    cores         = var.vm_web_.3
+    memory        = var.vm_web_.4
+    core_fraction = var.vm_web_.5
+  }
+  }
+  scheduling_policy {
+    preemptible = var.vm_web_.6
+  }
+```
+```bash
 # Проверка прописанных переменных
 terraform validate \
 && terraform fmt \
@@ -333,7 +352,10 @@ Terraform has compared your real infrastructure against your configuration and f
 
 ```bash
 # создаем новый файл переменных для новой ВМ,где:
-## добавлена нова переменная для работы в зоне "ru-central1-b"
+## добавлены новые переменная для работы:
+### с именем новой сети
+### в зоне "ru-central1-b"
+### с новой ipv4 cidr адресацией
 ## изменены переменные под cores=2, memory=2 и core_fraction=20
 cat > vms_platform.tf <<'EOF'
 
@@ -346,8 +368,7 @@ variable "vm_db_" {
     string,
     number,
     number,
-    number,
-    bool
+    number
   ])
   default = [
     "skv-locnet-b",
@@ -357,14 +378,13 @@ variable "vm_db_" {
     "standard-v2",
     2,
     2,
-    20,
-    true
+    20
   ]
 }
 EOF
 
 
-# создание нового ресурса со своим набором переменных netology-develop-platform-db в главном файле 
+# создание новых ресурсов со своим набором переменных для netology-develop-platform-db в главном файле main.tf 
 cat >> main.tf <<'EOF'
 
 # Подсеть zone B
@@ -391,7 +411,7 @@ resource "yandex_compute_instance" "platform2" {
     }
   }
   scheduling_policy {
-    preemptible = var.vm_db_.8
+    preemptible = var.vm_web_.6
   }
   network_interface {
     subnet_id = yandex_vpc_subnet.skv-locnet-b.id
@@ -420,14 +440,12 @@ terraform plan -out=tfplan
 ```
 ```
 ....
+# yandex_vpc_subnet.skv-locnet-b will be created
+....
 # yandex_compute_instance.platform2 will be created
 ....
 Plan: 2 to add, 0 to change, 0 to destroy.
 ....
-```
-```
-# Подтверждение и создание нового ресурса
-terraform apply "tfplan"
 ```
 ```bash
 # Подтверждение и создание нового ресурса
@@ -452,6 +470,57 @@ Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
 
 В качестве решения приложите вывод значений ip-адресов команды ```terraform output```.
 
+```bash
+# создание output
+cat > outputs.tf <<'EOF'
+output "odin_output" {
+  value = [
+    { platform = [
+      yandex_compute_instance.platform.name,
+      yandex_compute_instance.platform.network_interface[0].nat_ip_address,
+      yandex_compute_instance.platform.fqdn
+      ]
+    },
+    { platform2 = [
+      yandex_compute_instance.platform2.name,
+      yandex_compute_instance.platform2.network_interface[0].nat_ip_address,
+      yandex_compute_instance.platform2.fqdn
+      ]
+    }
+  ]
+}
+EOF
+
+# Авто-форматирование и обновление файла terraform.tfstate в соответствии рабочей конфигурации без внесения изменений
+terraform fmt \
+&& terraform refresh
+```
+
+#### Обращение к одному из блоков value
+
+```
+Так как Terraform не поддерживает обращение к вложенным спискам элементов через terraform output,
+то как вариант можно через извлечение данных json и обработкой Command-line JSON
+```
+```bash
+# Установка Command-line JSON processor
+sudo pacman \
+-Sy \
+jq
+
+# Обращение к одному из value списка odin_output вывода terraform output
+terraform output \
+-json odin_output \
+| jq \
+.[0]
+
+terraform output \
+-json odin_output \
+| jq \
+.[1]
+```
+
+![](img/4.png)
 
 ### Задание 5
 

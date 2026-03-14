@@ -8,8 +8,7 @@ variable "vm_db_" {
     string,
     number,
     number,
-    number,
-    bool
+    number
   ])
   default = [
     "skv-locnet-b",
@@ -19,7 +18,6 @@ variable "vm_db_" {
     "standard-v2",
     2,
     2,
-    20,
-    true
+    20
   ]
 }

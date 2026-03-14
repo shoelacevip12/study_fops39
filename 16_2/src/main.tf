@@ -64,7 +64,7 @@ resource "yandex_compute_instance" "platform2" {
     }
   }
   scheduling_policy {
-    preemptible = var.vm_db_.8
+    preemptible = var.vm_web_.6
   }
   network_interface {
     subnet_id = yandex_vpc_subnet.skv-locnet-b.id
