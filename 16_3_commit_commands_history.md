@@ -1057,3 +1057,55 @@ study_fops39_gitflic_ru \
 ```
 ## commit_55, `master`
 ```bash
+cd ~/nfs_git/gited/16_3
+
+git checkout master
+
+git branch -v
+
+git merge 16_3-terr_construct
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . .. \
+&& git status
+
+git restore \
+--staged \
+src/hosts.ini
+
+git log --oneline
+
+git commit -am 'commit_55, master' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master
+
+cd src
+terraform destroy
+
+cd -
+
+git add . .. \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force
+```
