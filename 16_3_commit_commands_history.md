@@ -889,3 +889,171 @@ study_fops39_gitflic_ru \
 ```
 ## commit_5, `16_3-terr_construct`
 ```bash
+# создание файла hosts.ini через local_file
+cat > inventory.tf <<'EOF'
+# через locals Преобразовываем обращение к переменным как к list
+locals {
+  # web - list
+  web_instances = yandex_compute_instance.web
+  # db_vm - преобразование map в list через values()
+  db_instances = values(yandex_compute_instance.db_vm)
+  # storage - из одного объекта формируем list []
+  storage_instance = [yandex_compute_instance.storage]
+  # Объединение в общий instances list
+  all_instances = concat(local.web_instances, local.db_instances, local.storage_instance)
+}
+
+# Создание динамичного hosts.ini через tftpl файл
+resource "local_file" "hosts_templatefile" {
+  content = templatefile("${path.module}/hosts.tftpl", {
+    web     = local.web_instances,
+    db      = local.db_instances,
+    storage = local.storage_instance
+  })
+
+  filename = "${abspath(path.module)}/hosts.ini"
+}
+EOF
+
+# создание файла шаблона содержимого
+cat > hosts.tftpl <<'EOF'
+[web]
+
+%{~ for i in web ~}
+ ${i.name}   ansible_host=${i.network_interface[0].nat_ip_address != "" ? i.network_interface[0].nat_ip_address : i.network_interface[0].ip_address} fqdn=${i.fqdn}
+%{ endfor ~}
+
+[db]
+
+%{~ for i in db ~}
+ ${i.name}   ansible_host=${i.network_interface[0].nat_ip_address != "" ? i.network_interface[0].nat_ip_address : i.network_interface[0].ip_address} fqdn=${i.fqdn}
+%{ endfor ~}
+
+[storage]
+
+%{~ for i in storage ~}
+ ${i.name}   ansible_host=${i.network_interface[0].nat_ip_address != "" ? i.network_interface[0].nat_ip_address : i.network_interface[0].ip_address} fqdn=${i.fqdn}
+%{ endfor ~}
+
+[all:vars]
+
+ansible_user=ubuntu
+ansible_ssh_private_key_file=~/.ssh/id_lab16_1_fops39_ed25519
+EOF
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Success! The configuration is valid.
+
+data.yandex_compute_image.ubuntu_2404_lts["skv-develop-main"]: Reading...
+data.yandex_compute_image.ubuntu: Reading...
+data.yandex_compute_image.ubuntu_2404_lts["skv-develop-replica"]: Reading...
+yandex_vpc_network.develop: Refreshing state... [id=enpkp07cuvrvmcgjsiln]
+yandex_compute_disk.dobavo4_disk[1]: Refreshing state... [id=fhm8ghrkvf2apjah2pig]
+yandex_compute_disk.dobavo4_disk[2]: Refreshing state... [id=fhmi2drr6ofvgd26vthf]
+yandex_compute_disk.dobavo4_disk[0]: Refreshing state... [id=fhmo1bafl00njejvrgco]
+data.yandex_compute_image.ubuntu: Read complete after 0s [id=fd8gq5886iaaakiqhsjn]
+data.yandex_compute_image.ubuntu_2404_lts["skv-develop-main"]: Read complete after 0s [id=fd8gq5886iaaakiqhsjn]
+data.yandex_compute_image.ubuntu_2404_lts["skv-develop-replica"]: Read complete after 0s [id=fd8gq5886iaaakiqhsjn]
+yandex_vpc_subnet.develop: Refreshing state... [id=e9br1c8fes5avhndifp2]
+yandex_vpc_security_group.example: Refreshing state... [id=enp6b9a4ei2uuuu2s937]
+yandex_compute_instance.db_vm["skv-develop-replica"]: Refreshing state... [id=fhm9sldatnjnrs0thsvj]
+yandex_compute_instance.db_vm["skv-develop-main"]: Refreshing state... [id=fhm6fpcf7okfji5igm4d]
+yandex_compute_instance.storage: Refreshing state... [id=fhmkf8flraaqsv5gauqp]
+yandex_compute_instance.web[1]: Refreshing state... [id=fhmjkn5en8njp6q9kkek]
+yandex_compute_instance.web[0]: Refreshing state... [id=fhm6n5abaa8mm5q4btrp]
+...
+Terraform will perform the following actions:
+
+  # local_file.hosts_templatefile will be created
+  + resource "local_file" "hosts_templatefile" {
+      + content              = <<-EOT
+            [web]
+             skv-develop-web-1   ansible_host=62.84.116.211 fqdn=fhm6n5abaa8mm5q4btrp.auto.internal
+             skv-develop-web-2   ansible_host=93.77.185.215 fqdn=fhmjkn5en8njp6q9kkek.auto.internal
+            
+            [db]
+             skv-develop-main   ansible_host=93.77.188.121 fqdn=fhm6fpcf7okfji5igm4d.auto.internal
+             skv-develop-replica   ansible_host=10.0.1.35 fqdn=fhm9sldatnjnrs0thsvj.auto.internal
+            
+            [storage]
+             storage   ansible_host=158.160.32.10 fqdn=fhmkf8flraaqsv5gauqp.auto.internal
+            
+            [all:vars]
+            
+            ansible_user=ubuntu
+            ansible_ssh_private_key_file=~/.ssh/id_lab16_1_fops39_ed25519
+        EOT
+...
+      + filename             = "/home/shoel/nfs_git/gited/16_3/src/hosts.ini"
+...
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+```
+```bash
+# Применение файла запуска terraform
+terraform apply "tfplan"
+```
+```
+local_file.hosts_templatefile: Creating...
+local_file.hosts_templatefile: Creation complete after 0s [id=7e3dc046a8b329d03d5bf61f3d4c98fc09aec2c2]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+```
+```bash
+# содержимое сформированного файла
+cat hosts.ini
+```
+```
+[web]
+ skv-develop-web-1   ansible_host=62.84.116.211 fqdn=fhm6n5abaa8mm5q4btrp.auto.internal
+ skv-develop-web-2   ansible_host=93.77.185.215 fqdn=fhmjkn5en8njp6q9kkek.auto.internal
+
+[db]
+ skv-develop-main   ansible_host=93.77.188.121 fqdn=fhm6fpcf7okfji5igm4d.auto.internal
+ skv-develop-replica   ansible_host=10.0.1.35 fqdn=fhm9sldatnjnrs0thsvj.auto.internal
+
+[storage]
+ storage   ansible_host=158.160.32.10 fqdn=fhmkf8flraaqsv5gauqp.auto.internal
+
+[all:vars]
+
+ansible_user=ubuntu
+ansible_ssh_private_key_file=~/.ssh/id_lab16_1_fops39_ed25519
+```
+```bash
+cd ..
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . ../16_3_commit_commands_history.md \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am '16_3-terr_construct_5' \
+&& git push \
+--set-upstream \
+study_fops39 \
+16_3-terr_construct \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+16_3-terr_construct
+```
+## commit_55, `master`
+```bash
