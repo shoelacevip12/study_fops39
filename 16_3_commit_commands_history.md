@@ -266,5 +266,385 @@ study_fops39_gitflic_ru \
 ```bash
 cd -
 
+# Описание общей переменной  map(object ресурсов web
+cat >> variables.tf <<'EOF'
 
+# Объединение в единую map-переменную vms_resources
+variable "vms_resources" {
+  type = map(object({
+    family        = string
+    count         = number
+    name          = string
+    platform_id   = string
+    cores         = number
+    memory        = number
+    core_fraction = number
+    preemptible   = bool
+    nat           = bool
+  }))
+  default = {
+    vm_web = {
+      family        = "ubuntu-2404-lts-oslogin"
+      count         = 2
+      name          = "skv-develop-web"
+      platform_id   = "standard-v2"
+      cores         = 2
+      memory        = 3
+      core_fraction = 5
+      preemptible   = true
+      nat           = true
+    }
+  }
+}
+
+#  Отдельный map(object) переменной для блока metadata
+variable "vms_ssh" {
+  type = map(any)
+  default = {
+    serial-port-enable = 1
+    "ssh-keys"         = "ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPMT2pZfiY4KUIeybtsJjbp42JjiUySw5e34KiNprFsc lab16_1_fops39"
+  }
+}
+EOF
+
+# Описание создания ВМ с использованием переменных
+cat > count-vm.tf <<'EOF'
+data "yandex_compute_image" "ubuntu" {
+  family = var.vms_resources["vm_web"].family
+}
+resource "yandex_compute_instance" "web" {
+  count = var.vms_resources["vm_web"].count
+  name        = "${var.vms_resources["vm_web"].name}-${count.index + 1}"
+  platform_id = var.vms_resources["vm_web"].platform_id
+  resources {
+    cores         = var.vms_resources["vm_web"].cores
+    memory        = var.vms_resources["vm_web"].memory
+    core_fraction = var.vms_resources["vm_web"].core_fraction
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = var.vms_resources["vm_web"].preemptible
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.develop.id
+    nat       = var.vms_resources["vm_web"].nat
+    security_group_ids = [
+      yandex_vpc_security_group.example.id
+    ]
+  }
+
+  metadata = var.vms_ssh
+
+}
+EOF
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
 ```
+```
+Success! The configuration is valid.
+
+...
+
+Terraform will perform the following actions:
+
+  # yandex_compute_instance.web[0] will be created
+  + resource "yandex_compute_instance" "web" {
+      ...
+      + name                      = "skv-develop-web-1"
+      ...
+      + network_interface {
+        ...
+          + security_group_ids = [
+              + "enp6b9a4ei2uuuu2s937",
+            ]
+      ...
+    }
+
+  # yandex_compute_instance.web[1] will be created
+  + resource "yandex_compute_instance" "web" {
+      ...
+      + name                      = "skv-develop-web-2"
+      ...
+      + network_interface {
+        ...
+          + security_group_ids = [
+              + "enp6b9a4ei2uuuu2s937",
+            ]
+      ...
+    }
+
+Plan: 2 to add, 0 to change, 0 to destroy.
+```
+```bash
+# Применение файла запуска terraform
+terraform apply "tfplan"
+```
+```
+yandex_compute_instance.web[1]: Creating...
+yandex_compute_instance.web[0]: Creating...
+yandex_compute_instance.web[1]: Creation complete after 1m58s [id=fhmjkn5en8njp6q9kkek]
+yandex_compute_instance.web[0]: Creation complete after 1m58s [id=fhm6n5abaa8mm5q4btrp]
+
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+```
+```bash
+# отображение созданных вм YC консоли
+yc compute \
+instance \
+list
+```
+```
++----------------------+-------------------+---------------+---------+---------------+-------------+
+|          ID          |       NAME        |    ZONE ID    | STATUS  |  EXTERNAL IP  | INTERNAL IP |
++----------------------+-------------------+---------------+---------+---------------+-------------+
+| fhm6n5abaa8mm5q4btrp | skv-develop-web-1 | ru-central1-a | RUNNING | 62.84.116.211 | 10.0.1.16   |
+| fhmjkn5en8njp6q9kkek | skv-develop-web-2 | ru-central1-a | RUNNING | 93.77.185.215 | 10.0.1.28   |
++----------------------+-------------------+---------------+---------+---------------+-------------+
+```
+```bash
+# Описание общей переменной  list(object ресурсов web
+cat >> variables.tf <<'EOF'
+
+# Объединение в единую list(object -переменную each_vm
+variable "each_vm" {
+  type = list(object({
+    vm_name       = string
+    cpu           = number
+    ram           = number
+    type          = string
+    disk_volume   = number
+    family        = string
+    platform_id   = string
+    core_fraction = number
+    preemptible   = bool
+    nat           = bool
+  }))
+
+  default = [
+    {
+      vm_name       = "skv-develop-main"
+      cpu           = 4
+      ram           = 4
+      type          = "network-hdd"
+      disk_volume   = 15 
+      family        = "ubuntu-2404-lts-oslogin"
+      platform_id   = "standard-v3"
+      core_fraction = 20
+      preemptible   = true
+      nat           = true
+    },
+    {
+      vm_name       = "skv-develop-replica"
+      cpu           = 2
+      ram           = 3
+      type          = "network-hdd"
+      disk_volume   = 10
+      family        = "ubuntu-2404-lts-oslogin"
+      platform_id   = "standard-v2"
+      core_fraction = 5
+      preemptible   = true
+      nat           = false
+    }
+  ]
+}
+EOF
+
+# Описание создания ВМ с использованием переменных
+# Используем итератор for для списка вывода var.each_vm,
+# чтобы получить map(object для переменной for_each
+# Создание ВМ for_each loop методом
+cat > for_each-vm.tf <<'EOF'
+/* 
+Перевод list(object в map(object и обозначаем в locals
+Ассоциируем оператором "=>"
+vm_name как map-ключ "i.vm_name"
+с присвоением значением для "i"
+дальнейшее обращение для for_each loop через local
+*/
+locals {
+  to_map = { for i in var.each_vm : i.vm_name => i }
+}
+
+data "yandex_compute_image" "ubuntu_2404_lts" {
+  for_each = local.to_map
+  family   = each.value.family
+}
+
+# Создание ВМ for_each loop методом
+resource "yandex_compute_instance" "db_vm" {
+  for_each = local.to_map
+
+  name        = each.value.vm_name
+  platform_id = each.value.platform_id
+
+  resources {
+    cores         = each.value.cpu
+    memory        = each.value.ram
+    core_fraction = each.value.core_fraction
+  }
+
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu_2404_lts[each.key].image_id
+      type     = each.value.type
+      size     = each.value.disk_volume
+    }
+  }
+
+  scheduling_policy {
+    preemptible = each.value.preemptible
+  }
+
+  network_interface {
+    subnet_id = yandex_vpc_subnet.develop.id
+    nat       = each.value.nat
+    security_group_ids = [
+      yandex_vpc_security_group.example.id
+    ]
+  }
+
+  metadata = var.vms_ssh
+}
+EOF
+
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Success! The configuration is valid.
+
+data.yandex_compute_image.ubuntu_2404_lts["skv-develop-main"]: Reading...
+data.yandex_compute_image.ubuntu_2404_lts["skv-develop-replica"]: Reading...
+data.yandex_compute_image.ubuntu: Reading...
+yandex_vpc_network.develop: Refreshing state... [id=enpkp07cuvrvmcgjsiln]
+data.yandex_compute_image.ubuntu_2404_lts["skv-develop-replica"]: Read complete after 0s [id=fd8gq5886iaaakiqhsjn]
+data.yandex_compute_image.ubuntu_2404_lts["skv-develop-main"]: Read complete after 0s [id=fd8gq5886iaaakiqhsjn]
+data.yandex_compute_image.ubuntu: Read complete after 0s [id=fd8gq5886iaaakiqhsjn]
+yandex_vpc_subnet.develop: Refreshing state... [id=e9br1c8fes5avhndifp2]
+yandex_vpc_security_group.example: Refreshing state... [id=enp6b9a4ei2uuuu2s937]
+yandex_compute_instance.web[1]: Refreshing state... [id=fhmjkn5en8njp6q9kkek]
+yandex_compute_instance.web[0]: Refreshing state... [id=fhm6n5abaa8mm5q4btrp]
+
+....
+
+Terraform will perform the following actions:
+  # yandex_compute_instance.db_vm["skv-develop-main"] will be created
+  + resource "yandex_compute_instance" "db_vm" {
+...
+      + name                      = "skv-develop-main"
+...
+      + platform_id               = "standard-v3"
+....
+
+      + boot_disk {
+...
+              + size        = 15
+...
+        }
+...
+      + network_interface {
+...
+          + nat                = true
+...
+        }
+...
+      + resources {
+          + core_fraction = 20
+          + cores         = 4
+          + memory        = 4
+        }
+...
+    }
+  # yandex_compute_instance.db_vm["skv-develop-replica"] will be created
+  + resource "yandex_compute_instance" "db_vm" {
+...
+      + name                      = "skv-develop-replica"
+...
+      + platform_id               = "standard-v2"
+...
+      + boot_disk {
+...
+              + size        = 10
+...
+    }
+      + network_interface {
+...
+          + nat                = false
+      + resources {
+          + core_fraction = 5
+          + cores         = 2
+          + memory        = 3
+        }
+...
+    }
+Plan: 2 to add, 0 to change, 0 to destroy.
+```
+```bash
+# Применение файла запуска terraform
+terraform apply "tfplan"
+```
+```
+yandex_compute_instance.db_vm["skv-develop-main"]: Creating...
+yandex_compute_instance.db_vm["skv-develop-replica"]: Creating...
+yandex_compute_instance.db_vm["skv-develop-replica"]: Creation complete after 29s [id=fhm9sldatnjnrs0thsvj]
+yandex_compute_instance.db_vm["skv-develop-main"]: Creation complete after 32s [id=fhm6fpcf7okfji5igm4d]
+
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+```
+```bash
+# отображение созданных вм YC консоли
+yc compute \
+instance \
+list
+```
+```
++----------------------+---------------------+---------------+---------+---------------+-------------+
+|          ID          |        NAME         |    ZONE ID    | STATUS  |  EXTERNAL IP  | INTERNAL IP |
++----------------------+---------------------+---------------+---------+---------------+-------------+
+| fhm6fpcf7okfji5igm4d | skv-develop-main    | ru-central1-a | RUNNING | 93.77.188.121 | 10.0.1.15   |
+| fhm6n5abaa8mm5q4btrp | skv-develop-web-1   | ru-central1-a | RUNNING | 62.84.116.211 | 10.0.1.16   |
+| fhm9sldatnjnrs0thsvj | skv-develop-replica | ru-central1-a | RUNNING |               | 10.0.1.35   |
+| fhmjkn5en8njp6q9kkek | skv-develop-web-2   | ru-central1-a | RUNNING | 93.77.185.215 | 10.0.1.28   |
++----------------------+---------------------+---------------+---------+---------------+-------------+
+```
+```bash
+cd ..
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . ../16_3_commit_commands_history.md \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am '16_3-terr_construct_3' \
+&& git push \
+--set-upstream \
+study_fops39 \
+16_3-terr_construct \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+16_3-terr_construct
+```
+## commit_4, `16_3-terr_construct`
+```bash
