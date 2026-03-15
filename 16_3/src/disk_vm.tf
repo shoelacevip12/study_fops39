@@ -1,13 +1,12 @@
-data "yandex_compute_image" "ubuntu" {
-  family = var.vms_resources["vm_web"].family
+resource "yandex_compute_disk" "dobavo4_disk" {
+  count = var.disk_count["disk_add"].count
+  name  = "${var.disk_count["disk_add"].name}-${count.index + 1}"
+  type  = var.disk_count["disk_add"].type
+  size  = var.disk_count["disk_add"].size
 }
-resource "yandex_compute_instance" "web" {
-  # Для создания после ресурсов db_vm
-  depends_on = [
-    yandex_compute_instance.db_vm
-  ]
-  count       = var.vms_resources["vm_web"].count
-  name        = "${var.vms_resources["vm_web"].name}-${count.index + 1}"
+
+resource "yandex_compute_instance" "storage" {
+  name        = var.vm_storage
   platform_id = var.vms_resources["vm_web"].platform_id
   resources {
     cores         = var.vms_resources["vm_web"].cores
@@ -32,4 +31,10 @@ resource "yandex_compute_instance" "web" {
 
   metadata = var.vms_ssh
 
+  dynamic "secondary_disk" {
+    for_each = yandex_compute_disk.dobavo4_disk
+    content {
+      disk_id = secondary_disk.value.id
+    }
+  }
 }

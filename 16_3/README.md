@@ -155,8 +155,6 @@ variable "each_vm" {
 ------
 
 ```bash
-cd -
-
 # Описание общей переменной  map(object ресурсов web
 cat >> variables.tf <<'EOF'
 
@@ -286,13 +284,10 @@ yc compute \
 instance \
 list
 ```
-
-+----------------------+-------------------+---------------+---------+---------------+-------------+
 |          ID          |       NAME        |    ZONE ID    | STATUS  |  EXTERNAL IP  | INTERNAL IP |
-+----------------------+-------------------+---------------+---------+---------------+-------------+
+|----------------------|---------------------|---------------|---------|---------------|-------------|
 | fhm6n5abaa8mm5q4btrp | skv-develop-web-1 | ru-central1-a | RUNNING | 62.84.116.211 | 10.0.1.16   |
 | fhmjkn5en8njp6q9kkek | skv-develop-web-2 | ru-central1-a | RUNNING | 93.77.185.215 | 10.0.1.28   |
-+----------------------+-------------------+---------------+---------+---------------+-------------+
 
 ![](img/2.png)
 
@@ -402,6 +397,15 @@ resource "yandex_compute_instance" "db_vm" {
 }
 EOF
 
+# Добавляем в конфиг для count.tf depends_on для запуска после ресурсов с переменными db_vm
+sed -i '/"web" {/r /dev/stdin' count-vm.tf << 'EOF'
+  # Для создания после ресурсов db_vm
+  depends_on = [
+    yandex_compute_instance.db_vm
+  ]
+EOF
+
+
 # Проверка прописанных переменных
 terraform validate \
 && terraform fmt \
@@ -475,14 +479,13 @@ yc compute \
 instance \
 list
 ```
-+----------------------+---------------------+---------------+---------+---------------+-------------+
+
 |          ID          |        NAME         |    ZONE ID    | STATUS  |  EXTERNAL IP  | INTERNAL IP |
-+----------------------+---------------------+---------------+---------+---------------+-------------+
+|----------------------|---------------------|---------------|---------|---------------|-------------|
 | fhm6fpcf7okfji5igm4d | skv-develop-main    | ru-central1-a | RUNNING | 93.77.188.121 | 10.0.1.15   |
 | fhm6n5abaa8mm5q4btrp | skv-develop-web-1   | ru-central1-a | RUNNING | 62.84.116.211 | 10.0.1.16   |
 | fhm9sldatnjnrs0thsvj | skv-develop-replica | ru-central1-a | RUNNING |               | 10.0.1.35   |
 | fhmjkn5en8njp6q9kkek | skv-develop-web-2   | ru-central1-a | RUNNING | 93.77.185.215 | 10.0.1.28   |
-+----------------------+---------------------+---------------+---------+---------------+-------------+
 
 ![](img/3.png)
 
@@ -491,6 +494,184 @@ list
 
 1. Создайте 3 одинаковых виртуальных диска размером 1 Гб с помощью ресурса yandex_compute_disk и мета-аргумента count в файле **disk_vm.tf** .
 2. Создайте в том же файле **одиночную**(использовать count или for_each запрещено из-за задания №4) ВМ c именем "storage"  . Используйте блок **dynamic secondary_disk{..}** и мета-аргумент for_each для подключения созданных вами дополнительных дисков.
+
+```bash
+# Описание общей переменной  map(object ресурсов для создания дисков методом count
+cat >> variables.tf <<'EOF'
+
+# Объявление единой map-переменной для дисков
+variable "disk_count" {
+  type = map(object({
+    count         = number
+    name          = string
+    type          = string
+    size          = number
+  }))
+  default = {
+    disk_add = {
+      count         = 3
+      name          = "skv-disk"
+      type          = "network-hdd"
+      size          = 1
+    }
+  }
+}
+EOF
+
+# Создание ресурса дисков методом count
+cat > disk_vm.tf <<'EOF'
+resource "yandex_compute_disk" "dobavo4_disk" {
+  count    = var.disk_count["disk_add"].count
+  name     = "${var.disk_count["disk_add"].name}-${count.index + 1}"
+  type     = var.disk_count["disk_add"].type
+  size     = var.disk_count["disk_add"].size
+}
+EOF
+
+# создаем переменную для имени одиночной ВМ storage
+cat >> variables.tf <<'EOF'
+variable "vm_storage" {
+  type        = string
+  default     = "storage"
+  description = "VM 3aDaHue 3 name"
+}
+EOF
+
+# Создаем ВМ используя переменные ранее созданные для вм vm_web
+cat >> disk_vm.tf <<'EOF'
+
+resource "yandex_compute_instance" "storage" {
+  name        = var.vm_storage
+  platform_id = var.vms_resources["vm_web"].platform_id
+  resources {
+    cores         = var.vms_resources["vm_web"].cores
+    memory        = var.vms_resources["vm_web"].memory
+    core_fraction = var.vms_resources["vm_web"].core_fraction
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = var.vms_resources["vm_web"].preemptible
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.develop.id
+    nat       = var.vms_resources["vm_web"].nat
+    security_group_ids = [
+      yandex_vpc_security_group.example.id
+    ]
+  }
+
+  metadata = var.vms_ssh
+
+  dynamic "secondary_disk" {
+    for_each = yandex_compute_disk.dobavo4_disk
+    content {
+      disk_id = secondary_disk.value.id
+    }
+  }
+}
+EOF
+```
+```bash
+# Проверка прописанных переменных
+terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+```
+Success! The configuration is valid.
+
+Terraform will perform the following actions:
+
+  # yandex_compute_disk.dobavo4_disk[0] will be created
+  + resource "yandex_compute_disk" "dobavo4_disk" {
+...
+      + name        = "skv-disk-1"
+...
+      + size        = 1
+...
+    }
+
+  # yandex_compute_disk.dobavo4_disk[1] will be created
+  + resource "yandex_compute_disk" "dobavo4_disk" {
+...
+      + name        = "skv-disk-2"
+...
+      + size        = 1
+...
+    }
+
+  # yandex_compute_disk.dobavo4_disk[2] will be created
+  + resource "yandex_compute_disk" "dobavo4_disk" {
+...
+      + name        = "skv-disk-3"
+...
+      + size        = 1
+...
+    }
+
+  # yandex_compute_instance.storage will be created
+  + resource "yandex_compute_instance" "storage" {
+...
+
+      + secondary_disk {
+...
+        }
+      + secondary_disk {
+...
+        }
+      + secondary_disk {
+...
+        }
+    }
+
+Plan: 4 to add, 0 to change, 0 to destroy.
+```
+```bash
+# Применение файла запуска terraform
+terraform apply "tfplan"
+```
+```
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+```
+```bash
+# отображение созданных вм YC консоли
+yc compute \
+instance \
+list
+```
+
+|          ID          |        NAME         |    ZONE ID    | STATUS  |  EXTERNAL IP  | INTERNAL IP |
+|----------------------|---------------------|---------------|---------|---------------|-------------|
+| fhm6fpcf7okfji5igm4d | skv-develop-main    | ru-central1-a | RUNNING | 93.77.188.121 | 10.0.1.15   |
+| fhm6n5abaa8mm5q4btrp | skv-develop-web-1   | ru-central1-a | RUNNING | 62.84.116.211 | 10.0.1.16   |
+| fhm9sldatnjnrs0thsvj | skv-develop-replica | ru-central1-a | RUNNING |               | 10.0.1.35   |
+| fhmjkn5en8njp6q9kkek | skv-develop-web-2   | ru-central1-a | RUNNING | 93.77.185.215 | 10.0.1.28   |
+| fhmkf8flraaqsv5gauqp | storage             | ru-central1-a | RUNNING | 158.160.32.10 | 10.0.1.4    |
+
+
+```bash
+# отображение созданных дисков в YC консоли
+yc compute \
+disk \
+list
+```
+|          ID          |    NAME    |    SIZE     |     ZONE      | STATUS |     INSTANCE IDS     | PLACEMENT GROUP | DESCRIPTION |
+|----------------------|------------|-------------|---------------|--------|----------------------|-----------------|-------------|
+| fhm144lhkheougqrc4ug |            | 10737418240 | ru-central1-a | READY  | fhm6n5abaa8mm5q4btrp |                 |             |
+| fhm1k1n6h8d2imhfiv49 |            | 10737418240 | ru-central1-a | READY  | fhmkf8flraaqsv5gauqp |                 |             |
+| fhm5ghm8gnjn0eqdal2o |            | 10737418240 | ru-central1-a | READY  | fhmjkn5en8njp6q9kkek |                 |             |
+| fhm8ghrkvf2apjah2pig | skv-disk-2 |  1073741824 | ru-central1-a | READY  | fhmkf8flraaqsv5gauqp |                 |             |
+| fhmd1d81rkql57hpslt1 |            | 16106127360 | ru-central1-a | READY  | fhm6fpcf7okfji5igm4d |                 |             |
+| fhmebd3ardnt2sjq8vj8 |            | 10737418240 | ru-central1-a | READY  | fhm9sldatnjnrs0thsvj |                 |             |
+| fhmi2drr6ofvgd26vthf | skv-disk-3 |  1073741824 | ru-central1-a | READY  | fhmkf8flraaqsv5gauqp |                 |             |
+| fhmo1bafl00njejvrgco | skv-disk-1 |  1073741824 | ru-central1-a | READY  | fhmkf8flraaqsv5gauqp |                 |             |
+
+
+![](img/4.png) ![](img/4.png)
 
 ------
 

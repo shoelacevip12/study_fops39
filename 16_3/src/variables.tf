@@ -108,3 +108,26 @@ variable "each_vm" {
     }
   ]
 }
+
+# Объявление единой map-переменной для дисков
+variable "disk_count" {
+  type = map(object({
+    count = number
+    name  = string
+    type  = string
+    size  = number
+  }))
+  default = {
+    disk_add = {
+      count = 3
+      name  = "skv-disk"
+      type  = "network-hdd"
+      size  = 1
+    }
+  }
+}
+variable "vm_storage" {
+  type        = string
+  default     = "storage"
+  description = "VM 3aDaHue 3 name"
+}
