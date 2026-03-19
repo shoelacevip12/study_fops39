@@ -62,8 +62,12 @@ git diff \
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 
+# Добавляем ключ агенту ssh от репозитория gitflic
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519
+
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий
-git commit -am 'commit_56, master' \
+git commit -am 'commit_56_upd1, master' \
 && git push \
 --set-upstream \
 study_fops39 \
