@@ -112,3 +112,57 @@ study_fops39_gitflic_ru \
 master
 ```
 ## commit_1, `17_4-ansible_role`
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Переключение\формирование новой ветки git
+git checkout -b 17_4-ansible_role
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit1, 17_4-ansible_role' \
+&& git push \
+--set-upstream \
+study_fops39 \
+17_4-ansible_role \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+17_4-ansible_role
+```
+## commit_2, `17_4-ansible_role`
+```bash
+# Директории для работы
+cd 17_4
+
+# Создание файла requirements для скачивания роли из указанного источника
+cat > requirements.yml <<'EOF'
+---
+  - src: git@github.com:AlexeySetevoi/ansible-clickhouse.git
+    scm: git
+    version: "1.13"
+    name: clickhouse
+...
+EOF
+
+# Скачивание роли из git репозитория источника 
+ansible-galaxy install \
+-p roles \
+-r requirements.yml
+```
