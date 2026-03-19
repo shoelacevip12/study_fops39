@@ -84,7 +84,21 @@ ansible-galaxy install \
 -p roles \
 -r requirements.yml
 ```
+```
+Starting galaxy role install process
+- extracting clickhouse to /home/shoel/nfs_git/gited/17_4/roles/clickhouse
+- clickhouse (1.13) was installed successfully
+```
 3. Создайте новый каталог с ролью при помощи `ansible-galaxy role init vector-role`.
+```bash
+# Новая структура с ролью vector-role в папке roles
+ansible-galaxy role \
+init \
+roles/vector-role 
+```
+```
+- Role vector-role was created successfully
+```
 4. На основе tasks из старого playbook заполните новую role. Разнесите переменные между `vars` и `default`. 
 5. Перенести нужные шаблоны конфигов в `templates`.
 6. Опишите в `README.md` обе роли и их параметры. Пример качественной документации ansible role [по ссылке](https://github.com/cloudalchemy/ansible-prometheus).

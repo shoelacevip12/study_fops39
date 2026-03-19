@@ -136,7 +136,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit1, 17_4-ansible_role' \
+git commit -am 'commit1_upd_1, 17_4-ansible_role' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -165,4 +165,18 @@ EOF
 ansible-galaxy install \
 -p roles \
 -r requirements.yml
+```
+```
+Starting galaxy role install process
+- extracting clickhouse to /home/shoel/nfs_git/gited/17_4/roles/clickhouse
+- clickhouse (1.13) was installed successfully
+```
+```bash
+# Новая структура с ролью vector-role
+ansible-galaxy role \
+init \
+roles/vector-role
+```
+```
+- Role vector-role was created successfully
 ```
