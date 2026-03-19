@@ -48,6 +48,44 @@ git status
 
 git remote -v
 
+# Генерация ключа для работы с gitflic
+ssh-keygen -f ~/.ssh/id_gitflic_2026_ed25519 \
+-t ed25519 \
+-C "gitflic_2026"
+
+# Удаление источника авторизации по https для gitflic
+git remote rm \
+study_fops39_gitflic_ru
+
+# Добавление источника для авторизации на gitflic по ssh
+git remote add \
+study_fops39_gitflic_ru \
+git@gitflic.ru:shoelacevip12/fops39.git
+
+# Генерация ключа для работы с github
+ssh-keygen -f ~/.ssh/id_github_2026_ed25519 \
+-t ed25519 \
+-C "github_2026"
+
+# Через консоль gh добавляем публичный ключ для подключения
+gh ssh-key \
+add ~/.ssh/id_github_2026_ed25519.pub
+
+# Удаление источника авторизации по https для github
+git remote rm \
+study_fops39
+
+# Добавление источника для авторизации на github по ssh
+git remote add \
+study_fops39 \
+git@github.com:shoelacevip12/study_fops39.git
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
 # Просмотр различий в рабочей директории и индексов
 git diff \
 && git diff --staged
@@ -62,12 +100,8 @@ git diff \
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 
-# Добавляем ключ агенту ssh от репозитория gitflic
-eval $(ssh-agent) \
-&& ssh-add ~/.ssh/id_gitflic_2026_ed25519
-
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий
-git commit -am 'commit_56_upd1, master' \
+git commit -am 'commit_56_upd2, master' \
 && git push \
 --set-upstream \
 study_fops39 \
