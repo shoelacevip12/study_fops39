@@ -1,0 +1,73 @@
+---
+- name: Развертывание ВМ на libvirt
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: true
+
+  vars:
+    # 1. Общие настройки для всех машин
+    vm_defaults:
+      memory_kib: 4194304
+      vcpu: 2
+      disk_base_path: "/disk/VMs"
+      disk_suffix: "-1.qcow2"
+      bridge: "br0"
+      # uefi firmware
+      efi_code: "/usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd"
+      efi_vars_template: "/usr/share/edk2/x64/OVMF_VARS.4m.fd"
+
+    # Список машин с уникальными значениями
+    vms_list:
+      - name: "clickhouse"
+        mac_address: "52:54:00:64:ad:4b"
+        uuid: "0f2b0f74-7d65-4d1b-a954-aa4488980438"
+      
+      - name: "vector"
+        mac_address: "52:54:00:64:ad:4c"
+        uuid: "11111111-7d65-4d1b-a954-aa4488980438"
+      
+      - name: "lighthouse"
+        mac_address: "52:54:00:64:ad:4d"
+        uuid: "22222222-7d65-4d1b-a954-aa4488980438"
+    
+    iso_path: "/home/shoel/iso/ubuntu-24.04.4-live-server-amd64.iso"
+    
+  tasks:
+    - name: Наличие дисков
+      file:
+        path: "{{ vm_defaults.disk_base_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Shell на создание образов для ВМ
+      command: >
+        qemu-img create -f qcow2 
+        {{ vm_defaults.disk_base_path }}/{{ item.name }}{{ vm_defaults.disk_suffix }} 20G
+        creates={{ vm_defaults.disk_base_path }}/{{ item.name }}{{ vm_defaults.disk_suffix }}
+      loop: "{{ vms_list }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Создание ВМ на основе шаблона XML
+      community.libvirt.virt:
+        command: define
+        xml: "{{ lookup('template', 'templates/vm_config.xml.j2') }}"
+        uri: "qemu:///system"
+      loop: "{{ vms_list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      vars:
+        # Объединяем общие настройки с  уникальными настройками конкретной машины
+        # Переменные из item (имя, mac) имеют приоритет и перезапишут default при конфликте
+        vm: "{{ vm_defaults | combine(item) }}"
+
+    - name: Запуск kvm машин
+      community.libvirt.virt:
+        name: "{{ item.name }}"
+        state: running
+        uri: "qemu:///system"
+      loop: "{{ vms_list }}"
+      loop_control:
+        label: "{{ item.name }}"
+...
