@@ -1,0 +1,310 @@
+---
+- name: Развёртывание LXC контейнеров с OverlayFS
+  hosts: localhost
+  gather_facts: false
+  become: true
+  tasks:
+   # === 0.1. Базовая файловая система ===
+    - name: Создаём /tmp с правильными правами
+      file:
+        path: "{{ rootfs_base }}/tmp"
+        state: directory
+        mode: '1777'
+        owner: root
+        group: root
+
+    - name: Создаём /run с правильными правами
+      file:
+        path: "{{ rootfs_base }}/run"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Создаём необходимые системные директории
+      file:
+        path: "{{ rootfs_base }}/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - root/.ssh
+        - etc/systemd/system/serial-getty@ttyS0.service.d
+        - etc/systemd/system/console-getty.service.d
+        - etc/netplan
+        - var/log
+        - var/lib/apt/lists/partial
+        - var/cache/apt/archives/partial
+
+    # === 0.2. Настройка autologin для root (консоль) ===
+    - name: Включаем autologin для root на serial консоли
+      copy:
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
+        dest: "{{ rootfs_base }}/etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf"
+        mode: '0644'
+
+    - name: Включаем autologin для root на основной консоли
+      copy:
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=-/sbin/agetty --autologin root --noclear tty1 $TERM
+        dest: "{{ rootfs_base }}/etc/systemd/system/console-getty.service.d/autologin.conf"
+        mode: '0644'
+
+    - name: Файл конфигурации сети по DHCP
+      copy:
+        content: >
+          network:
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: true
+                dhcp-identifier: mac
+        dest: "{{ rootfs_base }}/etc/netplan/10-lxc.yaml"
+        mode: '0644'
+ 
+    # === 03. Разрешаем root-логин ===
+    - name: Настраиваем пустой пароль для root в shadow
+      lineinfile:
+        path: "{{ rootfs_base }}/etc/shadow"
+        regexp: "^root:"
+        line: "root::20532:0:99999:7:::"
+        create: true
+        mode: '0640'
+      ignore_errors: true
+
+    - name: Разрешаем root-логин в securetty
+      copy:
+        content: |
+          tty1
+          ttyS0
+          console
+        dest: "{{ rootfs_base }}/etc/securetty"
+        mode: '0644'
+        force: true
+
+    # # === 0.4 SSH: базовая настройка ===
+    # - name: Копируем публичный ключ хоста в authorized_keys
+    #   copy:
+    #     src: "~/.ssh/id_kvm_host_to_vms.pub"
+    #     dest: "{{ rootfs_base }}/root/.ssh/authorized_keys"
+    #     mode: '0600'
+    #     owner: root
+    #     group: root
+    #   when: (lookup('file', '~/.ssh/id_kvm_host_to_vms.pub', errors='ignore') | default('')) | length > 0
+    #   ignore_errors: true
+
+  #   - name: Базовая настройка sshd_config (разрешить root, ключи)
+  #     lineinfile:
+  #       path: "{{ rootfs_base }}/etc/ssh/ssh_config"
+  #       regexp: "{{ item.regexp }}"
+  #       line: "{{ item.line }}"
+  #       create: true
+  #       mode: '0644'
+  #     loop:
+  #       - { regexp: "^#?PermitRootLogin", line: "PermitRootLogin prohibit-password" }
+  #       - { regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication no" }
+  #       - { regexp: "^#?PubkeyAuthentication", line: "PubkeyAuthentication yes" }
+  #     ignore_errors: true
+
+    # === 0.5. Финализация ===
+    - name: Обновляем права на ключевые файлы
+      file:
+        path: "{{ rootfs_base }}/{{ item.path }}"
+        mode: "{{ item.mode }}"
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+        recurse: "{{ item.recurse | default(false) }}"
+      loop:
+        - { path: root, mode: '0700' }
+        - { path: root/.ssh, mode: '0700' }
+        - { path: root/.ssh/authorized_keys, mode: '0600' }
+        - { path: etc/shadow, mode: '0640' }
+        - { path: etc/ssh, mode: '0755', recurse: true }
+      ignore_errors: true
+
+    # === 1. Подготовка OverlayFS ===
+    - name: Создаём структуру overlay для всех контейнеров
+      file:
+        path: "{{ overlays_root }}/{{ item.0 }}/{{ item.1 }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ containers | product(['upper', 'work', 'merged']) | list }}"
+      loop_control:
+        label: "{{ item.0 }}/{{ item.1 }}"
+
+    - name: Монтируем OverlayFS
+      mount:
+        path: "{{ overlays_root }}/{{ item }}/merged"
+        src: overlay
+        fstype: overlay
+        opts: "lowerdir={{ rootfs_base }},upperdir={{ overlays_root }}/{{ item }}/upper,workdir={{ overlays_root }}/{{ item }}/work"
+        state: mounted
+        boot: false
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # === 1.1. Настройка hostname для каждого контейнера ===
+    - name: Устанавливаем hostname в /etc/hostname (merged layer)
+      copy:
+        content: "{{ item }}\n" # \n важен для корректного окончания строки
+        dest: "{{ overlays_root }}/{{ item }}/merged/etc/hostname"
+        mode: '0644'
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      
+    - name: Обновляем /etc/hosts для соответствия hostname (merged layer)
+      lineinfile:
+        path: "{{ overlays_root }}/{{ item }}/merged/etc/hosts"
+        regexp: '^127\.0\.1\.1\s+.*$' # Совпадение с существующей строкой для 127.0.1.1
+        line: "127.0.1.1\t{{ item }}" # Используем табуляцию как разделитель
+        insertafter: EOF # Вставляем в конец файла, если строка не найдена
+        create: true # Создать файл, если не существует
+        mode: '0644'
+        backup: yes # Опционально
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # === 1.2. Подготовка cloud-init seed данных для каждого контейнера ===
+    - name: Создаём директорию для cloud-init seed данных
+      file:
+        path: "{{ overlays_root }}/{{ item }}/merged/var/lib/cloud/seed/nocloud-net"
+        state: directory
+        mode: '0755'
+        # owner: и group: обычно не обязательны для этой директории
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Копируем публичный ключ хоста в authorized_keys (на хосте, для передачи в user-data)
+      copy:
+        src: "~/.ssh/id_kvm_host_to_vms.pub"
+        dest: "/tmp/{{ item }}_pubkey"
+        mode: '0644'
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      when: (lookup('file', '~/.ssh/id_kvm_host_to_vms.pub', errors='ignore') | default('')) | length > 0
+      ignore_errors: true
+
+    - name: Генерируем cloud-init user-data для каждого контейнера
+      template:
+        src: templates/user-data.j2
+        dest: "{{ overlays_root }}/{{ item }}/merged/var/lib/cloud/seed/nocloud-net/user-data"
+        mode: '0600'
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      vars:
+        container_name: "{{ item }}"
+        # Добавьте другие переменные, которые нужны в шаблоне
+
+    - name: Генерируем cloud-init meta-data для каждого контейнера
+      copy:
+        content: |
+          instance-id: {{ item }}
+          local-hostname: {{ item }}
+        dest: "{{ overlays_root }}/{{ item }}/merged/var/lib/cloud/seed/nocloud-net/meta-data"
+        mode: '0644'
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # === 2. Генерация XML и определение контейнеров ===
+    - name: Формируем XML для контейнеров
+      template:
+        src: templates/lxc.xml.j2
+        dest: "/tmp/{{ item }}.xml"
+        mode: '0644'
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      vars:
+        container_name: "{{ item }}"
+
+    - name: Определяем контейнер в libvirt
+      community.libvirt.virt:
+        uri: "{{ libvirt_uri }}"
+        command: define
+        xml: "{{ lookup('file', '/tmp/' + item + '.xml') }}"
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      ignore_errors: true
+
+    - name: Очищаем временные XML
+      file:
+        path: "/tmp/{{ item }}.xml"
+        state: absent
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # === 3. Запуск контейнеров ===
+    - name: Запускаем контейнеры
+      community.libvirt.virt:
+        uri: "{{ libvirt_uri }}"
+        name: "{{ item }}"
+        state: running
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      retries: 3
+      delay: 5
+
+    # === 4. Ожидание загрузки ===
+    - name: Ждём, пока контейнеры запустятся
+      command: virsh -c "{{ libvirt_uri }}" domstate "{{ item }}"
+      environment:
+        LANG: C
+        LC_ALL: C
+      register: domstate
+      until: "'running' in domstate.stdout"
+      retries: 10
+      delay: 3
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      changed_when: false
+      ignore_errors: true
+
+    # === 5. Вывод IP-адресов контейнеров из syslog ===
+    - name: Пауза перед чтением syslog
+      pause:
+        seconds: 10
+
+    - name: Извлекаем IP-адреса из файловой системы syslog для каждого контейнера
+      shell: |
+        awk '/DHCPv4/ {
+          gsub(/\/24.*$/, "", $7);
+          print $2
+        }' "{{ overlays_root }}/{{ item }}/merged/var/log/syslog" 2>/dev/null | tail -n 1
+      register: syslog_ip_line
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      changed_when: false
+
+    - name: Выводим IP-адреса
+      debug:
+        msg: "{{ item.stdout_lines | first | default(item.item + ' IP_NOT_FOUND_IN_SYSLOG') }}"
+      loop: "{{ syslog_ip_line.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.stdout | length > 0
+
+    # === 6. Уборка временных файлов ===
+    - name: Удаляем временные файлы с публичными ключами
+      file:
+        path: "/tmp/{{ item }}_pubkey"
+        state: absent
+      loop: "{{ containers }}"
+      loop_control:
+        label: "{{ item }}"
+      ignore_errors: true

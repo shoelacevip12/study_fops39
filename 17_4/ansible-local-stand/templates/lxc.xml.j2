@@ -1,0 +1,36 @@
+<domain type='lxc'>
+  <name>{{ container_name }}</name>
+  <memory unit='KiB'>{{ memory_kb }}</memory>
+  <vcpu>{{ vcpus }}</vcpu>
+
+  <os>
+    <type>exe</type>
+    <init>/sbin/init</init>
+  </os>
+
+  <features>
+    <capabilities policy='allow'/>
+  </features>
+
+  <clock offset="timezone" timezone="{{ timezone | default('Europe/Moscow') }}" />
+
+  <devices>
+    <!-- Корневая ФС: OverlayFS merged слой -->
+    <filesystem type='mount'>
+      <source dir='{{ overlays_root }}/{{ container_name }}/merged'/>
+      <target dir='/'/>
+    </filesystem>
+
+    <!-- Сетевой интерфейс -->
+    <interface type='bridge'>
+      <source bridge='{{ network.bridge }}'/>
+      <link state='{{ network.link_state }}'/>
+    </interface>
+
+    <!-- Консоль и tty -->
+    <console type='pty'>
+      <target type='lxc' port='0'/>
+    </console>
+    <tty/>
+  </devices>
+</domain>

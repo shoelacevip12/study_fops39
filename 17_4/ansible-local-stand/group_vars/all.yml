@@ -1,0 +1,27 @@
+---
+# === Libvirt LXC ===
+libvirt_uri: "lxc:///"
+
+# === Ресурсы контейнеров ===
+memory_kb: 2097152 # 2 GB
+vcpus: 2
+
+# === OverlayFS ===
+rootfs_base: /disk/VMs/ubuntu_24.04_rootfs
+overlays_root: /disk/VMs/overlays
+
+# === Сеть ===
+network:
+  bridge: br0
+  link_state: up
+  dhcp: true
+
+# === Часовой пояс ===
+timezone: Europe/Moscow
+
+# === Перечисление контейнеров ===
+containers:
+  - clickhouse
+  - vector
+  - lighthouse
+...
