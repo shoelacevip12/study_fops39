@@ -145,7 +145,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit1_upd_7, 17_4-ansible_role' \
+git commit -am 'commit1_upd_8, 17_4-ansible_role' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -210,9 +210,12 @@ vector_config:
       type: clickhouse
       inputs: [ skv_file_test ]
       database: skvvectordb
-      endpoint: http://localhost:8123
+      endpoint: http://192.168.89.113:8123
       table: mytable
-      auth: { strategy: basic, user: 'skv', password: 'test1qaz' }
+      auth: 
+        strategy: basic
+        user: skv
+        password: 'test1qaz'
       buffer:
         - type: disk
           max_size: 1073741824 # 1GiB.
@@ -309,12 +312,81 @@ lighthouse
 vector
 EOF
 ```
+## Создание общих переменной между ролями
+```bash
+# каталог для переопределения переменных
+mkdir group_vars
+
+# Создание файла переопределения переменных для группы clickhouse
+cat > group_vars/clickhouse.yaml <<'EOF'
+---
+clickhouse_users_custom:
+  name: skv
+  password: test1qaz
+  networks:
+    - 192.168.89.113
+...
+EOF
+```
+## Создание настроек работы ansible для текущего проекта в каталоге 
+```bash
+cat > ansible.cfg <<'EOF'
+[defaults]
+home=./
+inventory=./hosts.ini
+roles_path=./roles
+collections_paths=./collections
+# vault_password_file=./va_pa
+host_key_checking=False
+interpreter_python=auto_silent
+deprecation_warnings=False
+retry_files_enabled=False
+callback_enabled=profile_tasks
+
+[privilege_escalation]
+become = true
+become_method = sudo
+
+[connection]
+ssh_agent=auto
+
+[paramiko_connection]
+host_key_checking=False
+
+[ssh_connection]
+host_key_checking=False
+EOF
+```
 
 cat > <<'EOF'
 EOF
 
-cat > <<'EOF'
-EOF
+```bash
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit2_upd0, 17_4-ansible_role' \
+&& git push \
+--set-upstream \
+study_fops39 \
+17_4-ansible_role \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+17_4-ansible_role
+```
 
 cat > <<'EOF'
 EOF

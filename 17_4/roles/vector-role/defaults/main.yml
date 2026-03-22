@@ -15,9 +15,12 @@ vector_config:
       type: clickhouse
       inputs: [ skv_file_test ]
       database: skvvectordb
-      endpoint: http://localhost:8123
+      endpoint: http://192.168.89.113:8123
       table: mytable
-      auth: { strategy: basic, user: 'skv', password: 'test1qaz' }
+      auth: 
+        strategy: basic
+        user: skv
+        password: 'test1qaz'
       buffer:
         - type: disk
           max_size: 1073741824 # 1GiB.

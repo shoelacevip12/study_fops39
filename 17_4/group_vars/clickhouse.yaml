@@ -1,0 +1,7 @@
+---
+clickhouse_users_custom:
+  name: skv
+  password: test1qaz
+  networks:
+    - 192.168.89.113
+...
