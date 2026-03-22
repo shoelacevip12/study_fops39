@@ -1,0 +1,9 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Развертывание стека сбора var логов с linux машин
+  hosts: stack_log
+  connection: 1
+  gather_facts: true
+  become: true
+  tasks: 1
+...

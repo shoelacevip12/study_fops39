@@ -145,7 +145,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit1_upd_5, 17_4-ansible_role' \
+git commit -am 'commit1_upd_6, 17_4-ansible_role' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -160,23 +160,6 @@ study_fops39_gitflic_ru \
 # Директории для работы
 cd 17_4
 
-# Новая структура с ролью kvm-libvirt
-ansible-galaxy role \
-init \
-roles/kvm-libvirt
-
-# Обновление системы и доустановка для работы с модулем community.libvirt
-sudo pacman \
--Syu \
-python-lxml
-
-# Установка модулей коллекции libvirt
-ansible-galaxy collection \
-install \
-community.libvirt
-```
-
-```bash
 # Создание файла requirements для скачивания роли из указанного источника
 cat > requirements.yml <<'EOF'
 ---
@@ -206,3 +189,132 @@ roles/vector-role
 ```
 - Role vector-role was created successfully
 ```
+## РАспределение значений переменных по умолчанию и постоянных
+```bash
+# создание общего словаря vector_config переменных по умолчанию
+cat > roles/vector-role/defaults/main.yml <<'EOF'
+---
+vector_config:
+  # Словарь переменных по умолчанию для получения данных
+  sources:
+    var_logs:
+      host_key: hostname
+      include: [ "/var/log/**/*.log", "/var/log/*.log" ]
+      line_delimiter: "\n"
+      read_from: beginning
+      rotate_wait_secs: 9223372
+
+  # Словарь переменных по умолчанию доставки ДО сервиса
+  sinks:
+    var_logs_clickhouse:
+      type: clickhouse
+      inputs: [ skv_file_test ]
+      database: skvvectordb
+      endpoint: http://localhost:8123
+      table: mytable
+      auth: { strategy: basic, user: 'skv', password: 'test1qaz' }
+      buffer:
+        - type: disk
+          max_size: 1073741824 # 1GiB.
+          when_full: drop_newest
+...
+EOF
+```
+```bash
+# создание общего словаря vector_config ПОСТОЯННЫХ переменных
+cat > roles/vector-role/vars/main.yml <<'EOF'
+---
+vector_config:
+  # Словарь постоянных переменных для получения данных
+  sources:
+  var_logs:
+    type: file
+    data_dir: /var/local/lib/vector/
+    file_key: file
+    glob_minimum_cooldown_ms: 1000
+    ignore_older_secs: 600
+    max_line_bytes: 102400
+    max_read_bytes: 2048
+
+  # Словарь постоянных переменных доставки ДО сервиса
+  sinks:
+  var_logs_clickhouse:
+    compression: gzip
+    database: mydatabase
+    format: json_each_row
+    skip_unknown_fields: true
+...
+EOF
+```
+## Формирование шаблона для роли vector
+```bash
+cat > roles/vector-role/templates/vector.yaml.j2 <<'EOF'
+---
+# === ИСТОЧНИКИ ===
+sources:
+  var_logs:
+    type: {{ vector_config.sources.var_logs.type }}
+    data_dir: {{ vector_config.sources.var_logs.data_dir }}
+    file_key: {{ vector_config.sources.var_logs.file_key }}
+    glob_minimum_cooldown_ms: {{ vector_config.sources.var_logs.glob_minimum_cooldown_ms }}
+    host_key: {{ vector_config.sources.var_logs.host_key }}
+    ignore_older_secs: {{ vector_config.sources.var_logs.ignore_older_secs }}
+    include: {{ vector_config.sources.var_logs.include }}
+    line_delimiter: {{ vector_config.sources.var_logs.line_delimiter }}
+    max_line_bytes: {{ vector_config.sources.var_logs.max_line_bytes }}
+    max_read_bytes: {{ vector_config.sources.var_logs.max_read_bytes }}
+    read_from: {{ vector_config.sources.var_logs.read_from }}
+    rotate_wait_secs: {{ vector_config.sources.var_logs.rotate_wait_secs }}
+
+# ==== ПРИЁМНИК ====
+sinks:
+  var_logs_clickhouse:
+    type: {{ vector_config.sinks.var_logs_clickhouse.type }}
+    inputs: {{ vector_config.sinks.var_logs_clickhouse.inputs }}
+    compression: {{ vector_config.sinks.var_logs_clickhouse.compression }}
+    database: {{ vector_config.sinks.var_logs_clickhouse.database }}
+    endpoint: {{ vector_config.sinks.var_logs_clickhouse.endpoint }}
+    format: {{ vector_config.sinks.var_logs_clickhouse.format }}
+    table: {{ vector_config.sinks.var_logs_clickhouse.table }}
+    auth: {{ vector_config.sinks.var_logs_clickhouse.auth }}
+    buffer: {{ vector_config.sinks.var_logs_clickhouse.buffer }}
+...
+EOF
+```
+## Создание инвентаря хостов взаимодействия
+### Вывод информации о запущенных машиных
+```bash
+ansible-local-stand/scripts/ip_check.sh 
+```
+```
+clickhouse - 192.168.89.113
+lighthouse - 192.168.89.114
+vector - 192.168.89.115
+```
+### Создание файла инвентаря
+```bash
+cat > hosts.ini <<'EOF'
+[clickhouse]
+192.168.89.113
+
+[lighthouse]
+192.168.89.114
+
+[vector]
+192.168.89.115
+
+[stack_log:children]
+clickhouse
+lighthouse
+vector
+EOF
+```
+
+cat > <<'EOF'
+EOF
+
+cat > <<'EOF'
+EOF
+
+cat > <<'EOF'
+EOF

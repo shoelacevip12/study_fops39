@@ -1,3 +1,25 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# defaults file for roles/vector-role
+vector_config:
+  # Словарь переменных по умолчанию для получения данных
+  sources:
+    var_logs:
+      host_key: hostname
+      include: [ "/var/log/**/*.log", "/var/log/*.log" ]
+      line_delimiter: "\n"
+      read_from: beginning
+      rotate_wait_secs: 9223372
+
+  # Словарь переменных по умолчанию доставки ДО сервиса
+  sinks:
+    var_logs_clickhouse:
+      type: clickhouse
+      inputs: [ skv_file_test ]
+      database: skvvectordb
+      endpoint: http://localhost:8123
+      table: mytable
+      auth: { strategy: basic, user: 'skv', password: 'test1qaz' }
+      buffer:
+        - type: disk
+          max_size: 1073741824 # 1GiB.
+          when_full: drop_newest
+...

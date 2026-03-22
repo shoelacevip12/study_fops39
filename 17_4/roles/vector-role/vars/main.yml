@@ -1,3 +1,21 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# vars file for roles/vector-role
+vector_config:
+  # Словарь постоянных переменных для получения данных
+  sources:
+    var_logs:
+      type: file
+      data_dir: /var/local/lib/vector/
+      file_key: file
+      glob_minimum_cooldown_ms: 1000
+      ignore_older_secs: 600
+      max_line_bytes: 102400
+      max_read_bytes: 2048
+
+  # Словарь постоянных переменных доставки ДО сервиса
+  sinks:
+    var_logs_clickhouse:
+      compression: gzip
+      database: mydatabase
+      format: json_each_row
+      skip_unknown_fields: true
+...
