@@ -1,0 +1,21 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Развертывание стэка сбора телеметрии
+  hosts: stack_log
+  become: yes
+  gatther_facts: yes
+  vars_files:
+    - group_vars/all.yml # Здесь параметры включения\выключения ролей
+
+- name: Установка и развертывание clickhouse
+  import_playbook: playbook_clickhouse.yaml
+  when: install_clickhouse | bool
+
+- name: Установка и развертывание lighthouse
+  import_playbook: playbook_lighthouse.yaml
+  when: install_lighthouse | bool
+
+- name: Установка и развертывание vector
+  import_playbook: playbook_vector.yaml
+  when: install_vector | bool
+...

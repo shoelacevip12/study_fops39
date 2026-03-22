@@ -1,0 +1,10 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Установка и развертывание vector
+  hosts: vector
+  become: yes
+  gather_facts: yes
+
+  roles:
+  - vector-role
+...

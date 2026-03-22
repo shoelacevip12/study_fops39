@@ -189,6 +189,35 @@ roles/vector-role
 ```
 - Role vector-role was created successfully
 ```
+## Создание настроек работы ansible для текущего проекта в каталоге 
+```bash
+cat > ansible.cfg <<'EOF'
+[defaults]
+home=./
+inventory=./hosts.ini
+roles_path=./roles
+collections_paths=./collections
+# vault_password_file=./va_pa
+host_key_checking=False
+interpreter_python=auto_silent
+deprecation_warnings=False
+retry_files_enabled=False
+callback_enabled=profile_tasks
+
+[privilege_escalation]
+become = true
+become_method = sudo
+
+[connection]
+ssh_agent=auto
+
+[paramiko_connection]
+host_key_checking=False
+
+[ssh_connection]
+host_key_checking=False
+EOF
+```
 ## РАспределение значений переменных по умолчанию и постоянных
 ```bash
 # создание общего словаря vector_config переменных по умолчанию
@@ -249,7 +278,7 @@ vector_config:
 ...
 EOF
 ```
-## Формирование шаблона для роли vector
+## Формирование шаблона для роли vector datadog
 ```bash
 cat > roles/vector-role/templates/vector.yaml.j2 <<'EOF'
 ---
@@ -328,39 +357,88 @@ clickhouse_users_custom:
 ...
 EOF
 ```
-## Создание настроек работы ansible для текущего проекта в каталоге 
 ```bash
-cat > ansible.cfg <<'EOF'
-[defaults]
-home=./
-inventory=./hosts.ini
-roles_path=./roles
-collections_paths=./collections
-# vault_password_file=./va_pa
-host_key_checking=False
-interpreter_python=auto_silent
-deprecation_warnings=False
-retry_files_enabled=False
-callback_enabled=profile_tasks
-
-[privilege_escalation]
-become = true
-become_method = sudo
-
-[connection]
-ssh_agent=auto
-
-[paramiko_connection]
-host_key_checking=False
-
-[ssh_connection]
-host_key_checking=False
+# создание файла общих переменной для всех групп
+cat > group_vars/all.yml <<'EOF'
+---
+# включаем(true)\выключаем(false) задачи роли
+install_clickhouse: false  # установка clickhouse
+install_lighthouse: false  # установка lighthouse
+install_vector: false  # установка vector
+...
 EOF
 ```
+## Создание общего playbook для вызова ролей
+```bash
+cat > playbook_main.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Развертывание стэка сбора телеметрии
+  hosts: stack_log
+  become: yes
+  gatther_facts: yes
+  vars_files:
+    - group_vars/all.yml # Здесь параметры включения\выключения ролей
 
-cat > <<'EOF'
+- name: Установка и развертывание clickhouse
+  import_playbook: playbook_clickhouse.yaml
+  when: install_clickhouse | bool
+
+- name: Установка и развертывание lighthouse
+  import_playbook: playbook_lighthouse.yaml
+  when: install_lighthouse | bool
+
+- name: Установка и развертывание vector
+  import_playbook: playbook_vector.yaml
+  when: install_vector | bool
+...
 EOF
+```
+## Создание playbook для роли clickhouse
+```bash
+cat >playbook_clickhouse.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Установка и развертывание clickhouse
+  hosts: clickhouse
+  become: yes
+  gather_facts: yes
 
+  roles:
+  - clickhouse
+...
+EOF
+```
+## Создание playbook для роли lighthouse
+```bash
+cat >playbook_lighthouse.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Установка и развертывание lighthouse
+  hosts: lighthouse
+  become: yes
+  gather_facts: yes
+
+  roles:
+  - lighthouse-role
+...
+EOF
+```
+## Создание playbook для роли vector
+```bash
+cat >playbook_vector.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Установка и развертывание vector
+  hosts: vector
+  become: yes
+  gather_facts: yes
+
+  roles:
+  - vector-role
+...
+EOF
+```
 ```bash
 # Добавляем ключи агенту ssh от репозитория gitflic и github
 eval $(ssh-agent) \
@@ -377,7 +455,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit2_upd0, 17_4-ansible_role' \
+git commit -am 'commit2_upd1, 17_4-ansible_role' \
 && git push \
 --set-upstream \
 study_fops39 \
