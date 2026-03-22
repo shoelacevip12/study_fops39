@@ -1,5 +1,11 @@
 ---
-# === Libvirt LXC ===
+# === пользователь локальной системы ===
+ansible_user: shoel
+
+# === расположение ssh ключа и условия взаимодействия при его отсутствия ===
+root_ssh_key: "{{ lookup('file', '~/.ssh/id_kvm_host_to_vms.pub', errors='ignore') | default('') }}"
+
+# === Libvirt LXC коннектор ===
 libvirt_uri: "lxc:///"
 
 # === Ресурсы контейнеров ===

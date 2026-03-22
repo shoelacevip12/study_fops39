@@ -145,7 +145,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit1_upd_4, 17_4-ansible_role' \
+git commit -am 'commit1_upd_5, 17_4-ansible_role' \
 && git push \
 --set-upstream \
 study_fops39 \

@@ -70,6 +70,4 @@
       loop: "{{ vms_list }}"
       loop_control:
         label: "{{ item.name }}"
-
-    - name: Показать
 ...

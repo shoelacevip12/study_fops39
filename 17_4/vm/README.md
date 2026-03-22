@@ -1,4 +1,4 @@
-# Базовое развертывание kvm на libvirt
+# Базовое развертывание kvm одного экземпляра VM на libvirt 
 ```bash
 sudo virt-install --name clickhouse2 \
 --ram 4096 \
@@ -11,7 +11,7 @@ sudo virt-install --name clickhouse2 \
 --network bridge=br0 \
 --boot uefi
 ```
-# Создание нескольких машин
+# Создание нескольких машин и Запуск создания VM на kvm vagrant`ом
 ```bash
 cat >vagrantfile <<'EOF'
 # -*- mode: ruby -*-
@@ -78,10 +78,10 @@ Vagrant.configure("2") do |config|
 end
 EOF
 ```
-# Запуск создания VM на kvm vagrant`ом
 ```bash
 sudo vagrant up
 ```
+# Ansible Playbook для развертывания VM kvm на libvirt
 ```bash
 # playbook на создание машин
 cat > create-vm.yaml <<'EOF'
@@ -93,7 +93,7 @@ cat > create-vm.yaml <<'EOF'
   become: true
 
   vars:
-    # Общие настройки для всех машин
+    # 1. Общие настройки для всех машин
     vm_defaults:
       memory_kib: 4194304
       vcpu: 2
@@ -159,6 +159,10 @@ cat > create-vm.yaml <<'EOF'
         label: "{{ item.name }}"
 ...
 EOF
+```
+## Шаблон заранее известных параметров развертывания
+```bash
+mkdir templates
 
 # Создание из xml шаблона kvm машины для Libvirt
 # предварительно протестирован из-под bash установки
@@ -293,7 +297,9 @@ cat > templates/vm_config.xml.j2 <<EOF
   </devices>
 </domain>
 EOF
-
+```
+## РАзвертывание машин и Доустановка в ручном режиме через графический просмотрщик virt-viewer
+```bash
 # Запуск playbook от имени суперпользователя с запросом пароля
 ansible-playbook -b -K create-vm.yaml
 ```

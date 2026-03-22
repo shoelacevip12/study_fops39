@@ -1,16 +1,14 @@
 #!/usr/bin/env ansible-playbook
 # Топорный Playbook на localhost для развертывания lxc ubuntu-cloud-24-04 amd64 на libvirt
+# c прописанным shell-bang возможен запуск Playbook как bash скрипт "./containers.yml"
 ---
 - name: Развёртывание VM с Cloud-Init
   hosts: localhost
+  connection: local
   gather_facts: false
   become: true
-  vars:
-    # Публичный ключ, который будет добавлен root-у
-    root_ssh_key: "{{ lookup('file', '~/.ssh/id_kvm_host_to_vms.pub', errors='ignore') | default('') }}"
-
   tasks:
-    # === ПРЕДВАРИТЕЛЬНЫЕ ЗАДАЧИ: Подготовка RootFS ===
+    # === Подготовка RootFS ===
     - name: Создаём каталог для базового образа
       file:
         path: "{{ rootfs_base }}"
@@ -162,7 +160,7 @@
     # Секцию network отсюда убираем, она не сработает
     - name: Генерируем user-data (SSH, пакеты, root)
       copy:
-        content: |
+        content: |+
           #cloud-config
           
           # Настройка пользователей
@@ -194,7 +192,7 @@
       loop_control:
         label: "{{ item }}"
 
-    # === 3. Для клонирования: Сброс machine-id ===
+    # === 5. Для клонирования: Сброс machine-id ===
     # Чтобы cloud-init сработал на каждом новом контейнере, он должен думать, что это новая машина
     - name: Сбрасываем machine-id в upper слое
       copy:
@@ -217,7 +215,7 @@
         label: "{{ item }}"
       ignore_errors: true
 
-    # === 5. Генерация XML и запуск (без изменений) ===
+    # === 6. Генерация XML и запуск (без изменений) ===
     - name: Формируем XML для контейнеров
       template:
         src: templates/lxc.xml.j2
@@ -273,7 +271,7 @@
       retries: 3
       delay: 5
 
-    # === 6. Ожидание и сбор инфо ===
+    # === 7. Ожидание и сбор инфо ===
     - name: Ждём, пока контейнеры запустятся
       command: virsh -c "{{ libvirt_uri }}" domstate "{{ item }}"
       environment:
