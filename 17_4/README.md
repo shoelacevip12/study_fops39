@@ -194,7 +194,7 @@ EOF
 
 ---
 
-[Описание созданной роли](roles/vector-role/README.md)
+[Описание созданной роли Vector Datadog](roles/vector-role/README.md)
 
 ---
 

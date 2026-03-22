@@ -1,0 +1,14 @@
+---
+- name: Проверка статуса службы Vector
+  command: /usr/bin/vector top --no-color
+  register: vector_status
+  changed_when: false
+  failed_when: false  # не прерывать если команда недоступна
+  tags: [verify, vector]
+
+- name: Статус Vector
+  debug:
+    msg: "Vector запущен: {{ if vector_status.rc == 0 else }}"
+  when: vector_status is defined
+  tags: [verify, vector]
+...

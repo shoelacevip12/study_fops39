@@ -2,8 +2,8 @@
 ---
 - name: Развертывание стэка сбора телеметрии
   hosts: stack_log
-  become: yes
-  gatther_facts: yes
+  become: true
+  gather_facts: true
   vars_files:
     - group_vars/all.yml # Здесь параметры включения\выключения ролей
 

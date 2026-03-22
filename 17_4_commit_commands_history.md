@@ -217,6 +217,11 @@ host_key_checking=False
 [ssh_connection]
 host_key_checking=False
 EOF
+
+# Для nfs сетевого хранилища и отключения сообщения
+# "Ansible is being run in a world writable directory ...
+# ignoring it as an ansible.cfg source"
+export ANSIBLE_CONFIG=./ansible.cfg
 ```
 ## РАспределение значений переменных по умолчанию и постоянных
 ```bash
@@ -278,7 +283,8 @@ vector_config:
 ...
 EOF
 ```
-## Формирование шаблона для роли vector datadog
+## Формирование шаблонов для роли vector datadog
+### основной конфиг
 ```bash
 cat > roles/vector-role/templates/vector.yaml.j2 <<'EOF'
 ---
@@ -313,6 +319,150 @@ sinks:
 ...
 EOF
 ```
+### служба для vector
+```bash
+cat > roles/vector-role/templates/vector.service.j2 <<'EOF'
+[Unit]
+Description=Vector Log Aggregator
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=vector
+Group=vector
+ExecStart=/usr/bin/vector --config /etc/vector/vector.yaml
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+## Формирование Tasks Для vector datadog
+```bash
+# Задачи установки ПО
+cat > roles/vector-role/tasks/upd_inst.yml <<'EOF'
+---
+- name: Установка для загрузки Vector
+  apt:
+    name:
+      - curl
+      - ca-certificates
+    update_cache: true
+
+- name: Скачать и установить Vector с оф. ресурса
+  shell: |
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.vector.dev | sh -s -- -y
+  args:
+    creates: /usr/bin/vector
+...
+EOF
+
+# Задачи по созданию нужных каталогов и файлов
+cat > roles/vector-role/tasks/upd_dir.yml <<'EOF'
+---
+- name: Директория для конфигурации Vector datadog
+  file:
+    path: /etc/vector
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Директория для дискового буФЕРА Vector datadog
+  file:
+    path: "{{ vector_config.sources.var_logs.data_dir }}"
+    state: directory
+    mode: '0755'
+    owner: vector
+    group: vector
+  ignore_errors: true
+
+- name: Развертывание из шаблона
+  template:
+    src: vector.yaml.j2
+    dest: /etc/vector/vector.yaml
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+    validate: /usr/bin/vector validate --no-environment %s  # проверка синтаксиса
+  notify: Перезапустить Vector
+...
+EOF
+
+# Задачи по запуску службы
+cat > roles/vector-role/tasks/upd_serv.yml <<'EOF'
+---
+- name: Создать systemd unit-файл для Vector
+  template:
+    src: vector.service.j2
+    dest: /etc/systemd/system/vector.service
+    mode: '0644'
+    owner: root
+    group: root
+  notify: Перезагрузить systemd и перезапустить Vector
+  tags: [service, vector]
+
+- name: Активировать и запустить службу Vector
+  systemd:
+    name: vector
+    state: started
+    enabled: yes
+    masked: no
+    daemon_reload: yes
+  tags: [service, vector]
+...
+EOF
+
+# Проверка работы службы в рамках отдельных задач
+cat > roles/vector-role/tasks/upd_verif.yml <<'EOF'
+---
+- name: Проверка статуса службы Vector
+  command: /usr/bin/vector top --no-color
+  register: vector_status
+  changed_when: false
+  failed_when: false  # не прерывать если команда недоступна
+  tags: [verify, vector]
+
+- name: Статус Vector
+  debug:
+    msg: "Vector запущен: {{ if vector_status.rc == 0 else }}"
+  when: vector_status is defined
+  tags: [verify, vector]
+...
+EOF
+
+# Основной файл запуска роли
+cat > roles/vector-role/tasks/main.yml <<'EOF'
+---
+- name: Обновление и установка основных пакетов
+  include_tasks:
+    file: upd_inst.yml
+  tags: [install, vector]
+
+- name: Обновление и создание необходимых каталогов и файлов
+  include_tasks:
+    file: upd_dir.yml
+  tags: [config, vector]
+
+- name: Запуск службы
+  include_tasks:
+    file: upd_serv.yml
+  tags: [service, vector]
+
+- name: Проверки Vector
+  include_tasks:
+    file: upd_verif.yml
+  tags: [verify, vector]
+...
+EOF
+```
+```bash
+
+```
+cat > <<'EOF'
+EOF
 ## Создание инвентаря хостов взаимодействия
 ### Вывод информации о запущенных машиных
 ```bash
@@ -341,6 +491,7 @@ lighthouse
 vector
 EOF
 ```
+
 ## Создание общих переменной между ролями
 ```bash
 # каталог для переопределения переменных
@@ -364,9 +515,48 @@ cat > group_vars/all.yml <<'EOF'
 # включаем(true)\выключаем(false) задачи роли
 install_clickhouse: false  # установка clickhouse
 install_lighthouse: false  # установка lighthouse
-install_vector: false  # установка vector
+install_vector: false     # установка vector
+
+# Для предварительно настроенных хостов с доступом по ключу
+ansible_user: root
+ansible_ssh_private_key_file: "~/.ssh/id_kvm_host_to_vms"
 ...
 EOF
+```
+## Проверка подключения
+```bash
+# Регистрация прописанного в переменных ключа
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_kvm_host_to_vms
+
+# для вывода информации в yaml формате
+export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
+
+# Запуск подготовленного скрипта создания hosts.ini
+./ansible-local-stand/scripts/hosts_ini_gen.sh
+
+# запуск тестового модуля ping с текущей конфигурацией и статическим списком
+ansible stack_log -v \
+-m ping \
+-i hosts.ini
+```
+```
+Using /home/shoel/nfs_git/gited/17_4/ansible.cfg as config file
+192.168.89.113 | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.12
+    changed: false
+    ping: pong
+192.168.89.115 | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.12
+    changed: false
+    ping: pong
+192.168.89.114 | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.12
+    changed: false
+    ping: pong
 ```
 ## Создание общего playbook для вызова ролей
 ```bash
@@ -455,7 +645,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit2_upd1, 17_4-ansible_role' \
+git commit -am 'commit2_upd2, 17_4-ansible_role' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -468,3 +658,8 @@ study_fops39_gitflic_ru \
 
 cat > <<'EOF'
 EOF
+
+ansible-playbook *.yaml --syntax-check \
+&& ansible-lint *.yaml \
+&& yamllint *.yaml \
+ansible-inventory all -i hosts.ini

@@ -2,9 +2,9 @@
 ---
 - name: Установка и развертывание vector
   hosts: vector
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   roles:
-  - vector-role
+    - vector-role
 ...

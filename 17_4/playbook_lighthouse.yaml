@@ -1,10 +1,10 @@
 #!/usr/bin/env ansible-playbook
 ---
-- name: Установка и развертывание lighthouse
-  hosts: lighthouse
-  become: yes
-  gather_facts: yes
+# - name: Установка и развертывание lighthouse
+#   hosts: lighthouse
+#   become: true
+#   gather_facts: true
 
-  roles:
-  - lighthouse-role
+#   roles:
+#   - lighthouse-role
 ...
