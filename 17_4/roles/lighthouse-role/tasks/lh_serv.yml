@@ -1,0 +1,18 @@
+---
+- name: Проверить синтаксис nginx конфигурации
+  command: "{{ lighthouse_config.validation.nginx_test_cmd }}"
+  register: nginx_config_test
+  changed_when: false
+
+- name: Вывести результат проверки nginx
+  debug:
+    msg: "nginx конфигурация валидна"
+  when: nginx_config_test.rc == 0
+
+- name: Запустить и включить nginx
+  systemd:
+    name: "{{ lighthouse_config.nginx.service_name }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+...

@@ -6,5 +6,5 @@
   gather_facts: true
 
   roles:
-  - lighthouse-role
+    - lighthouse-role
 ...

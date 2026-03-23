@@ -1,0 +1,60 @@
+---
+lighthouse_config:
+  # === Веб-сервер ===
+  nginx:
+    listen_port: 80
+    server_name: "_"
+    root_dir: /var/www/lighthouse
+    config_path: /etc/nginx/sites-available/lighthouse
+    enabled_link: /etc/nginx/sites-enabled/lighthouse
+    # === Системные пути ===
+    package_name: nginx
+    service_name: nginx
+    main_config: /etc/nginx/nginx.conf
+    conf_d_dir: /etc/nginx/conf.d
+
+  # === Источник файлов ===
+  source:
+    repo_url: https://github.com/VKCOM/lighthouse/archive/refs/heads/master.tar.gz
+    version: master
+    dest_archive: /tmp/lighthouse.tar.gz
+    extract_path: /tmp/lighthouse-extract
+    final_path: /var/www/lighthouse
+
+  # === Подключение к ClickHouse ===
+  clickhouse:
+    host: "192.168.89.104"
+    port: 8123
+    endpoint: "http://192.168.89.104:8123"
+    user: skv
+    password: test1qaz
+    database: skvvectordb
+
+  # === Безопасность ===
+  auth:
+    enabled: true
+    type: basic
+    htpasswd_path: /etc/nginx/.htpasswd
+    users:
+      - name: admin
+        password: lighthouse_admin_pass
+
+  # === CORS и проксирование ===
+  proxy:
+    enabled: true  # Проксировать запросы к ClickHouse через nginx
+    timeout_connect: 60s
+    timeout_send: 60s
+    timeout_read: 60s
+  
+  # === Пользователи и права ===
+  deploy:
+    owner: www-data
+    group: www-data
+    file_mode: '0644'
+    dir_mode: 'u=rwX,go=rX'
+
+  # === Валидация ===
+  validation:
+    nginx_test_cmd: nginx -t
+    curl_timeout: 10
+...

@@ -683,6 +683,17 @@ PLAY RECAP *************
 192.168.89.105  : ok=1    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
 192.168.89.106  : ok=20   changed=10   unreachable=0    failed=0    skipped=1    rescued=0    ignored=0 
 ```
+## Создание структуры роли Lighthouse
+
+```bash
+# Новая структура с ролью lighthouse-role
+ansible-galaxy role \
+init \
+roles/lighthouse-role
+```
+```
+- Role roles/lighthouse-role was created successfully
+```
 cat > <<'EOF'
 EOF
 

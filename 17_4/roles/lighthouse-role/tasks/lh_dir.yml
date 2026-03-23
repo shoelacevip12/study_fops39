@@ -1,0 +1,76 @@
+---
+- name: Создать целевую директорию для Lighthouse
+  file:
+    path: "{{ lighthouse_config.source.final_path }}"
+    state: directory
+    mode: "{{ lighthouse_config.deploy.dir_mode }}"
+    owner: "{{ lighthouse_config.deploy.owner }}"
+    group: "{{ lighthouse_config.deploy.group }}"
+
+- name: Скопировать файлы Lighthouse
+  copy:
+    src: "{{ lighthouse_config.source.extract_path }}/lighthouse-{{ lighthouse_config.source.version }}/"
+    dest: "{{ lighthouse_config.source.final_path }}/"
+    remote_src: true
+    mode: "{{ lighthouse_config.deploy.file_mode }}"
+    owner: "{{ lighthouse_config.deploy.owner }}"
+    group: "{{ lighthouse_config.deploy.group }}"
+  notify: Перезагрузить nginx
+
+- name: Развернуть конфигурацию nginx из шаблона
+  template:
+    src: lighthouse.conf.j2
+    dest: "{{ lighthouse_config.nginx.config_path }}"
+    mode: "{{ lighthouse_config.deploy.file_mode }}"
+    owner: root
+    group: root
+    # backup: true
+    validate: "{{ lighthouse_config.validation.nginx_test_cmd }}"
+  notify: Перезагрузить nginx
+
+- name: Корректные права на директорию Lighthouse
+  file:
+    path: "{{ lighthouse_config.source.final_path }}"
+    state: directory
+    owner: "{{ lighthouse_config.deploy.owner }}"
+    group: "{{ lighthouse_config.deploy.group }}"
+    mode: "{{ lighthouse_config.deploy.dir_mode }}"
+  notify: Перезагрузить nginx
+
+- name: Рекурсивно установить права на содержимое
+  file:
+    path: "{{ lighthouse_config.source.final_path }}"
+    state: directory
+    mode: "{{ lighthouse_config.deploy.dir_mode }}"
+    owner: "{{ lighthouse_config.deploy.owner }}"
+    group: "{{ lighthouse_config.deploy.group }}"
+    recurse: true
+  notify: Перезагрузить nginx
+
+- name: Активировать сайт через symlink
+  file:
+    src: "{{ lighthouse_config.nginx.config_path }}"
+    dest: "{{ lighthouse_config.nginx.enabled_link }}"
+    state: link
+    force: true
+  notify: Перезагрузить nginx
+
+- name: Удалить дефолтный сайт nginx
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Перезагрузить nginx
+  ignore_errors: true
+
+- name: Создать файл .htpasswd для basic auth
+  shell: |
+    htpasswd -bc {{ lighthouse_config.auth.htpasswd_path }} \
+      {{ item.name }} {{ item.password }}
+  loop: "{{ lighthouse_config.auth.users }}"
+  when:
+    - lighthouse_config.auth.enabled | bool
+    - lighthouse_config.auth.type == "basic"
+  args:
+    creates: "{{ lighthouse_config.auth.htpasswd_path }}"
+  no_log: true  # Скрыть пароли в логах
+...
