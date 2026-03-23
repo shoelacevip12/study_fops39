@@ -223,63 +223,45 @@ EOF
 # ignoring it as an ansible.cfg source"
 export ANSIBLE_CONFIG=./ansible.cfg
 ```
-## РАспределение значений переменных по умолчанию и постоянных
+## РАспределение значений переменных по умолчанию
 ```bash
 # создание общего словаря vector_config переменных по умолчанию
 cat > roles/vector-role/defaults/main.yml <<'EOF'
 ---
 vector_config:
-  # Словарь переменных по умолчанию для получения данных
   sources:
     var_logs:
       host_key: hostname
-      include: [ "/var/log/**/*.log", "/var/log/*.log" ]
-      line_delimiter: "\n"
+      include: ["/var/log/**/*.log", "/var/log/*.log"]
+      line_delimiter: '\n'
       read_from: beginning
       rotate_wait_secs: 9223372
+      type: file
+      data_dir: /var/lib/vector/
+      file_key: file
+      glob_minimum_cooldown_ms: 1000
+      ignore_older_secs: 600
+      max_line_bytes: 102400
+      max_read_bytes: 2048
 
-  # Словарь переменных по умолчанию доставки ДО сервиса
   sinks:
     var_logs_clickhouse:
       type: clickhouse
-      inputs: [ skv_file_test ]
+      inputs: [var_logs]
       database: skvvectordb
-      endpoint: http://192.168.89.113:8123
+      endpoint: http://192.168.89.104:8123
       table: mytable
-      auth: 
+      auth:
         strategy: basic
         user: skv
         password: 'test1qaz'
+      compression: gzip
+      format: json_each_row
+      skip_unknown_fields: true
       buffer:
         - type: disk
           max_size: 1073741824 # 1GiB.
           when_full: drop_newest
-...
-EOF
-```
-```bash
-# создание общего словаря vector_config ПОСТОЯННЫХ переменных
-cat > roles/vector-role/vars/main.yml <<'EOF'
----
-vector_config:
-  # Словарь постоянных переменных для получения данных
-  sources:
-  var_logs:
-    type: file
-    data_dir: /var/local/lib/vector/
-    file_key: file
-    glob_minimum_cooldown_ms: 1000
-    ignore_older_secs: 600
-    max_line_bytes: 102400
-    max_read_bytes: 2048
-
-  # Словарь постоянных переменных доставки ДО сервиса
-  sinks:
-  var_logs_clickhouse:
-    compression: gzip
-    database: mydatabase
-    format: json_each_row
-    skip_unknown_fields: true
 ...
 EOF
 ```
@@ -323,17 +305,25 @@ EOF
 ```bash
 cat > roles/vector-role/templates/vector.service.j2 <<'EOF'
 [Unit]
-Description=Vector Log Aggregator
-Wants=network-online.target
+Description=Vector
+Documentation=https://vector.dev
 After=network-online.target
+Requires=network-online.target
 
 [Service]
-User=vector
-Group=vector
-ExecStart=/usr/bin/vector --config /etc/vector/vector.yaml
-Restart=on-failure
-RestartSec=10s
-
+User=root
+Group=root
+ExecStartPre=/usr/bin/vector validate
+ExecStart=/usr/bin/vector
+ExecReload=/usr/bin/vector validate --no-environment
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+EnvironmentFile=-/etc/default/vector
+# Since systemd 229, should be in [Unit] but in order to support systemd <229,
+# it is also supported to have it here.
+StartLimitInterval=10
+StartLimitBurst=5
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -350,14 +340,29 @@ cat > roles/vector-role/tasks/upd_inst.yml <<'EOF'
       - ca-certificates
     update_cache: true
 
-- name: Скачать и установить Vector с оф. ресурса
-  shell: |
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.vector.dev | sh -s -- -y
-  args:
-    creates: /usr/bin/vector
+- name: Скачать Vector tar.gz
+  ansible.builtin.get_url:
+    url: "https://packages.timber.io/vector/0.54.0/vector-0.54.0-x86_64-unknown-linux-gnu.tar.gz"
+    dest: "/tmp/vector-install.tar.gz"
+    mode: '0644'
+    
+- name: Распаковать Vector в /opt
+  unarchive:
+    src: /tmp/vector-install.tar.gz
+    dest: /opt
+    remote_src: true
+    creates: /opt/vector-x86_64-unknown-linux-gnu
+
+- name: Создать symlink
+  file:
+    src: /opt/vector-x86_64-unknown-linux-gnu/bin/vector
+    dest: /usr/bin/vector
+    state: link
+    force: true
 ...
 EOF
-
+```
+```bash
 # Задачи по созданию нужных каталогов и файлов
 cat > roles/vector-role/tasks/upd_dir.yml <<'EOF'
 ---
@@ -374,23 +379,34 @@ cat > roles/vector-role/tasks/upd_dir.yml <<'EOF'
     path: "{{ vector_config.sources.var_logs.data_dir }}"
     state: directory
     mode: '0755'
-    owner: vector
-    group: vector
-  ignore_errors: true
+    owner: root
+    group: root
+  ignore_errors: false
 
-- name: Развертывание из шаблона
+- name: Первое Развертывание из шаблона
   template:
     src: vector.yaml.j2
     dest: /etc/vector/vector.yaml
-    mode: '0644'
+    mode: '0640'
+    owner: root
+    group: root
+  notify: Перезапустить Vector
+
+- name: Повторное Развертывание из шаблона с валидацией
+  template:
+    src: vector.yaml.j2
+    dest: /etc/vector/vector.yaml
+    mode: '0640'
     owner: root
     group: root
     backup: true
-    validate: /usr/bin/vector validate --no-environment %s  # проверка синтаксиса
+    validate: /usr/bin/vector validate --no-environment %s
   notify: Перезапустить Vector
+  when: vector_config_validated | default(false)
 ...
 EOF
-
+```
+```bash
 # Задачи по запуску службы
 cat > roles/vector-role/tasks/upd_serv.yml <<'EOF'
 ---
@@ -402,96 +418,95 @@ cat > roles/vector-role/tasks/upd_serv.yml <<'EOF'
     owner: root
     group: root
   notify: Перезагрузить systemd и перезапустить Vector
-  tags: [service, vector]
 
 - name: Активировать и запустить службу Vector
   systemd:
     name: vector
     state: started
-    enabled: yes
-    masked: no
-    daemon_reload: yes
-  tags: [service, vector]
+    enabled: true
+    masked: false
+    daemon_reload: true
 ...
 EOF
-
+```
+```bash
 # Проверка работы службы в рамках отдельных задач
 cat > roles/vector-role/tasks/upd_verif.yml <<'EOF'
 ---
 - name: Проверка статуса службы Vector
-  command: /usr/bin/vector top --no-color
-  register: vector_status
+  systemd:
+    name: vector
+
+- name: Проверка конфигурации Vector (валидация)
+  command: /usr/bin/vector validate /etc/vector/vector.yaml
+  register: vector_validate
   changed_when: false
-  failed_when: false  # не прерывать если команда недоступна
-  tags: [verify, vector]
+  failed_when: vector_validate.rc != 0
 
-- name: Статус Vector
+- name: Результат валидации конфига
   debug:
-    msg: "Vector запущен: {{ if vector_status.rc == 0 else }}"
-  when: vector_status is defined
-  tags: [verify, vector]
+    msg: "Конфигурация Vector валидна"
+  when: vector_validate.rc == 0
 ...
 EOF
-
-# Основной файл запуска роли
-cat > roles/vector-role/tasks/main.yml <<'EOF'
+```
+## Создание playbook роли vector
+```bash
+cat > playbook_vector.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
 ---
-- name: Обновление и установка основных пакетов
-  include_tasks:
-    file: upd_inst.yml
-  tags: [install, vector]
+- name: Установка и развертывание vector
+  hosts: vector
+  become: true
+  gather_facts: true
 
-- name: Обновление и создание необходимых каталогов и файлов
-  include_tasks:
-    file: upd_dir.yml
-  tags: [config, vector]
-
-- name: Запуск службы
-  include_tasks:
-    file: upd_serv.yml
-  tags: [service, vector]
-
-- name: Проверки Vector
-  include_tasks:
-    file: upd_verif.yml
-  tags: [verify, vector]
+  roles:
+    - vector-role
 ...
 EOF
 ```
+## Развертывание тестового стенда из playbook для lxc
 ```bash
+# для вывода в yaml формате
+export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 
+# Запуск формирования стенда
+./containers.yml -b -K -v
 ```
-cat > <<'EOF'
-EOF
-## Создание инвентаря хостов взаимодействия
-### Вывод информации о запущенных машиных
 ```bash
-ansible-local-stand/scripts/ip_check.sh 
+# вывод получившихся Ip
+scripts/ip_check.sh
 ```
 ```
-clickhouse - 192.168.89.113
-lighthouse - 192.168.89.114
-vector - 192.168.89.115
+clickhouse - 192.168.89.104
+lighthouse - 192.168.89.105
+vector - 192.168.89.106
 ```
-### Создание файла инвентаря
+## Создание инвентаря хостов для взаимодействия
 ```bash
-cat > hosts.ini <<'EOF'
+# выход из каталога с развертыванием тестового стенда
+cd ..
+
+# запуск подготовленного скрипта для формирования статичного списка
+./ansible-local-stand/scripts/hosts_ini_gen.sh
+
+cat hosts.ini
+```
+```
 [clickhouse]
-192.168.89.113
+192.168.89.104
 
 [lighthouse]
-192.168.89.114
+192.168.89.105
 
 [vector]
-192.168.89.115
+192.168.89.106
 
 [stack_log:children]
 clickhouse
 lighthouse
 vector
-EOF
 ```
-
 ## Создание общих переменной между ролями
 ```bash
 # каталог для переопределения переменных
@@ -501,10 +516,16 @@ mkdir group_vars
 cat > group_vars/clickhouse.yaml <<'EOF'
 ---
 clickhouse_users_custom:
-  name: skv
-  password: test1qaz
-  networks:
-    - 192.168.89.113
+      - { name: "skv",
+          password: "test1qaz",
+          networks: {192.168.89.0/24},
+          profile: "default",
+          quota: "default",
+          dbs: [skvvectordb] ,
+          comment: "classic user with multi dbs and multi-custom network allow password"}
+
+clickhouse_listen_host_custom:
+  - "192.168.89.104"
 ...
 EOF
 ```
@@ -513,9 +534,9 @@ EOF
 cat > group_vars/all.yml <<'EOF'
 ---
 # включаем(true)\выключаем(false) задачи роли
-install_clickhouse: false  # установка clickhouse
+install_clickhouse: true  # установка clickhouse
 install_lighthouse: false  # установка lighthouse
-install_vector: false     # установка vector
+install_vector: true     # установка vector
 
 # Для предварительно настроенных хостов с доступом по ключу
 ansible_user: root
@@ -542,17 +563,17 @@ ansible stack_log -v \
 ```
 ```
 Using /home/shoel/nfs_git/gited/17_4/ansible.cfg as config file
-192.168.89.113 | SUCCESS => 
+192.168.89.105 | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.12
     changed: false
     ping: pong
-192.168.89.115 | SUCCESS => 
+192.168.89.104 | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.12
     changed: false
     ping: pong
-192.168.89.114 | SUCCESS => 
+192.168.89.106 | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.12
     changed: false
@@ -562,11 +583,12 @@ Using /home/shoel/nfs_git/gited/17_4/ansible.cfg as config file
 ```bash
 cat > playbook_main.yaml <<'EOF'
 #!/usr/bin/env ansible-playbook
+#!/usr/bin/env ansible-playbook
 ---
 - name: Развертывание стэка сбора телеметрии
   hosts: stack_log
-  become: yes
-  gatther_facts: yes
+  become: true
+  gather_facts: true
   vars_files:
     - group_vars/all.yml # Здесь параметры включения\выключения ролей
 
@@ -599,21 +621,6 @@ cat >playbook_clickhouse.yaml <<'EOF'
 ...
 EOF
 ```
-## Создание playbook для роли lighthouse
-```bash
-cat >playbook_lighthouse.yaml <<'EOF'
-#!/usr/bin/env ansible-playbook
----
-- name: Установка и развертывание lighthouse
-  hosts: lighthouse
-  become: yes
-  gather_facts: yes
-
-  roles:
-  - lighthouse-role
-...
-EOF
-```
 ## Создание playbook для роли vector
 ```bash
 cat >playbook_vector.yaml <<'EOF'
@@ -626,6 +633,72 @@ cat >playbook_vector.yaml <<'EOF'
 
   roles:
   - vector-role
+...
+EOF
+```
+## Запуск установки на стенде clickhouse и vector
+```bash
+# Для исключения
+# "Ansible is being run in a world writable directory ...
+# ignoring it as an ansible.cfg source"
+export ANSIBLE_CONFIG=./ansible.cfg
+
+# Для вывода playbook с первым уровнем детализации в yaml формате
+export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
+
+# Запуск Playbook как sh скрипт из-за "#!/usr/bin/env" ansible-playbook в начале файла
+./playbook_main.yaml -v
+```
+```
+....
+TASK [vector-role : Проверка конфигурации Vector (валидация)] **************
+ok: [192.168.89.106] => 
+    changed: false
+    cmd:
+    - /usr/bin/vector
+    - validate
+    - /etc/vector/vector.yaml
+    delta: '0:00:00.063028'
+    end: '2026-03-23 18:53:34.952960'
+    failed_when_result: false
+    msg: ''
+    rc: 0
+    start: '2026-03-23 18:53:34.889932'
+    stderr: ''
+    stderr_lines: <omitted>
+    stdout: |-
+        √ Loaded ["/etc/vector/vector.yaml"]
+        √ Component configuration
+        √ Health check "var_logs_clickhouse"
+        ------------------------------------
+                                   Validated
+    stdout_lines: <omitted>
+
+TASK [vector-role : Результат валидации конфига] **********
+ok: [192.168.89.106] => 
+    msg: Конфигурация Vector валидна
+....
+PLAY RECAP *************
+192.168.89.104  : ok=28   changed=10   unreachable=0    failed=0    skipped=10   rescued=0    ignored=0   
+192.168.89.105  : ok=1    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+192.168.89.106  : ok=20   changed=10   unreachable=0    failed=0    skipped=1    rescued=0    ignored=0 
+```
+cat > <<'EOF'
+EOF
+
+
+## Создание playbook для роли lighthouse
+```bash
+cat >playbook_lighthouse.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Установка и развертывание lighthouse
+  hosts: lighthouse
+  become: yes
+  gather_facts: yes
+
+  roles:
+  - lighthouse-role
 ...
 EOF
 ```
@@ -645,7 +718,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit2_upd3, 17_4-ansible_role' \
+git commit -am 'commit2_upd4, 17_4-ansible_role' \
 && git push \
 --set-upstream \
 study_fops39 \

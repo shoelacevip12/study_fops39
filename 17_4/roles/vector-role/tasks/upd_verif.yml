@@ -1,14 +1,16 @@
 ---
 - name: Проверка статуса службы Vector
-  command: /usr/bin/vector top --no-color
-  register: vector_status
-  changed_when: false
-  failed_when: false  # не прерывать если команда недоступна
-  tags: [verify, vector]
+  systemd:
+    name: vector
 
-- name: Статус Vector
+- name: Проверка конфигурации Vector (валидация)
+  command: /usr/bin/vector validate /etc/vector/vector.yaml
+  register: vector_validate
+  changed_when: false
+  failed_when: vector_validate.rc != 0
+
+- name: Результат валидации конфига
   debug:
-    msg: "Vector запущен: {{ if vector_status.rc == 0 else }}"
-  when: vector_status is defined
-  tags: [verify, vector]
+    msg: "Конфигурация Vector валидна"
+  when: vector_validate.rc == 0
 ...

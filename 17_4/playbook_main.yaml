@@ -11,9 +11,9 @@
   import_playbook: playbook_clickhouse.yaml
   when: install_clickhouse | bool
 
-- name: Установка и развертывание lighthouse
-  import_playbook: playbook_lighthouse.yaml
-  when: install_lighthouse | bool
+# - name: Установка и развертывание lighthouse
+#   import_playbook: playbook_lighthouse.yaml
+#   when: install_lighthouse | bool
 
 - name: Установка и развертывание vector
   import_playbook: playbook_vector.yaml

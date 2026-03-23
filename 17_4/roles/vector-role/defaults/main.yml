@@ -1,6 +1,5 @@
 ---
 vector_config:
-  # Словарь переменных по умолчанию для получения данных
   sources:
     var_logs:
       host_key: hostname
@@ -16,13 +15,12 @@ vector_config:
       max_line_bytes: 102400
       max_read_bytes: 2048
 
-  # Словарь переменных по умолчанию доставки ДО сервиса
   sinks:
     var_logs_clickhouse:
       type: clickhouse
       inputs: [var_logs]
       database: skvvectordb
-      endpoint: http://192.168.89.113:8123
+      endpoint: http://192.168.89.104:8123
       table: mytable
       auth:
         strategy: basic

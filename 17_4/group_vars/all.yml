@@ -1,6 +1,6 @@
 ---
 # включаем(true)\выключаем(false) задачи роли
-install_clickhouse: false  # установка clickhouse
+install_clickhouse: true  # установка clickhouse
 install_lighthouse: false  # установка lighthouse
 install_vector: true     # установка vector
 
