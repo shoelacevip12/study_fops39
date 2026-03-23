@@ -3,7 +3,7 @@ vector_config:
   sources:
     var_logs:
       host_key: hostname
-      include: ["/var/log/**/*.log", "/var/log/*.log"]
+      include: ["/var/log/syslog", "/var/log/*.log"]
       line_delimiter: '\n'
       read_from: beginning
       rotate_wait_secs: 9223372
@@ -20,7 +20,7 @@ vector_config:
       type: clickhouse
       inputs: [var_logs]
       database: skvvectordb
-      endpoint: http://192.168.89.104:8123
+      endpoint: http://192.168.89.100:8123
       table: mytable
       auth:
         strategy: basic

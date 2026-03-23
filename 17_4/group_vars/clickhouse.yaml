@@ -9,5 +9,5 @@ clickhouse_users_custom:
           comment: "classic user with multi dbs and multi-custom network allow password"}
 
 clickhouse_listen_host_custom:
-  - "192.168.89.104"
+  - "192.168.89.100"
 ...

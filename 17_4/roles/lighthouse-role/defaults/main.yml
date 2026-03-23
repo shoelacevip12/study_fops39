@@ -23,9 +23,9 @@ lighthouse_config:
 
   # === Подключение к ClickHouse ===
   clickhouse:
-    host: "192.168.89.104"
+    host: "192.168.89.100"
     port: 8123
-    endpoint: "http://192.168.89.104:8123"
+    endpoint: "http://192.168.89.100:8123"
     user: skv
     password: test1qaz
     database: skvvectordb

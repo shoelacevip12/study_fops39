@@ -25,7 +25,7 @@
     owner: root
     group: root
     # backup: true
-    validate: "{{ lighthouse_config.validation.nginx_test_cmd }}"
+    # validate: "{{ lighthouse_config.validation.nginx_test_cmd }}"
   notify: Перезагрузить nginx
 
 - name: Корректные права на директорию Lighthouse

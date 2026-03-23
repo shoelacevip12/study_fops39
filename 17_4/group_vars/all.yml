@@ -1,8 +1,8 @@
 ---
 # включаем(true)\выключаем(false) задачи роли
-install_clickhouse: false  # установка clickhouse
+install_clickhouse: true  # установка clickhouse
 install_lighthouse: true  # установка lighthouse
-install_vector: false     # установка vector
+install_vector: true     # установка vector
 
 # Для предварительно настроенных хостов с доступом по ключу
 ansible_user: root
