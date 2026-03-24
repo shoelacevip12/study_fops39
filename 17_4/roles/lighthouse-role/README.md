@@ -10,7 +10,6 @@
 - Развёртывание файлов приложения в `/var/www/lighthouse`
 - Генерацию конфигурации nginx с поддержкой:
   - Проксирования запросов к ClickHouse
-  - Basic HTTP-аутентификации (опционально)
   - Защитных заголовков и логирования
 - Настройку прав доступа и владельца файлов
 - Валидацию конфигурации и проверку работоспособности сервиса
@@ -34,7 +33,7 @@ lighthouse-role/
 
 ## Переменные
 
-Основные группы переменных в `defaults/main.yml`:
+Основные группы переменных в `roles/lighthouse-role/defaults/main.yml`:
 
 ### Веб-сервер (nginx)
 ```yaml
@@ -180,14 +179,14 @@ tail -f /var/log/nginx/lighthouse_access.log
 ## Безопасность
 
 ### Рекомендации:
-- Используйте **HTTPS** (настройте SSL в nginx отдельно)
+- Используйте **HTTPS**
 - Храните пароли в **Ansible Vault**:
   ```bash
   ansible-vault encrypt_string 'secret_pass' \
     --name 'lighthouse_config.auth.users[0].password'
   ```
 - Ограничьте доступ к `/clickhouse` через `allow/deny` в nginx
-- Настройте RBAC в ClickHouse (отдельные пользователи с минимальными правами)
+- Настройте RBAC в ClickHouse
 - Не передавайте учётные данные в URL-параметрах в продакшене
 
 ### Пример защиты директории:
