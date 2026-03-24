@@ -100,68 +100,20 @@ roles/vector-role
 - Role vector-role was created successfully
 ```
 4. На основе tasks из старого playbook заполните новую role. Разнесите переменные между `vars` и `default`.
-```bash
-# создание общего словаря vector_config переменных по умолчанию
-cat > roles/vector-role/defaults/main.yml <<'EOF'
----
-vector_config:
-  # Словарь переменных по умолчанию для получения данных
-  sources:
-    var_logs:
-      host_key: hostname
-      include: [ "/var/log/**/*.log", "/var/log/*.log" ]
-      line_delimiter: "\n"
-      read_from: beginning
-      rotate_wait_secs: 9223372
 
-  # Словарь переменных по умолчанию доставки ДО сервиса
-  sinks:
-    var_logs_clickhouse:
-      type: clickhouse
-      inputs: [ skv_file_test ]
-      database: skvvectordb
-      endpoint: http://localhost:8123
-      table: mytable
-      auth: { strategy: basic, user: 'skv', password: 'test1qaz' }
-      buffer:
-        - type: disk
-          max_size: 1073741824 # 1GiB.
-          when_full: drop_newest
-...
-EOF
-```
-```bash
-# создание общего словаря vector_config ПОСТОЯННЫХ переменных
-cat > roles/vector-role/vars/main.yml <<'EOF'
 ---
-vector_config:
-  # Словарь постоянных переменных для получения данных
-  sources:
-  var_logs:
-    type: file
-    data_dir: /var/local/lib/vector/
-    file_key: file
-    glob_minimum_cooldown_ms: 1000
-    ignore_older_secs: 600
-    max_line_bytes: 102400
-    max_read_bytes: 2048
 
-  # Словарь постоянных переменных доставки ДО сервиса
-  sinks:
-  var_logs_clickhouse:
-    compression: gzip
-    database: mydatabase
-    format: json_each_row
-    skip_unknown_fields: true
-...
-```
+[перменные по умолчанию роли vector](roles/lighthouse-role/defaults)
+
+[переменные по умолчанию роли lighthouse](roles/lighthouse-role/defaults)
+
+---
 5. Перенести нужные шаблоны конфигов в `templates`.
-
 ---
 
 [шаблоны роли vector](roles/vector-role/templates/)
 
-[шаблоны роли дшпрерщгыу](roles/lighthouse-role/templates/)
+[шаблоны роли lighthouse](roles/lighthouse-role/templates/)
 
 ---
 6. Опишите в `README.md` обе роли и их параметры. Пример качественной документации ansible role [по ссылке](https://github.com/cloudalchemy/ansible-prometheus).
