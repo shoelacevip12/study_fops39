@@ -94,7 +94,7 @@ ansible-playbook playbook_vector.yaml --tags config,vector
 ansible-playbook playbook_vector.yaml
 ```
 
-## Проверка установки
+## Локальная проверка установки
 
 После выполнения роли можно убедиться в работоспособности:
 
