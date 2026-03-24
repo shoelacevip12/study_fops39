@@ -237,7 +237,15 @@ EOF
 
 10. Выложите playbook в репозиторий.
 
+[ГЛАВНЫЙ playbook](https://github.com/shoelacevip12/study_fops39/blob/17_4-ansible_role/17_4/playbook_main.yaml)
 
+[playbook clickhouse](https://github.com/shoelacevip12/study_fops39/blob/17_4-ansible_role/17_4/playbook_clickhouse.yaml)
+
+[playbook vector](https://github.com/shoelacevip12/study_fops39/blob/17_4-ansible_role/17_4/playbook_vector.yaml)
+
+[playbook lighthouse](https://github.com/shoelacevip12/study_fops39/blob/17_4-ansible_role/17_4/playbook_lighthouse.yaml)
+
+[Общий проект ansible](https://github.com/shoelacevip12/study_fops39/tree/17_4-ansible_role/17_4)
 
 11. В ответе дайте ссылки на оба репозитория с roles и одну ссылку на репозиторий с playbook.
 
