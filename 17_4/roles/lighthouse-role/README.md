@@ -57,7 +57,7 @@ lighthouse_config:
     final_path: /var/www/lighthouse
 ```
 
-### 🗄 Подключение к ClickHouse
+### Подключение к ClickHouse
 ```yaml
   clickhouse:
     host: "192.168.0.100"
