@@ -141,7 +141,7 @@ lighthouse_config:
 ansible-playbook playbook_lighthouse.yaml
 ```
 
-## Проверка установки
+## Локальная Проверка установки
 
 ```bash
 # Статус nginx
