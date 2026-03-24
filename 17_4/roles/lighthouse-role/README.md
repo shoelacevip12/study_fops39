@@ -122,9 +122,9 @@ ansible-playbook playbook_lighthouse.yaml --tags install,verify
     - lighthouse-role
 ```
 
-2. Переопределите переменные под вашу инфраструктуру:
+2. Определите следующие переменные под вашу инфраструктуру:
 ```yaml
-# group_vars/lighthouse.yml
+# roles/lighthouse-role/defaults/main.yml
 lighthouse_config:
   clickhouse:
     endpoint: "https://clickhouse.prod.internal:8443"
