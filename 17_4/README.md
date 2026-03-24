@@ -156,45 +156,20 @@ vector_config:
 ...
 ```
 5. Перенести нужные шаблоны конфигов в `templates`.
-```bash
-cat > roles/vector-role/templates/vector.yaml.j2 <<'EOF'
----
-# === ИСТОЧНИКИ ===
-sources:
-  var_logs:
-    type: {{ vector_config.sources.var_logs.type }}
-    data_dir: {{ vector_config.sources.var_logs.data_dir }}
-    file_key: {{ vector_config.sources.var_logs.file_key }}
-    glob_minimum_cooldown_ms: {{ vector_config.sources.var_logs.glob_minimum_cooldown_ms }}
-    host_key: {{ vector_config.sources.var_logs.host_key }}
-    ignore_older_secs: {{ vector_config.sources.var_logs.ignore_older_secs }}
-    include: {{ vector_config.sources.var_logs.include }}
-    line_delimiter: {{ vector_config.sources.var_logs.line_delimiter }}
-    max_line_bytes: {{ vector_config.sources.var_logs.max_line_bytes }}
-    max_read_bytes: {{ vector_config.sources.var_logs.max_read_bytes }}
-    read_from: {{ vector_config.sources.var_logs.read_from }}
-    rotate_wait_secs: {{ vector_config.sources.var_logs.rotate_wait_secs }}
 
-# ==== ПРИЁМНИК ====
-sinks:
-  var_logs_clickhouse:
-    type: {{ vector_config.sinks.var_logs_clickhouse.type }}
-    inputs: {{ vector_config.sinks.var_logs_clickhouse.inputs }}
-    compression: {{ vector_config.sinks.var_logs_clickhouse.compression }}
-    database: {{ vector_config.sinks.var_logs_clickhouse.database }}
-    endpoint: {{ vector_config.sinks.var_logs_clickhouse.endpoint }}
-    format: {{ vector_config.sinks.var_logs_clickhouse.format }}
-    table: {{ vector_config.sinks.var_logs_clickhouse.table }}
-    auth: {{ vector_config.sinks.var_logs_clickhouse.auth }}
-    buffer: {{ vector_config.sinks.var_logs_clickhouse.buffer }}
-...
-EOF
-```
+---
+
+[шаблоны роли vector](roles/vector-role/templates/)
+
+[шаблоны роли дшпрерщгыу](roles/lighthouse-role/templates/)
+
+---
 6. Опишите в `README.md` обе роли и их параметры. Пример качественной документации ansible role [по ссылке](https://github.com/cloudalchemy/ansible-prometheus).
 
 ---
 
 [Описание созданной роли Vector Datadog](roles/vector-role/README.md)
+[Описание созданной роли lighthouse](roles/lighthouse-role/README.md)
 
 ---
 
