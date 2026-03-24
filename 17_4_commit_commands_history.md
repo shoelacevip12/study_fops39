@@ -525,7 +525,7 @@ clickhouse_users_custom:
           comment: "classic user with multi dbs and multi-custom network allow password"}
 
 clickhouse_listen_host_custom:
-  - "192.168.89.104"
+  - "192.168.89.100"
 ...
 EOF
 ```
@@ -535,7 +535,6 @@ cat > group_vars/all.yml <<'EOF'
 ---
 # включаем(true)\выключаем(false) задачи роли
 install_clickhouse: true  # установка clickhouse
-install_lighthouse: false  # установка lighthouse
 install_vector: true     # установка vector
 
 # Для предварительно настроенных хостов с доступом по ключу
@@ -694,9 +693,6 @@ roles/lighthouse-role
 ```
 - Role roles/lighthouse-role was created successfully
 ```
-cat > <<'EOF'
-EOF
-
 
 ## Создание playbook для роли lighthouse
 ```bash
@@ -712,6 +708,409 @@ cat >playbook_lighthouse.yaml <<'EOF'
   - lighthouse-role
 ...
 EOF
+```
+## Описание переменных роли lighthouse
+```bash
+cat > roles/lighthouse-role/defaults/main.yml <<'EOF'
+---
+lighthouse_config:
+  # === Веб-сервер ===
+  nginx:
+    listen_port: 80
+    server_name: "_"
+    root_dir: /var/www/lighthouse
+    config_path: /etc/nginx/sites-available/lighthouse
+    enabled_link: /etc/nginx/sites-enabled/lighthouse
+    # === Системные пути ===
+    package_name: nginx
+    service_name: nginx
+    main_config: /etc/nginx/nginx.conf
+    conf_d_dir: /etc/nginx/conf.d
+
+  # === Источник файлов ===
+  source:
+    repo_url: https://github.com/VKCOM/lighthouse/archive/refs/heads/master.tar.gz
+    version: master
+    dest_archive: /tmp/lighthouse.tar.gz
+    extract_path: /tmp/lighthouse-extract
+    final_path: /var/www/lighthouse
+
+  # === Подключение к ClickHouse ===
+  clickhouse:
+    host: "192.168.89.100"
+    port: 8123
+    endpoint: "http://192.168.89.100:8123"
+    user: skv
+    password: test1qaz
+    database: skvvectordb
+
+  # === Безопасность ===
+  auth:
+    enabled: true
+    type: basic
+    htpasswd_path: /etc/nginx/.htpasswd
+    users:
+      - name: admin
+        password: lighthouse_admin_pass
+
+  # === CORS и проксирование ===
+  proxy:
+    enabled: true  # Проксировать запросы к ClickHouse через nginx
+    timeout_connect: 60s
+    timeout_send: 60s
+    timeout_read: 60s
+  
+  # === Пользователи и права ===
+  deploy:
+    owner: www-data
+    group: www-data
+    file_mode: '0644'
+    dir_mode: 'u=rwX,go=rX'
+
+  # === Валидация ===
+  validation:
+    nginx_test_cmd: nginx -t
+    curl_timeout: 10
+...
+EOF
+```
+## Описание задач роли
+### Главный собирательный файл выполнения задач роли
+```bash
+cat > roles/lighthouse-role/tasks/main.yml <<'EOF'
+---
+- name: Загрузка задач установки
+  include_tasks: lh_inst.yml
+  tags: [install, lighthouse]
+
+- name: Загрузка задач развёртывания
+  include_tasks: lh_dir.yml
+  tags: [config, lighthouse]
+
+- name: Загрузка задач настройки службы
+  include_tasks: lh_serv.yml
+  tags: [service, lighthouse]
+
+- name: Загрузка задач проверки
+  include_tasks: lh_verif.yml
+  tags: [verify, lighthouse]
+...
+EOF
+```
+### Задачи по базовой установке необходимых пакетов и использования исходников Lighthouse из репозитория VKCOM
+```bash
+cat > roles/lighthouse-role/tasks/lh_inst.yml <<'EOF'
+# roles/lighthouse-role/tasks/upd_inst.yml
+---
+- name: Установка пакетов для веб-сервера Ubuntu
+  apt:
+    name:
+      - nginx
+      - curl
+      - apache2-utils
+    update_cache: true
+
+- name: Создать временную директорию для загрузки
+  file:
+    path: "{{ lighthouse_config.source.extract_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Скачать исходники Lighthouse
+  get_url:
+    url: "{{ lighthouse_config.source.repo_url }}"
+    dest: "{{ lighthouse_config.source.dest_archive }}"
+    mode: '0644'
+    timeout: 30
+
+- name: Распаковать архив
+  unarchive:
+    src: "{{ lighthouse_config.source.dest_archive }}"
+    dest: "{{ lighthouse_config.source.extract_path }}"
+    remote_src: true
+    creates: "{{ lighthouse_config.source.extract_path }}/lighthouse-{{ lighthouse_config.source.version }}"
+...
+EOF
+```
+### Развёртывание файлов приложения и предварительная подготовка nginx
+```bash
+cat > roles/lighthouse-role/tasks/lh_dir.yml <<'EOF'
+---
+- name: Создать целевую директорию для Lighthouse
+  file:
+    path: "{{ lighthouse_config.source.final_path }}"
+    state: directory
+    mode: "{{ lighthouse_config.deploy.dir_mode }}"
+    owner: "{{ lighthouse_config.deploy.owner }}"
+    group: "{{ lighthouse_config.deploy.group }}"
+
+- name: Скопировать файлы Lighthouse
+  copy:
+    src: "{{ lighthouse_config.source.extract_path }}/lighthouse-{{ lighthouse_config.source.version }}/"
+    dest: "{{ lighthouse_config.source.final_path }}/"
+    remote_src: true
+    mode: "{{ lighthouse_config.deploy.file_mode }}"
+    owner: "{{ lighthouse_config.deploy.owner }}"
+    group: "{{ lighthouse_config.deploy.group }}"
+  notify: Перезагрузить nginx
+
+- name: Развернуть конфигурацию nginx из шаблона
+  template:
+    src: lighthouse.conf.j2
+    dest: "{{ lighthouse_config.nginx.config_path }}"
+    mode: "{{ lighthouse_config.deploy.file_mode }}"
+    owner: root
+    group: root
+    # backup: true
+    # validate: "{{ lighthouse_config.validation.nginx_test_cmd }}"
+  notify: Перезагрузить nginx
+
+- name: Корректные права на директорию Lighthouse
+  file:
+    path: "{{ lighthouse_config.source.final_path }}"
+    state: directory
+    owner: "{{ lighthouse_config.deploy.owner }}"
+    group: "{{ lighthouse_config.deploy.group }}"
+    mode: "{{ lighthouse_config.deploy.dir_mode }}"
+  notify: Перезагрузить nginx
+
+- name: Рекурсивно установить права на содержимое
+  file:
+    path: "{{ lighthouse_config.source.final_path }}"
+    state: directory
+    mode: "{{ lighthouse_config.deploy.dir_mode }}"
+    owner: "{{ lighthouse_config.deploy.owner }}"
+    group: "{{ lighthouse_config.deploy.group }}"
+    recurse: true
+  notify: Перезагрузить nginx
+
+- name: Активировать сайт через symlink
+  file:
+    src: "{{ lighthouse_config.nginx.config_path }}"
+    dest: "{{ lighthouse_config.nginx.enabled_link }}"
+    state: link
+    force: true
+  notify: Перезагрузить nginx
+
+- name: Удалить дефолтный сайт nginx
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Перезагрузить nginx
+  ignore_errors: true
+
+- name: Создать файл .htpasswd для basic auth
+  shell: |
+    htpasswd -bc {{ lighthouse_config.auth.htpasswd_path }} \
+      {{ item.name }} {{ item.password }}
+  loop: "{{ lighthouse_config.auth.users }}"
+  when:
+    - lighthouse_config.auth.enabled | bool
+    - lighthouse_config.auth.type == "basic"
+  args:
+    creates: "{{ lighthouse_config.auth.htpasswd_path }}"
+  no_log: true  # Скрыть пароли в логах
+...
+EOF
+```
+### Предварительная проверка и запуск настроенной службы на базе nginx
+```bash
+cat >roles/lighthouse-role/tasks/lh_serv.yml <<'EOF'
+---
+- name: Проверить синтаксис nginx конфигурации
+  command: "{{ lighthouse_config.validation.nginx_test_cmd }}"
+  register: nginx_config_test
+  changed_when: false
+
+- name: Вывести результат проверки nginx
+  debug:
+    msg: "nginx конфигурация валидна"
+  when: nginx_config_test.rc == 0
+
+- name: Запустить и включить nginx
+  systemd:
+    name: "{{ lighthouse_config.nginx.service_name }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+...
+EOF
+```
+### Тестирование запущенной службы
+```bash
+cat > roles/lighthouse-role/tasks/lh_verif.yml <<'EOF'
+---
+- name: Проверить статус службы nginx
+  systemd:
+    name: "{{ lighthouse_config.nginx.service_name }}"
+  register: nginx_status
+
+- name: Проверить доступность веб-интерфейса
+  uri:
+    url: "http://127.0.0.1:{{ lighthouse_config.nginx.listen_port }}/"
+    status_code: 200
+    timeout: "{{ lighthouse_config.validation.curl_timeout }}"
+  register: lighthouse_http_check
+  changed_when: false
+  failed_when: false
+
+- name: Вывести результат проверки HTTP
+  debug:
+    msg: "Lighthouse доступен - код: {{ lighthouse_http_check.status }}"
+  when: lighthouse_http_check.status == 200
+
+- name: Проверить подключение к ClickHouse через прокси
+  uri:
+    url: "http://127.0.0.1:{{ lighthouse_config.nginx.listen_port }}/clickhouse?query=SELECT%201"
+    method: GET
+    status_code: 200
+    timeout: 10
+  register: clickhouse_proxy_check
+  when: lighthouse_config.proxy.enabled | bool
+  changed_when: false
+  failed_when: false
+
+- name: Вывести итоговую информацию для пользователя
+  debug:
+    msg: |
+      Lighthouse развёрнут успешно!
+      
+      Доступ по адресу:
+        http://{{ ansible_host | default(inventory_hostname) }}:{{ lighthouse_config.nginx.listen_port }}
+      
+      Параметры подключения к ClickHouse:
+        Host: {{ lighthouse_config.clickhouse.endpoint }}
+        User: {{ lighthouse_config.clickhouse.user }}
+        DB:   {{ lighthouse_config.clickhouse.database }}
+      
+      URL для быстрого доступа:
+        http://{{ ansible_host | default(inventory_hostname) }}/?user={{ lighthouse_config.clickhouse.user }}&password={{ lighthouse_config.clickhouse.password }}&host={{ lighthouse_config.clickhouse.endpoint }}
+      
+       В продакшене:
+        - Используйте HTTPS
+        - Не передавайте пароль в URL
+        - Настройте RBAC в ClickHouse
+...
+EOF
+```
+## Описание задач обработчиков
+```bash
+cat > roles/lighthouse-role/handlers/main.yml <<'EOF'
+---
+- name: Перезагрузить nginx
+  systemd:
+    name: "{{ lighthouse_config.nginx.service_name }}"
+    state: reloaded
+    daemon_reload: true
+  listen: "Перезагрузить nginx"
+
+- name: Перезапустить nginx
+  systemd:
+    name: "{{ lighthouse_config.nginx.service_name }}"
+    state: restarted
+    daemon_reload: true
+  listen: "Перезапустить nginx"
+...
+EOF
+```
+## Шаблон Nginx под revers proxy
+```bash
+cat > roles/lighthouse-role/templates/lighthouse.conf.j2 <<'EOF'
+server {
+    listen {{ lighthouse_config.nginx.listen_port }};
+    server_name {{ lighthouse_config.nginx.server_name }};
+    root {{ lighthouse_config.source.final_path }};
+    index index.html;
+
+    # === Раздача статики ===
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+    }
+
+    # === Проксирование к ClickHouse (обход CORS) ===
+    {% if lighthouse_config.proxy.enabled %}
+    location /clickhouse {
+        auth_basic off;
+        proxy_pass {{ lighthouse_config.clickhouse.endpoint }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Таймауты для долгих запросов
+        proxy_connect_timeout {{ lighthouse_config.proxy.timeout_connect }};
+        proxy_send_timeout {{ lighthouse_config.proxy.timeout_send }};
+        proxy_read_timeout {{ lighthouse_config.proxy.timeout_read }};
+        
+        # Буферизация ответов
+        proxy_buffering on;
+        proxy_buffer_size 4k;
+        proxy_buffers 8 4k;
+    }
+    {% endif %}
+
+    # === Basic Authentication (опционально) ===
+    {% if lighthouse_config.auth.enabled and lighthouse_config.auth.type == "basic" %}
+    auth_basic "Restricted Access";
+    auth_basic_user_file {{ lighthouse_config.auth.htpasswd_path }};
+    # Не применять auth к прокси-запросам к ClickHouse
+    {% endif %}
+
+    # === Логирование ===
+    access_log /var/log/nginx/lighthouse_access.log;
+    error_log /var/log/nginx/lighthouse_error.log warn;
+
+    # === Безопасность заголовков ===
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+}
+EOF
+```
+## изменение файла переменных group_vars/all.yml для работы с общим playbook с light house
+
+```bash
+# создание файла общих переменной для всех групп
+cat > group_vars/all.yml <<'EOF'
+---
+# включаем(true)\выключаем(false) задачи роли
+install_clickhouse: true  # установка clickhouse
+install_lighthouse: true  # установка lighthouse
+install_vector: true     # установка vector
+
+# Для предварительно настроенных хостов с доступом по ключу
+ansible_user: root
+ansible_ssh_private_key_file: "~/.ssh/id_kvm_host_to_vms"
+...
+EOF
+```
+## Проверки собравшегося проекта в данном каталоге
+```bash
+ansible-playbook *.yaml --syntax-check
+
+ansible-lint *.yaml
+
+yamllint *.yaml
+
+ansible-inventory all -i hosts.ini --graph
+
+ansible-inventory all -i hosts.ini --list
+```
+## Запуск ролей через общий playbook
+```bash
+# Для исключения
+# "Ansible is being run in a world writable directory ...
+# ignoring it as an ansible.cfg source"
+export ANSIBLE_CONFIG=./ansible.cfg
+
+# Для вывода playbook с первым уровнем детализации в yaml формате
+export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
+
+# Запуск Playbook как sh скрипт из-за "#!/usr/bin/env" ansible-playbook в начале файла
+./playbook_main.yaml -v
 ```
 ```bash
 # Добавляем ключи агенту ssh от репозитория gitflic и github
