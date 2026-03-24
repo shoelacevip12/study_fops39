@@ -1,75 +1,143 @@
-Ansible Role:Vector datadog
-=========
+# Ansible Role: vector-role
 
-Описание
-------------
+Роль для автоматизированной установки и настройки [**Vector**](https://vector.dev) — высокопроизводительного агента для сбора, преобразования и отправки логов.
 
-Развертывание Vector, высокопроизводительного инструмент для сбора метрик
+## Описание
 
-Role Variables
---------------
+Роль выполняет:
+- Загрузку и установку Vector указанной версии в `/opt`
+- Создание symlink в `/usr/bin/vector`
+- Настройку конфигурационного файла `/etc/vector/vector.yaml` через Jinja2-шаблон
+- Развёртывание systemd unit-файла для управления службой
+- Валидацию конфигурации перед применением изменений
+- Запуск и автозагрузку службы
 
-|Переменная                                                 |Значение по умолчанию (defaults/main.yml)                   |Постоянное значение (vars/main.yml)|Описание                                                             |
-|-----------------------------------------------------------|------------------------------------------------------------|-----------------------------------|---------------------------------------------------------------------|
-|vector_config.sources.var_logs.host_key                    |hostname                                                    |—                                  |Ключ для идентификации хоста в логах                                 |
-|vector_config.sources.var_logs.include                     |["/var/log/**/*.log", "/var/log/*.log"]                     |—                                  |Маски файлов для сбора логов                                         |
-|vector_config.sources.var_logs.line_delimiter              |"\n"                                                        |—                                  |Разделитель строк при чтении логов                                   |
-|vector_config.sources.var_logs.read_from                   |beginning                                                   |—                                  |Начальная позиция чтения файла                                       |
-|vector_config.sources.var_logs.rotate_wait_secs            |9223372                                                     |—                                  |Время ожидания при ротации логов (сек)                               |
-|vector_config.sources.var_logs.type                        |—                                                           |file                               |Тип источника данных                                                 |
-|vector_config.sources.var_logs.data_dir                    |—                                                           |/var/local/lib/vector/             |Директория для хранения состояния Vector                             |
-|vector_config.sources.var_logs.file_key                    |—                                                           |file                               |Ключ для идентификации файла в метаданных                            |
-|vector_config.sources.var_logs.glob_minimum_cooldown_ms    |—                                                           |1000                               |Минимальная задержка между проверками новых файлов (мс)              |
-|vector_config.sources.var_logs.ignore_older_secs           |—                                                           |600                                |Игнорировать файлы, не изменявшиеся дольше (сек)                     |
-|vector_config.sources.var_logs.max_line_bytes              |—                                                           |102400                             |Максимальный размер одной строки лога (байт)                         |
-|vector_config.sources.var_logs.max_read_bytes              |—                                                           |2048                               |Максимальный объем данных за одно чтение (байт)                      |
-|vector_config.sinks.var_logs_clickhouse.type               |clickhouse                                                  |—                                  |Тип назначения (sink)                                                |
-|vector_config.sinks.var_logs_clickhouse.inputs             |["skv_file_test"]                                           |—                                  |Список входных источников для sink                                   |
-|vector_config.sinks.var_logs_clickhouse.database           |skvvectordb                                                 |mydatabase                         |Имя базы данных ClickHouse                                           |
-|vector_config.sinks.var_logs_clickhouse.endpoint           |http://localhost:8123                                       |—                                  |Endpoint ClickHouse HTTP-интерфейса                                  |
-|vector_config.sinks.var_logs_clickhouse.table              |mytable                                                     |—                                  |Целевая таблица для записи данных                                    |
-|vector_config.sinks.var_logs_clickhouse.auth               |{strategy: basic, user: 'skv', password: 'test1qaz'}        |—                                  |Параметры аутентификации в ClickHouse                                |
-|vector_config.sinks.var_logs_clickhouse.buffer             |[{type: disk, max_size: 1073741824, when_full: drop_newest}]|—                                  |Настройки буфера: тип, макс. размер (1 GiB), поведение при заполнении|
-|vector_config.sinks.var_logs_clickhouse.compression        |—                                                           |gzip                               |Тип сжатия данных при отправке                                       |
-|vector_config.sinks.var_logs_clickhouse.format             |—                                                           |json_each_row                      |Формат данных для отправки в ClickHouse                              |
-|vector_config.sinks.var_logs_clickhouse.skip_unknown_fields|—                                                           |true                               |Пропускать неизвестные поля при вставке                              |
+## Структура роли
 
+```
+vector-role/
+├── defaults/main.yml     # Переменные по умолчанию (источники, sinks)
+├── tasks/
+│   ├── main.yml          # Обобщенный файл исполнения задач
+│   ├── upd_inst.yml      # Установка бинарников
+│   ├── upd_dir.yml       # Создание директорий и деплой конфига
+│   ├── upd_serv.yml      # Настройка systemd и запуск службы
+│   └── upd_verif.yml     # Проверки после установки
+├── templates/
+│   ├── vector.yaml.j2    # Шаблон конфигурации Vector
+│   └── vector.service.j2 # Шаблон systemd unit-файла
+├── handlers/main.yml     # Обработчики для перезапуска службы
+└── README.md             # Этот файл
+```
 
-Звисимость
-------------
-Роль подготовлена для работы с другой ролью
+## Переменные
+
+Основные переменные определяются в `defaults/main.yml`:
+
 ```yaml
----
-- src: git@github.com:AlexeySetevoi/ansible-clickhouse.git
-  scm: git
-  version: "1.13"
-  name: clickhouse
-...
+vector_config:
+  sources:
+    var_logs:
+      type: file
+      include: ["/var/log/syslog", "/var/log/*.log"]
+      data_dir: /var/lib/vector/
+      # ... остальные параметры источника
+
+  sinks:
+    var_logs_clickhouse:
+      type: clickhouse
+      inputs: [var_logs]
+      endpoint: http://192.168.0.254:8123
+      database: skvvectordb
+      table: mytable
+      auth:
+        strategy: basic
+        user: skv
+        password: 'test1qaz'
+      # ... остальные параметры sink
 ```
-Установка
+
+> **Важно**: Чувствительные данные (пароли, endpoints) рекомендуется выносить в `vault` или переменные хостов/групп.
+
+## Теги
+
+Роль поддерживает следующие теги для выборочного выполнения:
+
+| Тег | Описание |
+|-----|----------|
+| `install` | Установка бинарных файлов и зависимостей |
+| `config` | Создание директорий и развёртывание конфигурации |
+| `service` | Настройка systemd и управление службой |
+| `verify` | Проверка статуса службы и валидация конфига |
+| `vector` | Общий тег для всех задач роли |
+
+Пример использования:
 ```bash
-ansible-galaxy install \
--p roles \
--r requirements.yml
+ansible-playbook playbook_vector.yaml --tags config,vector
 ```
 
-Пример Playbook
-----------------
+## Быстрый старт
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+1. Подключите роль в свой playbook:
+```yaml
+- name: Установка Vector
+  hosts: vector
+  become: true
+  roles:
+    - vector-role
+```
 
-    - hosts: servers
-      roles:
-         - { role: vector-role }
+2. Переопределите переменные под вашу инфраструктуру (в `group_vars/`, `host_vars/` или реестре списка машин).
 
-License
--------
+3. Запуск:
+```bash
+ansible-playbook playbook_vector.yaml
+```
 
-Пока не понял, но очень интересно
+## Проверка установки
 
-От автора
-------------------
+После выполнения роли можно убедиться в работоспособности:
 
-Предварительное описание для работы стека 
+```bash
+# Статус службы
+systemctl status vector
 
-│ Vector(сбор данных) │ ▶ │ ClickHouse(хранение) │ ◀ │ Lighthouse (просмотр) │
+# Валидация конфигурации
+vector validate /etc/vector/vector.yaml
+
+# Просмотр логов службы
+journalctl -u vector -f
+```
+
+## Требования
+
+- **Ansible** ≥ 2.9
+- **Целевая ОС**: Debian/Ubuntu
+- **Архитектура**: x86_64
+- **Доступ к интернету** для загрузки Vector
+
+## Безопасность
+
+- Конфигурационный файл создаётся с правами `0640` (`root:root`)
+- Для хранения паролей используйте **Ansible Vault**:
+  ```bash
+  ansible-vault encrypt_string 'my_secret_password' --name 'vector_config.sinks.var_logs_clickhouse.auth.password'
+  ```
+
+## Обновление Vector
+
+Для обновления версии:
+1. Измените URL и версию в `tasks/upd_inst.yml`
+2. При необходимости обновите параметры в `defaults/main.yml`
+3. Запустите роль с тегом `install`:
+   ```bash
+   ansible-playbook playbook_vector.yaml --tags install
+   ```
+
+## Лицензия
+
+MIT
+
+---
+
+> 📌 **Примечание**: Роль устанавливает Vector в `/opt` с созданием системной ссылки. Убедитесь, что путь `/opt` доступен для записи и не управляется другими инструментами.
