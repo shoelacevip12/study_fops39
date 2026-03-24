@@ -32,7 +32,7 @@ vector-role/
 
 ## Переменные
 
-Основные переменные определяются в `defaults/main.yml`:
+Основные переменные определяются в `roles/vector-role/defaults/main.yml`:
 
 ```yaml
 vector_config:
@@ -87,7 +87,7 @@ ansible-playbook playbook_vector.yaml --tags config,vector
     - vector-role
 ```
 
-2. Переопределите переменные под вашу инфраструктуру (в `group_vars/`, `host_vars/` или реестре списка машин).
+2. Переопределите переменные под вашу инфраструктуру (в `roles/vector-role/defaults/main.yml` или реестре списка машин).
 
 3. Запуск:
 ```bash
@@ -127,8 +127,8 @@ journalctl -u vector -f
 ## Обновление Vector
 
 Для обновления версии:
-1. Измените URL и версию в `tasks/upd_inst.yml`
-2. При необходимости обновите параметры в `defaults/main.yml`
+1. Измените URL и версию в `roles/vector-role/tasks/upd_inst.yml`
+2. При необходимости обновите параметры в `roles/vector-role/defaults/main.yml`
 3. Запустите роль с тегом `install`:
    ```bash
    ansible-playbook playbook_vector.yaml --tags install
