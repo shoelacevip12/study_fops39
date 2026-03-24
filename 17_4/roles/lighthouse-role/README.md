@@ -205,7 +205,7 @@ location / {
 
 Для обновления версии:
 
-1. Измените `repo_url` и `version` в `defaults/main.yml` или переменных хоста:
+1. Измените `repo_url` и `version` в `roles/lighthouse-role/defaults/main.yml` или переменных хоста:
    ```yaml
    lighthouse_config:
      source:
