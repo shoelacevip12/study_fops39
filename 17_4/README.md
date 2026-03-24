@@ -135,8 +135,110 @@ roles/vector-role
 ---
 
 8. Выложите все roles в репозитории. Проставьте теги, используя семантическую нумерацию. Добавьте roles в `requirements.yml` в playbook.
+
+[Отдельный репозиторий роли vector](https://github.com/shoelacevip12/vector-role)
+
+[Отдельный репозиторий роли lighthouse](https://github.com/shoelacevip12/lighthouse-role)
+
+```bash
+cat > requirements.yml <<'EOF'
+---
+  - src: git@github.com:AlexeySetevoi/ansible-clickhouse.git
+    scm: git
+    version: "1.13"
+    name: clickhouse
+
+  - src: git@github.com:shoelacevip12/vector-role.git
+    scm: git
+    # version: "v0.1"
+    name: vector-role
+
+  - src: git@github.com:shoelacevip12/lighthouse-role.git
+    scm: git
+    # version: "v0.1"
+    name: lighthouse-role
+EOF
+```
+
 9. Переработайте playbook на использование roles. Не забудьте про зависимости LightHouse и возможности совмещения `roles` с `tasks`.
+
+### Создание общего playbook для вызова ролей
+```bash
+cat > playbook_main.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+#!/usr/bin/env ansible-playbook
+---
+- name: Развертывание стэка сбора телеметрии
+  hosts: stack_log
+  become: true
+  gather_facts: true
+  vars_files:
+    - group_vars/all.yml # Здесь параметры включения\выключения ролей
+
+- name: Установка и развертывание clickhouse
+  import_playbook: playbook_clickhouse.yaml
+  when: install_clickhouse | bool
+
+- name: Установка и развертывание lighthouse
+  import_playbook: playbook_lighthouse.yaml
+  when: install_lighthouse | bool
+
+- name: Установка и развертывание vector
+  import_playbook: playbook_vector.yaml
+  when: install_vector | bool
+...
+EOF
+```
+### Создание playbook для роли clickhouse
+```bash
+cat >playbook_clickhouse.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Установка и развертывание clickhouse
+  hosts: clickhouse
+  become: yes
+  gather_facts: yes
+
+  roles:
+  - clickhouse
+...
+EOF
+```
+### Создание playbook для роли vector
+```bash
+cat >playbook_vector.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Установка и развертывание vector
+  hosts: vector
+  become: yes
+  gather_facts: yes
+
+  roles:
+  - vector-role
+...
+EOF
+```
+## Создание playbook для роли lighthouse
+```bash
+cat >playbook_lighthouse.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Установка и развертывание lighthouse
+  hosts: lighthouse
+  become: yes
+  gather_facts: yes
+
+  roles:
+  - lighthouse-role
+...
+EOF
+```
+
 10. Выложите playbook в репозиторий.
+
+
+
 11. В ответе дайте ссылки на оба репозитория с roles и одну ссылку на репозиторий с playbook.
 
 ---

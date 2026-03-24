@@ -1138,11 +1138,460 @@ study_fops39 \
 study_fops39_gitflic_ru \
 17_4-ansible_role
 ```
+## Создание репозиториев для загрузки ролей
+### создание роли для роли vector
+```bash
+# смена каталога для нового репозитория с ролью
+pwd 
 
-cat > <<'EOF'
+cd ../..
+
+# создание репозитория через github cli
+gh repo \
+create \
+vector-role --public
+
+# клонирование пустого репозитория
+git clone https://github.com/shoelacevip12/vector-role
+
+# смена названия каталога локально 
+mv vector-role gh_vector_role
+
+cd !$
+
+git config \
+--global \
+--add safe.directory \
+/home/shoel/nfs_git/gh_vector_role
+```
+### Копирование файлов в отдельно созданный репозиторий роли vector
+#### копирование в локальный каталог
+```bash
+cp -r \
+../gited/17_4/roles/vector-role/* \
+.
+
+# вывод всего что есть в репозитории + бинарные файлы git
+tree . -a
+```
+```
+.
+├── defaults
+│   └── main.yml
+├── files
+├── .git
+│   ├── config
+│   ├── description
+│   ├── HEAD
+│   ├── hooks
+│   │   ├── applypatch-msg.sample
+│   │   ├── commit-msg.sample
+│   │   ├── fsmonitor-watchman.sample
+│   │   ├── post-update.sample
+│   │   ├── pre-applypatch.sample
+│   │   ├── pre-commit.sample
+│   │   ├── pre-merge-commit.sample
+│   │   ├── prepare-commit-msg.sample
+│   │   ├── pre-push.sample
+│   │   ├── pre-rebase.sample
+│   │   ├── pre-receive.sample
+│   │   ├── push-to-checkout.sample
+│   │   ├── sendemail-validate.sample
+│   │   └── update.sample
+│   ├── info
+│   │   └── exclude
+│   ├── objects
+│   │   ├── info
+│   │   └── pack
+│   └── refs
+│       ├── heads
+│       └── tags
+├── handlers
+│   └── main.yml
+├── README.md
+├── tasks
+│   ├── main.yml
+│   ├── upd_dir.yml
+│   ├── upd_inst.yml
+│   ├── upd_serv.yml
+│   └── upd_verif.yml
+├── templates
+│   ├── vector.service.j2
+│   └── vector.yaml.j2
+└── vars
+    └── main.yml
+
+16 directories, 29 files
+```
+#### Формирование коммита в новом репозитории
+```bash
+# Просмотр текущих удаленных репозиториев
+git remote -v
+```
+```
+origin  git@github.com:shoelacevip12/vector-role.git (fetch)
+origin  git@github.com:shoelacevip12/vector-role.git (push)
+```
+```bash
+# Проверка текущего локального состояния репозитория
+git status
+```
+```
+Текущая ветка: main
+
+Еще нет коммитов
+
+Неотслеживаемые файлы:
+  (используйте «git add <файл>...», чтобы добавить в то, что будет включено в коммит)
+        README.md
+        defaults/
+        handlers/
+        tasks/
+        templates/
+        vars/
+```
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+```
+```
+fatal: ваша текущая ветка «main» еще не содержит ни одного коммита
+```
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленные репозиторий
+git commit -am '1 commmit vector-role, master' \
+&& git push origin main
+```
+#### Формирование тега по семантическому версионированию
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+```
+```
+54b481e (HEAD -> main, origin/main) 1 commmit vector-role, master
+```
+```bash
+# Создание Аннотированного тега v0.1
+git tag \
+-a v0.1 \
+-m 'skv_ansible_vector_role'
+
+# отображение всех тегов начинающихся с "v"
+git tag \
+-l "v*"
+```
+```
+v0.1
+```
+```bash
+# Внесение изменений в текущий коммит
+git add . \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+origin main --tags --force
+```
+### создание роли для роли lighthouse
+```bash
+# смена каталога для нового репозитория с ролью
+pwd 
+
+cd ..
+
+# создание репозитория через github cli
+gh repo \
+create \
+lighthouse-role --public
+
+# клонирование пустого репозитория
+git clone https://github.com/shoelacevip12/lighthouse-role
+
+# смена названия каталога локально 
+mv lighthouse-role gh_lighthouse_role
+
+cd !$
+
+git config \
+--global \
+--add safe.directory \
+/home/shoel/nfs_git/gh_lighthouse_role/
+```
+### Копирование файлов в отдельно созданный репозиторий роли lighthouse
+#### копирование в локальный каталог
+```bash
+cp -r \
+../gited/17_4/roles/lighthouse-role/* \
+.
+
+# вывод всего что есть в репозитории + бинарные файлы git
+tree . -a
+```
+```
+.
+├── defaults
+│   └── main.yml
+├── files
+├── .git
+│   ├── config
+│   ├── description
+│   ├── HEAD
+│   ├── hooks
+│   │   ├── applypatch-msg.sample
+│   │   ├── commit-msg.sample
+│   │   ├── fsmonitor-watchman.sample
+│   │   ├── post-update.sample
+│   │   ├── pre-applypatch.sample
+│   │   ├── pre-commit.sample
+│   │   ├── pre-merge-commit.sample
+│   │   ├── prepare-commit-msg.sample
+│   │   ├── pre-push.sample
+│   │   ├── pre-rebase.sample
+│   │   ├── pre-receive.sample
+│   │   ├── push-to-checkout.sample
+│   │   ├── sendemail-validate.sample
+│   │   └── update.sample
+│   ├── info
+│   │   └── exclude
+│   ├── objects
+│   │   ├── info
+│   │   └── pack
+│   └── refs
+│       ├── heads
+│       └── tags
+├── handlers
+│   └── main.yml
+├── README.md
+├── tasks
+│   ├── lh_dir.yml
+│   ├── lh_inst.yml
+│   ├── lh_serv.yml
+│   ├── lh_verif.yml
+│   └── main.yml
+├── templates
+│   └── lighthouse.conf.j2
+└── vars
+    └── main.yml
+
+16 directories, 28 files
+```
+#### Формирование коммита в новом репозитории
+```bash
+# Просмотр текущих удаленных репозиториев
+git remote -v
+```
+```
+origin  https://github.com/shoelacevip12/lighthouse-role (fetch)
+origin  https://github.com/shoelacevip12/lighthouse-role (push)
+```
+```bash
+# Проверка текущего локального состояния репозитория
+git status
+```
+```
+Текущая ветка: main
+
+Еще нет коммитов
+
+Неотслеживаемые файлы:
+  (используйте «git add <файл>...», чтобы добавить в то, что будет включено в коммит)
+        README.md
+        defaults/
+        handlers/
+        tasks/
+        templates/
+        vars/
+```
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+```
+```
+fatal: ваша текущая ветка «main» еще не содержит ни одного коммита
+```
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленные репозиторий
+git commit -am '1 commmit lighthouse-role, main' \
+&& git push origin main
+```
+#### Формирование тега по семантическому версионированию
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+```
+```
+8c99979 (HEAD -> main, origin/main) 1 commmit lighthouse-role, main
+```
+```bash
+# Создание Аннотированного тега v0.1
+git tag \
+-a v0.1 \
+-m 'skv_ansible_lighthouse_role'
+
+# отображение всех тегов начинающихся с "v"
+git tag \
+-l "v*"
+```
+```
+v0.1
+```
+```bash
+# Внесение изменений в текущий коммит
+git add . \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+origin main --tags --force
+```
+## Формирование нового requirements.yml для проекта
+```bash
+# Переход в каталог с проектом развертывания vector\clickhouse\lighthouse
+cd ../gited/17_4
+
+# Формирование нового requirements.yml
+cat > requirements.yml <<'EOF'
+---
+  - src: git@github.com:AlexeySetevoi/ansible-clickhouse.git
+    scm: git
+    version: "1.13"
+    name: clickhouse
+
+  - src: git@github.com:shoelacevip12/vector-role.git
+    scm: git
+    # version: "v0.1"
+    name: vector-role
+
+  - src: git@github.com:shoelacevip12/lighthouse-role.git
+    scm: git
+    # version: "v0.1"
+    name: lighthouse-role
+EOF
+```
+### Минимальное Заполнение файла meta для новых ролей
+#### для vector
+```bash
+cat > roles/vector-role/meta/main.yml <<'EOF'
+---
+galaxy_info:
+  author: shoelacevip12
+  description: Установка и настройка Vector datadog
+  company: Independent
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Ubuntu
+      versions: [noble]
+  galaxy_tags: [monitoring, logging, vector, observability, clickhouse]
+dependencies: []
+...
 EOF
 
-ansible-playbook *.yaml --syntax-check \
-&& ansible-lint *.yaml \
-&& yamllint *.yaml \
-ansible-inventory all -i hosts.ini
+cp roles/vector-role/meta/main.yml \
+../../gh_vector_role/meta/
+
+cd !$
+
+# Внесение изменений в текущий коммит
+git add . \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+origin main --tags --force
+```
+#### для lighthouse
+```bash
+cd -
+
+cat > roles/lighthouse-role/meta/main.yml <<'EOF'
+---
+galaxy_info:
+  author: shoelacevip12
+  description: Развёртывание веб-интерфейса Lighthouse для ClickHouse с настройкой nginx
+  company: Independent
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Ubuntu
+      versions: [noble]
+  galaxy_tags: [web, nginx, clickhouse, lighthouse, ui, monitoring]
+dependencies: []
+...
+EOF
+
+cp roles/lighthouse-role/meta/main.yml \
+../../gh_lighthouse_role/meta
+
+cd !$
+
+# Внесение изменений в текущий коммит
+git add . \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+origin main --tags --force
+```
+
+## Тестирование работы requirements.yml
+```bash
+mkdir  1
+
+cd !$
+
+cp ../requirements.yml .
+
+pwd \
+&& ls -al
+```
+```
+/home/shoel/nfs_git/gited/17_4/1
+итого 4
+drwxrwxrwx 1 1024 100  32 мар 24 22:10 .
+drwxrwxrwx 1 1024 100 372 мар 24 22:07 ..
+-rwxrwxrwx 1 1024 100 351 мар 24 22:10 requirements.yml
+```
+```bash
+# Скачивание роли из git репозитория источника 
+ansible-galaxy install \
+-p roles \
+-r requirements.yml --ignore-errors
+```
+```
+- clickhouse (1.13) is already installed, skipping.
+- extracting vector-role to /home/shoel/nfs_git/gited/17_4/1/roles/vector-role
+- vector-role was installed successfully
+- extracting lighthouse-role to /home/shoel/nfs_git/gited/17_4/1/roles/lighthouse-role
+- lighthouse-role was installed successfully
+```
+```bash
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit3_upd0, 17_4-ansible_role' \
+&& git push \
+--set-upstream \
+study_fops39 \
+17_4-ansible_role \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+17_4-ansible_role
+```

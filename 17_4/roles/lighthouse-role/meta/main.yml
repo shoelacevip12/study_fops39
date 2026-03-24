@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  author: shoelacevip12
+  description: Развёртывание веб-интерфейса Lighthouse для ClickHouse с настройкой nginx
+  company: Independent
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms:
+    - name: Ubuntu
+      versions: [noble]
+  galaxy_tags: [web, nginx, clickhouse, lighthouse, ui, monitoring]
+dependencies: []
+...
