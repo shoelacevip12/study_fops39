@@ -113,7 +113,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit1_upd_8, 17_5-ansible_testing' \
+git commit -am 'commit1_upd_1, 17_5-ansible_testing' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -125,4 +125,209 @@ study_fops39_gitflic_ru \
 ```
 ## commit_2, `17_5-ansible_testing`
 ```bash
+# Archlinux поиск и установка molecule
+sudo pacman \
+-Ss molecule
+```
+```
+extra/molecule 26.3.0-1
+    Aids in the development and testing of Ansible roles
+```
+```bash
+# установка модуля тестирования ansible c необходимыми зависимостями
+sudo pacman \
+-Syu molecule
+```
+<details>
+<summary>pacman installation molecule</summary>
+```
+...
+Дополнительные зависимости для 'molecule'
+    ansible: for the ansible verifier [установлено]
+    ansible-navigator: to use navigator as playbook executor
+    molecule-docker: for the docker driver
+    molecule-podman: for the podman driver
+    molecule-vagrant: for the vagrant driver
+    python-pywinrm: for Windows support
+    python-pytest-testinfra: for the testinfra verifier
+...
+```
+</details>
+
+```bash
+# Запуск службы docker
+sudo systemctl \
+start \
+docker.service
+
+# Скачивание образов контейнеров для тестовой среды
+docker pull \
+aragast/netology:latest
+
+# установка зависимостей для docker драйвера через коллекцию
+ansible-galaxy collection \
+install \
+community.docker
+```
+<details>
+<summary>collection docker install</summary>
+```
+Starting galaxy collection install process
+Process install dependency map
+Starting collection install process
+Downloading https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts/community-docker-5.1.0.tar.gz to /home/shoel/.ansible/tmp/ansible-local-867976866382n/tmp2j6xhyre/community-docker-5.1.0-jsw7z59k
+Installing 'community.docker:5.1.0' to '/home/shoel/.ansible/collections/ansible_collections/community/docker'
+community.docker:5.1.0 was installed successfully
+'community.library_inventory_filtering_v1:1.1.5' is already installed, skipping.
+```
+</details>
+
+```bash
+# установка зависимостей для podman драйвера через коллекцию
+ansible-galaxy collection \
+install \
+containers.podman
+```
+<details>
+<summary>collection podman install</summary>
+```
+Starting galaxy collection install process
+Process install dependency map
+Starting collection install process
+Downloading https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts/containers-podman-1.19.0.tar.gz to /home/shoel/.ansible/tmp/ansible-local-87821kl3162je/tmpytgq4z5v/containers-podman-1.19.0-xg6ri11o
+Installing 'containers.podman:1.19.0' to '/home/shoel/.ansible/collections/ansible_collections/containers/podman'
+containers.podman:1.19.0 was installed successfully
+```
+</details>
+
+```bash
+# Создание файла requirements для скачивания роли из указанного источника
+cat > requirements.yml <<'EOF'
+---
+  - src: git@github.com:AlexeySetevoi/ansible-clickhouse.git
+    scm: git
+    version: "1.13"
+    name: clickhouse
+
+  - src: git@github.com:shoelacevip12/vector-role.git
+    scm: git
+    name: vector-role
+
+  - src: git@github.com:shoelacevip12/lighthouse-role.git
+    scm: git
+    name: lighthouse-role
+...
+EOF
+
+# Скачивание роли из источников requirements.yml
+ansible-galaxy install \
+-p roles \
+-r requirements.yml
+```
+<details>
+<summary>roles install</summary>
+```
+Starting galaxy role install process
+- extracting clickhouse to /home/shoel/nfs_git/gited/17_5/roles/clickhouse
+- clickhouse (1.13) was installed successfully
+- extracting vector-role to /home/shoel/nfs_git/gited/17_5/roles/vector-role
+- vector-role was installed successfully
+- extracting lighthouse-role to /home/shoel/nfs_git/gited/17_5/roles/lighthouse-role
+- lighthouse-role was installed successfully
+```
+</details>
+
+```bash
+# смена расположения в каталог с ролью clickhouse
+cd roles/clickhouse/
+
+# Создание виртуального окружения Python и установка нужных драйверов
+python -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install molecule molecule-docker ansible molecule molecule-podman
+
+# вывод доступных драйверов
+(.venv) molecule drivers
+```
+```
+podman
+default
+docker
+```
+```bash
+# Запуск одного из сценариев molecule роли clickhouse
+molecule test -s ubuntu_focal
+```
+<details>
+<summary>Molecule test</summary>
+```
+WARNING  Driver docker does not provide a schema.
+ERROR    Failed to validate /home/shoel/nfs_git/gited/17_5/roles/clickhouse/molecule/ubuntu_focal/molecule.yml
+```
+<details>
+
+```bash
+# завершения работы с виртуальным окружением Python в roles/clickhouse
+deactivate
+
+# Выход в корневой каталог работы
+cd ../..
+
+# Создание виртуального окружения Python
+python -m venv .venv
+
+# 
+source .venv/bin/activate
+
+# Обновление пакетного репозитория
+pip install -U pip
+
+# установка нужных драйверов
+pip install \
+molecule \
+molecule-docker \
+ansible \
+molecule \
+molecule-podman
+
+# смена расположения в каталог с ролью vector-role
+cd roles/vector-role
+
+# Создание сценария тестирования
+molecule init \
+scenario \
+default
+```
+
+<details>
+<summary>Molecule init</summary>
+```ash
+INFO     default ➜ init: Initializing new scenario default...
+
+PLAY [Create a new molecule scenario] ******************************************
+
+TASK [Check if destination folder exists] **************************************
+changed: [localhost]
+
+TASK [Check if destination folder is empty] ************************************
+ok: [localhost]
+
+TASK [Fail if destination folder is not empty] *********************************
+skipping: [localhost]
+
+TASK [Expand templates] ********************************************************
+changed: [localhost] => (item=molecule/default/converge.yml)
+changed: [localhost] => (item=molecule/default/create.yml)
+changed: [localhost] => (item=molecule/default/destroy.yml)
+changed: [localhost] => (item=molecule/default/molecule.yml)
+changed: [localhost] => (item=molecule/default/verify.yml)
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+```
+</details>
+
+```bash
+# sd
 ```

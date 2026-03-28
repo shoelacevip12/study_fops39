@@ -1,0 +1,30 @@
+# roles/lighthouse-role/tasks/upd_inst.yml
+---
+- name: Установка пакетов для веб-сервера Ubuntu
+  apt:
+    name:
+      - nginx
+      - curl
+      - apache2-utils
+    update_cache: true
+
+- name: Создать временную директорию для загрузки
+  file:
+    path: "{{ lighthouse_config.source.extract_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Скачать исходники Lighthouse
+  get_url:
+    url: "{{ lighthouse_config.source.repo_url }}"
+    dest: "{{ lighthouse_config.source.dest_archive }}"
+    mode: '0644'
+    timeout: 30
+
+- name: Распаковать архив
+  unarchive:
+    src: "{{ lighthouse_config.source.dest_archive }}"
+    dest: "{{ lighthouse_config.source.extract_path }}"
+    remote_src: true
+    creates: "{{ lighthouse_config.source.extract_path }}/lighthouse-{{ lighthouse_config.source.version }}"
+...

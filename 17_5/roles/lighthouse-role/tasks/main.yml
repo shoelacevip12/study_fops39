@@ -1,0 +1,17 @@
+---
+- name: Загрузка задач установки
+  include_tasks: lh_inst.yml
+  tags: [install, lighthouse]
+
+- name: Загрузка задач развёртывания
+  include_tasks: lh_dir.yml
+  tags: [config, lighthouse]
+
+- name: Загрузка задач настройки службы
+  include_tasks: lh_serv.yml
+  tags: [service, lighthouse]
+
+- name: Загрузка задач проверки
+  include_tasks: lh_verif.yml
+  tags: [verify, lighthouse]
+...

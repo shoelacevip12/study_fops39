@@ -1,0 +1,15 @@
+---
+- name: Перезагрузить nginx
+  systemd:
+    name: "{{ lighthouse_config.nginx.service_name }}"
+    state: reloaded
+    daemon_reload: true
+  listen: "Перезагрузить nginx"
+
+- name: Перезапустить nginx
+  systemd:
+    name: "{{ lighthouse_config.nginx.service_name }}"
+    state: restarted
+    daemon_reload: true
+  listen: "Перезапустить nginx"
+...

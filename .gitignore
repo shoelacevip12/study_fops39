@@ -10,6 +10,7 @@ collections/
 galaxy_cache/
 tmp/
 .vscode/
+.venv/
 
 # игнорировать расширения и файлы:
 *.deb

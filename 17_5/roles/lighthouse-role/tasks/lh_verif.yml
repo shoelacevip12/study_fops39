@@ -1,0 +1,52 @@
+---
+- name: Проверить статус службы nginx
+  systemd:
+    name: "{{ lighthouse_config.nginx.service_name }}"
+  register: nginx_status
+
+- name: Проверить доступность веб-интерфейса
+  uri:
+    url: "http://127.0.0.1:{{ lighthouse_config.nginx.listen_port }}/"
+    status_code: 200
+    timeout: "{{ lighthouse_config.validation.curl_timeout }}"
+  register: lighthouse_http_check
+  changed_when: false
+  failed_when: false
+
+- name: Вывести результат проверки HTTP
+  debug:
+    msg: "Lighthouse доступен - код: {{ lighthouse_http_check.status }}"
+  when: lighthouse_http_check.status == 200
+
+- name: Проверить подключение к ClickHouse через прокси
+  uri:
+    url: "http://127.0.0.1:{{ lighthouse_config.nginx.listen_port }}/clickhouse?query=SELECT%201"
+    method: GET
+    status_code: 200
+    timeout: 10
+  register: clickhouse_proxy_check
+  when: lighthouse_config.proxy.enabled | bool
+  changed_when: false
+  failed_when: false
+
+- name: Вывести итоговую информацию для пользователя
+  debug:
+    msg: |
+      Lighthouse развёрнут успешно!
+      
+      Доступ по адресу:
+        http://{{ ansible_host | default(inventory_hostname) }}:{{ lighthouse_config.nginx.listen_port }}
+      
+      Параметры подключения к ClickHouse:
+        Host: {{ lighthouse_config.clickhouse.endpoint }}
+        User: {{ lighthouse_config.clickhouse.user }}
+        DB:   {{ lighthouse_config.clickhouse.database }}
+      
+      URL для быстрого доступа:
+        http://{{ ansible_host | default(inventory_hostname) }}/?user={{ lighthouse_config.clickhouse.user }}&password={{ lighthouse_config.clickhouse.password }}&host={{ lighthouse_config.clickhouse.endpoint }}
+      
+       В продакшене:
+        - Используйте HTTPS
+        - Не передавайте пароль в URL
+        - Настройте RBAC в ClickHouse
+...
