@@ -4,9 +4,9 @@
     version: "1.13"
     name: clickhouse
 
-  - src: git@github.com:shoelacevip12/vector-role.git
+  - src: git@github.com:shoelacevip12/vector.git
     scm: git
-    name: vector-role
+    name: vector
 
   - src: git@github.com:shoelacevip12/lighthouse-role.git
     scm: git

@@ -6,5 +6,5 @@
   gather_facts: true
 
   roles:
-    - vector-role
+    - vector
 ...

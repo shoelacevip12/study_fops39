@@ -181,13 +181,13 @@ Starting galaxy role install process
 - clickhouse (1.13) was installed successfully
 ```
 ```bash
-# Новая структура с ролью vector-role
+# Новая структура с ролью vector
 ansible-galaxy role \
 init \
-roles/vector-role
+roles/vector
 ```
 ```
-- Role vector-role was created successfully
+- Role vector was created successfully
 ```
 ## Создание настроек работы ansible для текущего проекта в каталоге 
 ```bash
@@ -226,7 +226,7 @@ export ANSIBLE_CONFIG=./ansible.cfg
 ## РАспределение значений переменных по умолчанию
 ```bash
 # создание общего словаря vector_config переменных по умолчанию
-cat > roles/vector-role/defaults/main.yml <<'EOF'
+cat > roles/vector/defaults/main.yml <<'EOF'
 ---
 vector_config:
   sources:
@@ -268,7 +268,7 @@ EOF
 ## Формирование шаблонов для роли vector datadog
 ### основной конфиг
 ```bash
-cat > roles/vector-role/templates/vector.yaml.j2 <<'EOF'
+cat > roles/vector/templates/vector.yaml.j2 <<'EOF'
 ---
 # === ИСТОЧНИКИ ===
 sources:
@@ -303,7 +303,7 @@ EOF
 ```
 ### служба для vector
 ```bash
-cat > roles/vector-role/templates/vector.service.j2 <<'EOF'
+cat > roles/vector/templates/vector.service.j2 <<'EOF'
 [Unit]
 Description=Vector
 Documentation=https://vector.dev
@@ -331,7 +331,7 @@ EOF
 ## Формирование Tasks Для vector datadog
 ```bash
 # Задачи установки ПО
-cat > roles/vector-role/tasks/upd_inst.yml <<'EOF'
+cat > roles/vector/tasks/upd_inst.yml <<'EOF'
 ---
 - name: Установка для загрузки Vector
   apt:
@@ -364,7 +364,7 @@ EOF
 ```
 ```bash
 # Задачи по созданию нужных каталогов и файлов
-cat > roles/vector-role/tasks/upd_dir.yml <<'EOF'
+cat > roles/vector/tasks/upd_dir.yml <<'EOF'
 ---
 - name: Директория для конфигурации Vector datadog
   file:
@@ -408,7 +408,7 @@ EOF
 ```
 ```bash
 # Задачи по запуску службы
-cat > roles/vector-role/tasks/upd_serv.yml <<'EOF'
+cat > roles/vector/tasks/upd_serv.yml <<'EOF'
 ---
 - name: Создать systemd unit-файл для Vector
   template:
@@ -431,7 +431,7 @@ EOF
 ```
 ```bash
 # Проверка работы службы в рамках отдельных задач
-cat > roles/vector-role/tasks/upd_verif.yml <<'EOF'
+cat > roles/vector/tasks/upd_verif.yml <<'EOF'
 ---
 - name: Проверка статуса службы Vector
   systemd:
@@ -461,7 +461,7 @@ cat > playbook_vector.yaml <<'EOF'
   gather_facts: true
 
   roles:
-    - vector-role
+    - vector
 ...
 EOF
 ```
@@ -631,7 +631,7 @@ cat >playbook_vector.yaml <<'EOF'
   gather_facts: yes
 
   roles:
-  - vector-role
+  - vector
 ...
 EOF
 ```
@@ -650,7 +650,7 @@ export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 ```
 ```
 ....
-TASK [vector-role : Проверка конфигурации Vector (валидация)] **************
+TASK [vector : Проверка конфигурации Vector (валидация)] **************
 ok: [192.168.89.106] => 
     changed: false
     cmd:
@@ -673,7 +673,7 @@ ok: [192.168.89.106] =>
                                    Validated
     stdout_lines: <omitted>
 
-TASK [vector-role : Результат валидации конфига] **********
+TASK [vector : Результат валидации конфига] **********
 ok: [192.168.89.106] => 
     msg: Конфигурация Vector валидна
 ....
@@ -1149,13 +1149,13 @@ cd ../..
 # создание репозитория через github cli
 gh repo \
 create \
-vector-role --public
+vector --public
 
 # клонирование пустого репозитория
-git clone https://github.com/shoelacevip12/vector-role
+git clone https://github.com/shoelacevip12/vector
 
 # смена названия каталога локально 
-mv vector-role gh_vector_role
+mv vector gh_vector_role
 
 cd !$
 
@@ -1168,7 +1168,7 @@ git config \
 #### копирование в локальный каталог
 ```bash
 cp -r \
-../gited/17_4/roles/vector-role/* \
+../gited/17_4/roles/vector/* \
 .
 
 # вывод всего что есть в репозитории + бинарные файлы git
@@ -1229,8 +1229,8 @@ tree . -a
 git remote -v
 ```
 ```
-origin  git@github.com:shoelacevip12/vector-role.git (fetch)
-origin  git@github.com:shoelacevip12/vector-role.git (push)
+origin  git@github.com:shoelacevip12/vector.git (fetch)
+origin  git@github.com:shoelacevip12/vector.git (push)
 ```
 ```bash
 # Проверка текущего локального состояния репозитория
@@ -1263,7 +1263,7 @@ git add . \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленные репозиторий
-git commit -am '1 commmit vector-role, master' \
+git commit -am '1 commmit vector, master' \
 && git push origin main
 ```
 #### Формирование тега по семантическому версионированию
@@ -1272,7 +1272,7 @@ git commit -am '1 commmit vector-role, master' \
 git log --oneline
 ```
 ```
-54b481e (HEAD -> main, origin/main) 1 commmit vector-role, master
+54b481e (HEAD -> main, origin/main) 1 commmit vector, master
 ```
 ```bash
 # Создание Аннотированного тега v0.1
@@ -1463,10 +1463,10 @@ cat > requirements.yml <<'EOF'
     version: "1.13"
     name: clickhouse
 
-  - src: git@github.com:shoelacevip12/vector-role.git
+  - src: git@github.com:shoelacevip12/vector.git
     scm: git
     # version: "v0.1"
-    name: vector-role
+    name: vector
 
   - src: git@github.com:shoelacevip12/lighthouse-role.git
     scm: git
@@ -1477,7 +1477,7 @@ EOF
 ### Минимальное Заполнение файла meta для новых ролей
 #### для vector
 ```bash
-cat > roles/vector-role/meta/main.yml <<'EOF'
+cat > roles/vector/meta/main.yml <<'EOF'
 ---
 galaxy_info:
   author: shoelacevip12
@@ -1493,7 +1493,7 @@ dependencies: []
 ...
 EOF
 
-cp roles/vector-role/meta/main.yml \
+cp roles/vector/meta/main.yml \
 ../../gh_vector_role/meta/
 
 cd !$
@@ -1564,8 +1564,8 @@ ansible-galaxy install \
 ```
 ```
 - clickhouse (1.13) is already installed, skipping.
-- extracting vector-role to /home/shoel/nfs_git/gited/17_4/1/roles/vector-role
-- vector-role was installed successfully
+- extracting vector to /home/shoel/nfs_git/gited/17_4/1/roles/vector
+- vector was installed successfully
 - extracting lighthouse-role to /home/shoel/nfs_git/gited/17_4/1/roles/lighthouse-role
 - lighthouse-role was installed successfully
 ```

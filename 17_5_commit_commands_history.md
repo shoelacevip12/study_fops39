@@ -167,9 +167,7 @@ docker pull \
 antmelekhin/docker-systemd:ubuntu-24.04 
 
 docker pull \
-antmelekhin/docker-systemd:rockylinux-10
-
-
+antmelekhin/docker-systemd:debian-13
 
 # установка зависимостей для docker драйвера через коллекцию
 ansible-galaxy collection \
@@ -218,9 +216,9 @@ cat > requirements.yml <<'EOF'
     version: "1.13"
     name: clickhouse
 
-  - src: git@github.com:shoelacevip12/vector-role.git
+  - src: git@github.com:shoelacevip12/vector.git
     scm: git
-    name: vector-role
+    name: vector
 
   - src: git@github.com:shoelacevip12/lighthouse-role.git
     scm: git
@@ -240,8 +238,8 @@ ansible-galaxy install \
 Starting galaxy role install process
 - extracting clickhouse to /home/shoel/nfs_git/gited/17_5/roles/clickhouse
 - clickhouse (1.13) was installed successfully
-- extracting vector-role to /home/shoel/nfs_git/gited/17_5/roles/vector-role
-- vector-role was installed successfully
+- extracting vector to /home/shoel/nfs_git/gited/17_5/roles/vector
+- vector was installed successfully
 - extracting lighthouse-role to /home/shoel/nfs_git/gited/17_5/roles/lighthouse-role
 - lighthouse-role was installed successfully
 ```
@@ -303,8 +301,8 @@ ansible \
 molecule \
 molecule-podman
 
-# смена расположения в каталог с ролью vector-role
-cd roles/vector-role
+# смена расположения в каталог с ролью vector
+cd roles/vector
 
 # Создание сценария тестирования default
 molecule init \
@@ -342,83 +340,35 @@ localhost                  : ok=3    changed=2    unreachable=0    failed=0    s
 
 </details>
 
+### Создание файлов для заглушки
 ```bash
-# Создание сценария тестирования для ubuntu 24.04
-molecule init \
-scenario \
-ubuntu-2404
+echo 'collections: []' > collections.yml
+
+echo '[]' > requirements.yml
+
+mkdir -p molecule/default/roles/
+
+cd molecule/default/roles/
+
+ln -s ../../.. \
+./vector
+
+cd -
+
+ll molecule/default/roles/vector \
+| cut -d ' ' -f9-11
+```
+molecule/default/roles/vector -> ../../..
 ```
 
-<details>
-<summary>Molecule init ubuntu</summary>
-
+cat > molecule/default/requirements.yml <<'EOF'
+---
+collections: []
+roles:
+  - src: ../../../..
+    name: vector
+EOF
 ```
-INFO     ubuntu-2404 ➜ init: Initializing new scenario ubuntu-2404...
-
-PLAY [Create a new molecule scenario] ******************************************
-
-TASK [Check if destination folder exists] **************************************
-changed: [localhost]
-
-TASK [Check if destination folder is empty] ************************************
-ok: [localhost]
-
-TASK [Fail if destination folder is not empty] *********************************
-skipping: [localhost]
-
-TASK [Expand templates] ********************************************************
-changed: [localhost] => (item=molecule/ubuntu-2404/converge.yml)
-changed: [localhost] => (item=molecule/ubuntu-2404/molecule.yml)
-changed: [localhost] => (item=molecule/ubuntu-2404/create.yml)
-changed: [localhost] => (item=molecule/ubuntu-2404/verify.yml)
-changed: [localhost] => (item=molecule/ubuntu-2404/destroy.yml)
-
-PLAY RECAP *********************************************************************
-localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
-
-INFO     ubuntu-2404 ➜ init: Initialized scenario in /home/shoel/nfs_git/gited/17_5/roles/vector-role/molecule/ubuntu-2404 successfully.
-```
-
-</details>
-
-```bash
-# Создание сценария тестирования для rockylinux-10
-molecule init \
-scenario \
-rockylinux-10
-```
-
-<details>
-<summary>Molecule init ubuntu</summary>
-
-```
-INFO     rockylinux-10 ➜ init: Initializing new scenario rockylinux-10...
-
-PLAY [Create a new molecule scenario] ******************************************
-
-TASK [Check if destination folder exists] **************************************
-changed: [localhost]
-
-TASK [Check if destination folder is empty] ************************************
-ok: [localhost]
-
-TASK [Fail if destination folder is not empty] *********************************
-skipping: [localhost]
-
-TASK [Expand templates] ********************************************************
-changed: [localhost] => (item=molecule/rockylinux-10/converge.yml)
-changed: [localhost] => (item=molecule/rockylinux-10/molecule.yml)
-changed: [localhost] => (item=molecule/rockylinux-10/create.yml)
-changed: [localhost] => (item=molecule/rockylinux-10/verify.yml)
-changed: [localhost] => (item=molecule/rockylinux-10/destroy.yml)
-
-PLAY RECAP *********************************************************************
-localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
-
-INFO     rockylinux-10 ➜ init: Initialized scenario in /home/shoel/nfs_git/gited/17_5/roles/vector-role/molecule/rockylinux-10 successfully.
-```
-
-</details>
 
 ## commit_2, `17_5-ansible_testing`
 ```bash
@@ -466,6 +416,498 @@ study_fops39_gitflic_ru \
 17_5-ansible_testing
 ```
 ## commit_3 `17_5-ansible_testing`
+### Добавление сценария default
 ```bash
+cat >  molecule/default/molecule.yml <<'EOF'
+---
+dependency:
+  name: galaxy
+  enabled: false
+
+driver:
+  name: docker
+
+platforms:
+  - name: instance-ubuntu
+    dockerfile: 24.04.Dockerfile
+    image: molecule-vector-ubuntu:24.04
+    command: /lib/systemd/systemd
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    tmpfs:
+      - /tmp
+      - /run
+      - /run/lock
+  
+  - name: instance-debian
+    dockerfile: 13.Dockerfile
+    image: molecule-vector-debian:13
+    command: /lib/systemd/systemd
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    tmpfs:
+      - /tmp
+      - /run
+      - /run/lock
+
+provisioner:
+  name: ansible
+  ansible_args:
+    - --skip-tags=service,verify
+  inventory:
+    host_vars:
+      instance-ubuntu:
+        ansible_connection: community.docker.docker
+        ansible_user: root
+        ansible_python_interpreter: /usr/bin/python3
+      instance-debian:
+        ansible_connection: community.docker.docker
+        ansible_user: root
+        ansible_python_interpreter: /usr/bin/python3
+verifier:
+  name: ansible
+lint: |
+  set -e
+  yamllint .
+  ansible-lint
+...
+EOF
+```
+### Для шага converge
+```bash
+cat > molecule/default/converge.yml <<'EOF'
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Применить тестируемую роль
+      include_role:
+        name: "vector"
+...
+EOF
+```
+### Для шага create
+```bash
+cat > molecule/default/create.yml <<'EOF'
+---
+- name: Create
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Создание образов
+      community.docker.docker_image:
+        name: "{{ item.image }}"
+        build:
+          path: "{{ molecule_scenario_directory }}"
+          dockerfile: "{{ item.dockerfile }}"
+        source: build
+      loop: "{{ molecule_yml.platforms }}"
+
+    - name: Создание контейнеров
+      community.docker.docker_container:
+        name: "{{ item.name }}"
+        image: "{{ item.image }}"
+        state: started
+        command: "{{ item.command }}"
+        privileged: "{{ item.privileged }}"
+        volumes: "{{ item.volumes }}"
+        tmpfs: "{{ item.tmpfs }}"
+        cgroupns_mode: "{{ item.cgroupns_mode }}"
+        detach: true
+      loop: "{{ molecule_yml.platforms }}"
+...
+EOF
+```
+### Для шага destroy
+```bash
+cat > molecule/default/destroy.yml <<'EOF'
+---
+- name: Destroy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Уничтожение контейнера
+      community.docker.docker_container:
+        name: "{{ item.name }}"
+        state: absent
+        force_kill: true
+      loop: "{{ molecule_yml.platforms }}"
+  
+    - name: Удаление Образов
+      community.docker.docker_image:
+        name: "{{ item.image }}"
+        state: absent
+        force_absent: true
+      loop: "{{ molecule_yml.platforms }}"
+      ignore_errors: true
+...
+EOF
+```
+### Для шага verify
+```bash
+cat > molecule/default/verify.yml <<'EOF'
+---
+- name: Проверка роли vector
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Проверка наличия исполняемого файла
+      stat:
+        path: /usr/bin/vector
+      register: bin_stat
+
+    - name: Подтверждение наличия исполняемого файла vector
+      assert:
+        that:
+          - bin_stat.stat.exists
+        fail_msg: "Vector binary not found at /usr/bin/vector"
+
+    - name: Существует ли конфигурация vector
+      stat:
+        path: /etc/vector/vector.yaml
+      register: cfg_stat
+
+    - name: Подтверждение наличия vector config
+      assert:
+        that:
+          - cfg_stat.stat.exists
+          - cfg_stat.stat.size | int > 0
+        fail_msg: "Vector config /etc/vector/vector.yaml missing or empty"
+
+    - name: Проверка синтаксиса конфигурации vector
+      command: /usr/bin/vector validate /etc/vector/vector.yaml
+      register: validate_result
+      changed_when: false
+      failed_when: false
+
+    - name: Вывод проверки результата
+      debug:
+        msg: "Valid = {{ 'yes' if validate_result.rc == 0 else 'no' }} (rc={{ validate_result.rc }})"
+...
+EOF
+```
+### Вывод получившихся шагов
+```bash
+molecule matrix test
+```
+<details>
+<summary>Molecule Test matrix</summary>
 
 ```
+Test matrix
+-----------
+default
+  ├─ dependency Missing playbook (remove from test_sequence to suppress)
+  ├─ cleanup Missing playbook (remove from test_sequence to suppress)
+  ├─ destroy /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/default/destroy.yml
+  ├─ syntax Missing playbook (remove from test_sequence to suppress)
+  ├─ create /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/default/create.yml
+  ├─ prepare Missing playbook (remove from test_sequence to suppress)
+  ├─ converge /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/default/converge.yml
+  ├─ idempotence Missing playbook (remove from test_sequence to suppress)
+  ├─ side_effect Missing playbook (remove from test_sequence to suppress)
+  ├─ verify /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/default/verify.yml
+  ├─ cleanup Missing playbook (remove from test_sequence to suppress)
+  └─ destroy /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/default/destroy.yml
+```
+
+</details>
+
+### Запуск проверок
+```bash
+# несколько запусков для обхода отработки обработчиков роли
+molecule test --destroy=never \
+; molecule converge \
+&& molecule verify \
+&& molecule destroy
+```
+<details>
+<summary>Molecule Test matrix</summary>
+
+```
+INFO     default ➜ discovery: scenario test matrix: dependency, cleanup, destroy, syntax, create, prepare, converge, idempotence, side_effect, verify, cleanup, destroy
+INFO     default ➜ prerun: Performing prerun with role_name_check=0...
+INFO     default ➜ dependency: Executing
+INFO     default ➜ dependency: Executed: 2 disabled
+INFO     default ➜ cleanup: Executing
+INFO     default ➜ destroy: Executing
+INFO     default ➜ destroy: Executed: Successful
+INFO     default ➜ syntax: Executing
+INFO     Sanity checks: 'docker'
+
+playbook: /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/default/converge.yml
+INFO     default ➜ syntax: Executed: Successful
+INFO     default ➜ create: Executing
+
+PLAY [Create] ******************************************************************
+
+TASK [Создание образов] ********************************************************
+changed: [localhost] => (item={'cgroupns_mode': 'host', 'command': '/lib/systemd/systemd', 'dockerfile': '24.04.Dockerfile', 'image': 'molecule-vector-ubuntu:24.04', 'name': 'instance-ubuntu', 'privileged': True, 'tmpfs': ['/tmp', '/run', '/run/lock'], 'volumes': ['/sys/fs/cgroup:/sys/fs/cgroup:rw']})
+changed: [localhost] => (item={'cgroupns_mode': 'host', 'command': '/lib/systemd/systemd', 'dockerfile': '13.Dockerfile', 'image': 'molecule-vector-debian:13', 'name': 'instance-debian', 'privileged': True, 'tmpfs': ['/tmp', '/run', '/run/lock'], 'volumes': ['/sys/fs/cgroup:/sys/fs/cgroup:rw']})
+
+TASK [Создание контейнеров] ****************************************************
+changed: [localhost] => (item={'cgroupns_mode': 'host', 'command': '/lib/systemd/systemd', 'dockerfile': '24.04.Dockerfile', 'image': 'molecule-vector-ubuntu:24.04', 'name': 'instance-ubuntu', 'privileged': True, 'tmpfs': ['/tmp', '/run', '/run/lock'], 'volumes': ['/sys/fs/cgroup:/sys/fs/cgroup:rw']})
+changed: [localhost] => (item={'cgroupns_mode': 'host', 'command': '/lib/systemd/systemd', 'dockerfile': '13.Dockerfile', 'image': 'molecule-vector-debian:13', 'name': 'instance-debian', 'privileged': True, 'tmpfs': ['/tmp', '/run', '/run/lock'], 'volumes': ['/sys/fs/cgroup:/sys/fs/cgroup:rw']})
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+INFO     default ➜ create: Executed: Successful
+INFO     default ➜ prepare: Executing
+INFO     default ➜ converge: Executing
+
+PLAY [Converge] ****************************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [Применить тестируемую роль] **********************************************
+included: vector for instance-debian, instance-ubuntu
+
+TASK [vector : Обновление и установка основных пакетов] ************************
+included: /home/shoel/nfs_git/gited/17_5/roles/vector/tasks/upd_inst.yml for instance-debian, instance-ubuntu
+
+TASK [vector : Установка для загрузки Vector] **********************************
+changed: [instance-debian]
+changed: [instance-ubuntu]
+
+TASK [vector : Скачать Vector tar.gz] ******************************************
+changed: [instance-ubuntu]
+changed: [instance-debian]
+
+TASK [vector : Распаковать Vector в /opt] **************************************
+changed: [instance-debian]
+changed: [instance-ubuntu]
+
+TASK [vector : Создать symlink] ************************************************
+changed: [instance-debian]
+changed: [instance-ubuntu]
+
+TASK [vector : Обновление и создание необходимых каталогов и файлов] ***********
+included: /home/shoel/nfs_git/gited/17_5/roles/vector/tasks/upd_dir.yml for instance-debian, instance-ubuntu
+
+TASK [vector : Директория для конфигурации Vector datadog] *********************
+changed: [instance-debian]
+changed: [instance-ubuntu]
+
+TASK [vector : Директория для дискового буФЕРА Vector datadog] *****************
+changed: [instance-debian]
+changed: [instance-ubuntu]
+
+TASK [vector : Первое Развертывание из шаблона] ********************************
+changed: [instance-debian]
+changed: [instance-ubuntu]
+
+TASK [vector : Повторное Развертывание из шаблона с валидацией] ****************
+skipping: [instance-debian]
+skipping: [instance-ubuntu]
+
+RUNNING HANDLER [vector : Перезапустить Vector] ********************************
+[ERROR]: Task failed: Module failed: Could not find the requested service vector: host
+Origin: /home/shoel/nfs_git/gited/17_5/roles/vector/handlers/main.yml:2:3
+
+1 ---
+2 - name: Перезапустить Vector
+    ^ column 3
+
+fatal: [instance-debian]: FAILED! => 
+    changed: false
+    msg: 'Could not find the requested service vector: host'
+fatal: [instance-ubuntu]: FAILED! => 
+    changed: false
+    msg: 'Could not find the requested service vector: host'
+
+PLAY RECAP *********************************************************************
+instance-debian            : ok=11   changed=7    unreachable=0    failed=1    skipped=1    rescued=0    ignored=0
+instance-ubuntu            : ok=11   changed=7    unreachable=0    failed=1    skipped=1    rescued=0    ignored=0
+
+CRITICAL Ansible return code was 2, command was: ansible-playbook --inventory /home/shoel/.ansible/tmp/molecule.sNUc.default/inventory --skip-tags molecule-notest,notest --skip-tags=service,verify /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/default/converge.yml
+ERROR    default ➜ converge: Executed: Failed
+ERROR    Ansible return code was 2, command was: ansible-playbook --inventory /home/shoel/.ansible/tmp/molecule.sNUc.default/inventory --skip-tags molecule-notest,notest --skip-tags=service,verify /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/default/converge.yml
+INFO     default ➜ discovery: scenario test matrix: dependency, create, prepare, converge
+INFO     default ➜ prerun: Performing prerun with role_name_check=0...
+INFO     default ➜ dependency: Executing
+INFO     default ➜ dependency: Executed: 2 disabled
+INFO     default ➜ create: Executing
+INFO     default ➜ create: Executed: Skipped (Skipping, instances already created.)
+INFO     default ➜ prepare: Executing
+INFO     default ➜ converge: Executing
+INFO     Sanity checks: 'docker'
+
+PLAY [Converge] ****************************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [Применить тестируемую роль] **********************************************
+included: vector for instance-debian, instance-ubuntu
+
+TASK [vector : Обновление и установка основных пакетов] ************************
+included: /home/shoel/nfs_git/gited/17_5/roles/vector/tasks/upd_inst.yml for instance-debian, instance-ubuntu
+
+TASK [vector : Установка для загрузки Vector] **********************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [vector : Скачать Vector tar.gz] ******************************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [vector : Распаковать Vector в /opt] **************************************
+skipping: [instance-ubuntu]
+skipping: [instance-debian]
+
+TASK [vector : Создать symlink] ************************************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [vector : Обновление и создание необходимых каталогов и файлов] ***********
+included: /home/shoel/nfs_git/gited/17_5/roles/vector/tasks/upd_dir.yml for instance-debian, instance-ubuntu
+
+TASK [vector : Директория для конфигурации Vector datadog] *********************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [vector : Директория для дискового буФЕРА Vector datadog] *****************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [vector : Первое Развертывание из шаблона] ********************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [vector : Повторное Развертывание из шаблона с валидацией] ****************
+skipping: [instance-debian]
+skipping: [instance-ubuntu]
+
+PLAY RECAP *********************************************************************
+instance-debian            : ok=10   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+instance-ubuntu            : ok=10   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+
+INFO     default ➜ converge: Executed: Successful
+INFO     default ➜ discovery: scenario test matrix: verify
+INFO     default ➜ prerun: Performing prerun with role_name_check=0...
+INFO     default ➜ verify: Executing
+INFO     Sanity checks: 'docker'
+
+PLAY [Проверка роли vector] ****************************************************
+
+TASK [Проверка наличия исполняемого файла] *************************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [Подтверждение наличия исполняемого файла vector] *************************
+ok: [instance-debian] => 
+    changed: false
+    msg: All assertions passed
+ok: [instance-ubuntu] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [Существует ли конфигурация vector] ***************************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [Подтверждение наличия vector config] *************************************
+ok: [instance-debian] => 
+    changed: false
+    msg: All assertions passed
+ok: [instance-ubuntu] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [Проверка синтаксиса конфигурации vector] *********************************
+ok: [instance-debian]
+ok: [instance-ubuntu]
+
+TASK [Вывод проверки результата] ***********************************************
+ok: [instance-debian] => 
+    msg: Valid = no (rc=78)
+ok: [instance-ubuntu] => 
+    msg: Valid = no (rc=78)
+
+PLAY RECAP *********************************************************************
+instance-debian            : ok=6    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+instance-ubuntu            : ok=6    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+INFO     default ➜ verify: Executed: Successful
+INFO     Molecule executed 1 scenario (1 successful)
+INFO     default ➜ discovery: scenario test matrix: dependency, cleanup, destroy
+INFO     default ➜ prerun: Performing prerun with role_name_check=0...
+INFO     default ➜ dependency: Executing
+INFO     default ➜ dependency: Executed: 2 disabled
+INFO     default ➜ cleanup: Executing
+INFO     default ➜ destroy: Executing
+INFO     Sanity checks: 'docker'
+
+PLAY [Destroy] *****************************************************************
+
+TASK [Уничтожение контейнера] **************************************************
+changed: [localhost] => (item={'cgroupns_mode': 'host', 'command': '/lib/systemd/systemd', 'dockerfile': '24.04.Dockerfile', 'image': 'molecule-vector-ubuntu:24.04', 'name': 'instance-ubuntu', 'privileged': True, 'tmpfs': ['/tmp', '/run', '/run/lock'], 'volumes': ['/sys/fs/cgroup:/sys/fs/cgroup:rw']})
+changed: [localhost] => (item={'cgroupns_mode': 'host', 'command': '/lib/systemd/systemd', 'dockerfile': '13.Dockerfile', 'image': 'molecule-vector-debian:13', 'name': 'instance-debian', 'privileged': True, 'tmpfs': ['/tmp', '/run', '/run/lock'], 'volumes': ['/sys/fs/cgroup:/sys/fs/cgroup:rw']})
+
+TASK [Удаление Образов] ********************************************************
+changed: [localhost] => (item={'cgroupns_mode': 'host', 'command': '/lib/systemd/systemd', 'dockerfile': '24.04.Dockerfile', 'image': 'molecule-vector-ubuntu:24.04', 'name': 'instance-ubuntu', 'privileged': True, 'tmpfs': ['/tmp', '/run', '/run/lock'], 'volumes': ['/sys/fs/cgroup:/sys/fs/cgroup:rw']})
+changed: [localhost] => (item={'cgroupns_mode': 'host', 'command': '/lib/systemd/systemd', 'dockerfile': '13.Dockerfile', 'image': 'molecule-vector-debian:13', 'name': 'instance-debian', 'privileged': True, 'tmpfs': ['/tmp', '/run', '/run/lock'], 'volumes': ['/sys/fs/cgroup:/sys/fs/cgroup:rw']})
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+INFO     default ➜ destroy: Executed: Successful
+INFO     default ➜ scenario: Pruning extra files from scenario ephemeral directory
+```
+
+</details>
+
+```bash
+# Переключение\формирование новой ветки git
+git checkout -b 17_5-ansible_testing
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit3, 17_5-ansible_testing' \
+&& git push \
+--set-upstream \
+study_fops39 \
+17_5-ansible_testing \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+17_5-ansible_testing
+```
+## commit_3 `17_5-ansible_testing`
