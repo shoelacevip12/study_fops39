@@ -1274,7 +1274,6 @@ git log --oneline
 ```
 54b481e (HEAD -> main, origin/main) 1 commmit vector, master
 ```
-```bash
 # Создание Аннотированного тега v0.1
 git tag \
 -a v0.1 \

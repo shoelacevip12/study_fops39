@@ -358,18 +358,9 @@ cd -
 ll molecule/default/roles/vector \
 | cut -d ' ' -f9-11
 ```
+```
 molecule/default/roles/vector -> ../../..
 ```
-
-cat > molecule/default/requirements.yml <<'EOF'
----
-collections: []
-roles:
-  - src: ../../../..
-    name: vector
-EOF
-```
-
 ## commit_2, `17_5-ansible_testing`
 ```bash
 # Просмотр истории коммитов в кратком формате
@@ -896,11 +887,11 @@ git diff \
 && git diff --staged
 
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
-git add . .. ../.. \
+git add . .. ../.. ../../.. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit3, 17_5-ansible_testing' \
+git commit -am 'commit3_upd1, 17_5-ansible_testing' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -910,4 +901,138 @@ study_fops39 \
 study_fops39_gitflic_ru \
 17_5-ansible_testing
 ```
-## commit_3 `17_5-ansible_testing`
+## commit_4 `17_5-ansible_testing`
+```bash
+rsync -arvP \
+./ \
+../../../../gh_vector_role/
+```
+
+<details>
+<summary>rsync log</summary>
+
+```
+sending incremental file list
+./
+README.md
+          5.535 100%    0,00kB/s    0:00:00 (xfr#1, to-chk=31/33)
+collections.yml
+             16 100%   15,62kB/s    0:00:00 (xfr#2, to-chk=30/33)
+requirements.yml
+              3 100%    2,93kB/s    0:00:00 (xfr#3, to-chk=29/33)
+defaults/
+defaults/main.yml
+            854 100%  104,25kB/s    0:00:00 (xfr#4, to-chk=21/33)
+handlers/
+handlers/main.yml
+            501 100%   61,16kB/s    0:00:00 (xfr#5, to-chk=20/33)
+meta/
+meta/.galaxy_install_info
+             77 100%    9,40kB/s    0:00:00 (xfr#6, to-chk=19/33)
+meta/main.yml
+            375 100%   45,78kB/s    0:00:00 (xfr#7, to-chk=18/33)
+molecule/
+molecule/default/
+molecule/default/13.Dockerfile
+            631 100%   77,03kB/s    0:00:00 (xfr#8, to-chk=16/33)
+molecule/default/24.04.Dockerfile
+            630 100%   76,90kB/s    0:00:00 (xfr#9, to-chk=15/33)
+molecule/default/converge.yml
+            174 100%   18,88kB/s    0:00:00 (xfr#10, to-chk=14/33)
+molecule/default/create.yml
+            836 100%   90,71kB/s    0:00:00 (xfr#11, to-chk=13/33)
+molecule/default/destroy.yml
+            548 100%   59,46kB/s    0:00:00 (xfr#12, to-chk=12/33)
+molecule/default/molecule.yml
+          1.147 100%  124,46kB/s    0:00:00 (xfr#13, to-chk=11/33)
+molecule/default/verify.yml
+          1.262 100%  136,94kB/s    0:00:00 (xfr#14, to-chk=10/33)
+molecule/default/roles/
+tasks/
+tasks/main.yml
+            529 100%   57,40kB/s    0:00:00 (xfr#15, to-chk=7/33)
+tasks/upd_dir.yml
+          1.046 100%  113,50kB/s    0:00:00 (xfr#16, to-chk=6/33)
+tasks/upd_inst.yml
+          1.094 100%  118,71kB/s    0:00:00 (xfr#17, to-chk=5/33)
+tasks/upd_serv.yml
+            465 100%   50,46kB/s    0:00:00 (xfr#18, to-chk=4/33)
+tasks/upd_verif.yml
+            485 100%   52,63kB/s    0:00:00 (xfr#19, to-chk=3/33)
+templates/
+templates/vector.service.j2
+            590 100%   64,02kB/s    0:00:00 (xfr#20, to-chk=2/33)
+templates/vector.yaml.j2
+          1.524 100%  165,36kB/s    0:00:00 (xfr#21, to-chk=1/33)
+vars/
+vars/main.yml
+              8 100%    0,78kB/s    0:00:00 (xfr#22, to-chk=0/33)
+
+sent 20.219 bytes  received 484 bytes  41.406,00 bytes/sec
+total size is 18.338  speedup is 0,89
+```
+
+</details>
+
+```bash
+cd !$
+```
+```
+cd ../../../../gh_vector_role/
+```
+```bash
+# Вывод списка удаленных репозиториев
+git remote -v
+
+git remote \
+remove \
+origin
+
+git remote \
+add \
+origin \
+git@github.com:shoelacevip12/vector.git
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . \
+&& git status
+
+# Создание Аннотированного тега v0.1
+git tag \
+-a v0.2 \
+-m 'skv_ansible_vector_role'
+
+# отображение всех тегов начинающихся с "v"
+git tag \
+-l "v*"
+```
+```
+v0.1
+v0.2
+```
+```bash
+# Внесение изменений в текущий коммит
+git add . \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+origin main --tags --force
+
+cd -
+```
