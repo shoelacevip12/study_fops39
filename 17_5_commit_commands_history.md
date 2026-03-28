@@ -140,8 +140,9 @@ sudo pacman \
 ```
 <details>
 <summary>pacman installation molecule</summary>
+
 ```
-...
+....
 Дополнительные зависимости для 'molecule'
     ansible: for the ansible verifier [установлено]
     ansible-navigator: to use navigator as playbook executor
@@ -150,8 +151,9 @@ sudo pacman \
     molecule-vagrant: for the vagrant driver
     python-pywinrm: for Windows support
     python-pytest-testinfra: for the testinfra verifier
-...
+....
 ```
+
 </details>
 
 ```bash
@@ -160,9 +162,14 @@ sudo systemctl \
 start \
 docker.service
 
-# Скачивание образов контейнеров для тестовой среды
+# Скачивание образов контейнеров для тестовых сред
 docker pull \
-aragast/netology:latest
+antmelekhin/docker-systemd:ubuntu-24.04 
+
+docker pull \
+antmelekhin/docker-systemd:rockylinux-10
+
+
 
 # установка зависимостей для docker драйвера через коллекцию
 ansible-galaxy collection \
@@ -171,6 +178,7 @@ community.docker
 ```
 <details>
 <summary>collection docker install</summary>
+
 ```
 Starting galaxy collection install process
 Process install dependency map
@@ -180,6 +188,7 @@ Installing 'community.docker:5.1.0' to '/home/shoel/.ansible/collections/ansible
 community.docker:5.1.0 was installed successfully
 'community.library_inventory_filtering_v1:1.1.5' is already installed, skipping.
 ```
+
 </details>
 
 ```bash
@@ -226,6 +235,7 @@ ansible-galaxy install \
 ```
 <details>
 <summary>roles install</summary>
+
 ```
 Starting galaxy role install process
 - extracting clickhouse to /home/shoel/nfs_git/gited/17_5/roles/clickhouse
@@ -235,6 +245,7 @@ Starting galaxy role install process
 - extracting lighthouse-role to /home/shoel/nfs_git/gited/17_5/roles/lighthouse-role
 - lighthouse-role was installed successfully
 ```
+
 </details>
 
 ```bash
@@ -261,11 +272,12 @@ molecule test -s ubuntu_focal
 ```
 <details>
 <summary>Molecule test</summary>
+
 ```
 WARNING  Driver docker does not provide a schema.
 ERROR    Failed to validate /home/shoel/nfs_git/gited/17_5/roles/clickhouse/molecule/ubuntu_focal/molecule.yml
 ```
-<details>
+</details>
 
 ```bash
 # завершения работы с виртуальным окружением Python в roles/clickhouse
@@ -294,15 +306,16 @@ molecule-podman
 # смена расположения в каталог с ролью vector-role
 cd roles/vector-role
 
-# Создание сценария тестирования
+# Создание сценария тестирования default
 molecule init \
 scenario \
 default
 ```
 
 <details>
-<summary>Molecule init</summary>
-```ash
+<summary>Molecule init default</summary>
+
+```
 INFO     default ➜ init: Initializing new scenario default...
 
 PLAY [Create a new molecule scenario] ******************************************
@@ -326,8 +339,133 @@ changed: [localhost] => (item=molecule/default/verify.yml)
 PLAY RECAP *********************************************************************
 localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
 ```
+
 </details>
 
 ```bash
-# sd
+# Создание сценария тестирования для ubuntu 24.04
+molecule init \
+scenario \
+ubuntu-2404
+```
+
+<details>
+<summary>Molecule init ubuntu</summary>
+
+```
+INFO     ubuntu-2404 ➜ init: Initializing new scenario ubuntu-2404...
+
+PLAY [Create a new molecule scenario] ******************************************
+
+TASK [Check if destination folder exists] **************************************
+changed: [localhost]
+
+TASK [Check if destination folder is empty] ************************************
+ok: [localhost]
+
+TASK [Fail if destination folder is not empty] *********************************
+skipping: [localhost]
+
+TASK [Expand templates] ********************************************************
+changed: [localhost] => (item=molecule/ubuntu-2404/converge.yml)
+changed: [localhost] => (item=molecule/ubuntu-2404/molecule.yml)
+changed: [localhost] => (item=molecule/ubuntu-2404/create.yml)
+changed: [localhost] => (item=molecule/ubuntu-2404/verify.yml)
+changed: [localhost] => (item=molecule/ubuntu-2404/destroy.yml)
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     ubuntu-2404 ➜ init: Initialized scenario in /home/shoel/nfs_git/gited/17_5/roles/vector-role/molecule/ubuntu-2404 successfully.
+```
+
+</details>
+
+```bash
+# Создание сценария тестирования для rockylinux-10
+molecule init \
+scenario \
+rockylinux-10
+```
+
+<details>
+<summary>Molecule init ubuntu</summary>
+
+```
+INFO     rockylinux-10 ➜ init: Initializing new scenario rockylinux-10...
+
+PLAY [Create a new molecule scenario] ******************************************
+
+TASK [Check if destination folder exists] **************************************
+changed: [localhost]
+
+TASK [Check if destination folder is empty] ************************************
+ok: [localhost]
+
+TASK [Fail if destination folder is not empty] *********************************
+skipping: [localhost]
+
+TASK [Expand templates] ********************************************************
+changed: [localhost] => (item=molecule/rockylinux-10/converge.yml)
+changed: [localhost] => (item=molecule/rockylinux-10/molecule.yml)
+changed: [localhost] => (item=molecule/rockylinux-10/create.yml)
+changed: [localhost] => (item=molecule/rockylinux-10/verify.yml)
+changed: [localhost] => (item=molecule/rockylinux-10/destroy.yml)
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     rockylinux-10 ➜ init: Initialized scenario in /home/shoel/nfs_git/gited/17_5/roles/vector-role/molecule/rockylinux-10 successfully.
+```
+
+</details>
+
+## commit_2, `17_5-ansible_testing`
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Переключение\формирование новой ветки git
+git checkout -b 17_5-ansible_testing
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit2, 17_5-ansible_testing' \
+&& git push \
+--set-upstream \
+study_fops39 \
+17_5-ansible_testing \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+17_5-ansible_testing
+```
+## commit_3 `17_5-ansible_testing`
+```bash
+
 ```
