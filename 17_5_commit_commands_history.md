@@ -80,4 +80,49 @@ master
 ```
 ## commit_1, `17_5-ansible_testing`
 ```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Переключение\формирование новой ветки git
+git checkout -b 17_5-ansible_testing
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit1_upd_8, 17_5-ansible_testing' \
+&& git push \
+--set-upstream \
+study_fops39 \
+17_5-ansible_testing \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+17_5-ansible_testing
+```
+## commit_2, `17_5-ansible_testing`
+```bash
 ```
