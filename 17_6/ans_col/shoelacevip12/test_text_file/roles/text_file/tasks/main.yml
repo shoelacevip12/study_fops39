@@ -1,0 +1,6 @@
+---
+- name: Создание файла с текстом в /tmp
+  text_file:
+    path: "{{ text_file_path }}"
+    content: "{{ text_file_content }}"
+...

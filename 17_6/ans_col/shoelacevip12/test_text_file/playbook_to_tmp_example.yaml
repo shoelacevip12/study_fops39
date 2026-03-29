@@ -1,0 +1,10 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Создание некоторого текстового файла
+  hosts: localhost
+  become: false
+  gather_facts: false
+
+  roles:
+    - text_file
+...

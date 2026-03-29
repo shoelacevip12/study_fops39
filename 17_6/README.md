@@ -18,6 +18,34 @@
 
 **Шаг 1.** В виртуальном окружении создайте новый `my_own_module.py` файл.
 
+```bash
+# Ansible Release
+wget https://github.com/ansible/ansible/archive/refs/tags/v2.20.4.tar.gz
+
+# извлечение архива
+tar -xvf v2.20.4.tar.gz
+
+rm v2.20.4.tar.gz
+
+# переименование папки
+mv ansible{-2.20.4,}
+
+cd ansible
+
+# Создание виртуального окружения python
+python3 -m venv venv
+
+# Активация виртуального окружения
+source venv/bin/activate
+
+# Установка зависимостей
+pip install -vr \
+requirements.txt
+
+# Запуск настройки окружения
+source hacking/env-setup
+```
+
 **Шаг 2.** Наполните его содержимым:
 
 ```python
@@ -160,42 +188,211 @@ if __name__ == '__main__':
 
 **Шаг 3.** Заполните файл в соответствии с требованиями Ansible так, чтобы он выполнял основную задачу: module должен создавать текстовый файл на удалённом хосте по пути, определённом в параметре `path`, с содержимым, определённым в параметре `content`.
 
+[Созданный модуль](./ans_col/shoelacevip12/test_text_file/plugins/modules/text_file.py)
+
 **Шаг 4.** Проверьте module на исполняемость локально.
+
+![](./img/1.png)
 
 **Шаг 5.** Напишите single task playbook и используйте module в нём.
 
+#### Создание Тестового playbook
+```bash
+cat > playbook_test_module.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Тестирование созданного модуля
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Создание файла с текстом
+      text_file:
+        path: /home/shoel/nfs_git/gited/17_6/test_play.txt
+        content: |
+          Разговор двух программистов:
+          - Что пишешь?
+          - Сейчас запустим - узнаем!
+...
+EOF
+
+# Делаем исполняемым для использования #!(шебанг) 
+chmod +x ./playbook_test_module.yaml 
+```
+
 **Шаг 6.** Проверьте через playbook на идемпотентность.
+
+![](./img/3.png)
+![](./img/2.png)
 
 **Шаг 7.** Выйдите из виртуального окружения.
 
 **Шаг 8.** Инициализируйте новую collection: `ansible-galaxy collection init my_own_namespace.yandex_cloud_elk`.
 
+```bash
+# инициализация коллекции
+ansible-galaxy collection \
+init \
+shoelacevip12.test_text_file
+
+cd shoelacevip12/test_text_file
+```
+
 **Шаг 9.** В эту collection перенесите свой module в соответствующую директорию.
+
+```bash
+# Создание каталога для модулей коллекции
+mkdir plugins/modules
+
+# Перенос созданного модуля в соответствующий каталог коллекции
+mv ../../../ansible/lib/ansible/modules/text_file.py \
+./plugins/modules/
+```
 
 **Шаг 10.** Single task playbook преобразуйте в single task role и перенесите в collection. У role должны быть default всех параметров module.
 
+#### Создание вручную роли внутри коллекции из одной task
+```bash
+# Создание роли text_file и ее базовой структуры 
+mkdir -p roles/text_file/{defaults,tasks,meta,vars}
+
+touch roles/text_file/README.md
+```
+#### Создание переменных по умолчанию 
+```bash
+cat > roles/text_file/defaults/main.yml <<'EOF'
+---
+text_file_path: /tmp/temp.txt
+text_file_content: "Я здесь, за эту улицу стою!"
+...
+EOF
+```
+#### Описание единственной задачи
+```bash
+cat > roles/text_file/tasks/main.yml <<'EOF'
+---
+- name: Создание файла с текстом в /tmp
+  text_file:
+    path: "{{ text_file_path }}"
+    content: "{{ text_file_content }}"
+...
+EOF
+```
+
 **Шаг 11.** Создайте playbook для использования этой role.
+
+#### Создание playbook для роли
+```bash
+cat > playbook_to_tmp_example.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Создание некоторого текстового файла
+  hosts: localhost
+  become: false
+  gather_facts: false
+
+  roles:
+    - text_file
+...
+EOF
+```
+
+#### Проверки playbook с ролью
+```bash
+# Предварительно экспортируем переменную с расположением нового модуля
+export ANSIBLE_LIBRARY=./plugins/modules
+
+# для вывода информации в yaml формате
+export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
+
+./*.yaml --syntax-check
+```
+```
+playbook: ./playbook_to_tmp_example.yaml
+```
+```bash
+ansible-lint ./*.yaml
+```
+
+<details>
+<summary>вывод об неудовлетворенных требованиях</summary>
+
+```json
+Passed: 0 failure(s), 0 warning(s) in 3 files processed of 3 encountered. Last profile that met the validation criteria was 'production'
+```
+
+</details>
+
+```bash
+yamllint ./*.yaml
+```
 
 **Шаг 12.** Заполните всю документацию по collection, выложите в свой репозиторий, поставьте тег `1.0.0` на этот коммит.
 
+[Galaxy info](./ans_col/shoelacevip12/test_text_file/galaxy.yml)
+
 **Шаг 13.** Создайте .tar.gz этой collection: `ansible-galaxy collection build` в корневой директории collection.
+
+#### Создание архива коллекции 
+```bash
+# создание архива из-под каталога коллекции shoelacevip12/test_text_file
+ansible-galaxy collection build
+```
+```
+Created collection for shoelacevip12.test_text_file at /home/shoel/nfs_git/gited/17_6/ans_col/shoelacevip12/test_text_file/shoelacevip12-test_text_file-0.1.0.tar.gz
+```
 
 **Шаг 14.** Создайте ещё одну директорию любого наименования, перенесите туда single task playbook и архив c collection.
 
+#### Создание каталога с тестовым play
+```bash
+# создание каталога для playbook теста модуля
+mkdir ../../../single_play_test
+
+cd !$
+```
+```
+cd ../../../single_play_test
+```
+```bash
+# Перенос тестового запроса json
+mv ../ansible/payload.json ./
+
+# Перенос тестового playbook
+mv ../ansible/playbook_test_module.yaml ./
+
+# Перенос архива роли
+mv ../ans_col/shoelacevip12/test_text_file/shoelacevip12-test_text_file-0.1.0.tar.gz \
+./
+
+# Локальная установка созданной роли
+ansible-galaxy collection \
+install \
+shoelacevip12-test_text_file-0.1.0.tar.gz
+```
+
+<details>
+<summary>Вывод установки созданной роли</summary>
+
+```bash
+Starting galaxy collection install process
+Process install dependency map
+Starting collection install process
+Installing 'shoelacevip12.test_text_file:0.1.0' to '/home/shoel/.ansible/collections/ansible_collections/shoelacevip12/test_text_file'
+shoelacevip12.test_text_file:0.1.0 was installed successfully
+```
+
+</details>
+
 **Шаг 15.** Установите collection из локального архива: `ansible-galaxy collection install <archivename>.tar.gz`.
+
+![](./img/5.png)
 
 **Шаг 16.** Запустите playbook, убедитесь, что он работает.
 
+![](./img/6.png)
+
 **Шаг 17.** В ответ необходимо прислать ссылки на collection и tar.gz архив, а также скриншоты выполнения пунктов 4, 6, 15 и 16.
-
-## Необязательная часть
-
-1. Реализуйте свой модуль для создания хостов в Yandex Cloud.
-2. Модуль может и должен иметь зависимость от `yc`, основной функционал: создание ВМ с нужным сайзингом на основе нужной ОС. Дополнительные модули по созданию кластеров ClickHouse, MySQL и прочего реализовывать не надо, достаточно простейшего создания ВМ.
-3. Модуль может формировать динамическое inventory, но эта часть не является обязательной, достаточно, чтобы он делал хосты с указанной спецификацией в YAML.
-4. Протестируйте модуль на идемпотентность, исполнимость. При успехе добавьте этот модуль в свою коллекцию.
-5. Измените playbook так, чтобы он умел создавать инфраструктуру под inventory, а после устанавливал весь ваш стек Observability на нужные хосты и настраивал его.
-6. В итоге ваша коллекция обязательно должна содержать: clickhouse-role (если есть своя), lighthouse-role, vector-role, два модуля: my_own_module и модуль управления Yandex Cloud хостами и playbook, который демонстрирует создание Observability стека.
 
 ---
 

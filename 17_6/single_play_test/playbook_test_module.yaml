@@ -1,0 +1,15 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Тестирование созданного модуля
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Создание файла с текстом
+      shoelacevip12.test_text_file.text_file:
+        path: /home/shoel/nfs_git/gited/17_6/test_play.txt
+        content: |
+          Разговор двух программистов:
+          - Что пишешь?
+          - Сейчас запустим - узнаем!
+...

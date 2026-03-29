@@ -12,6 +12,7 @@ tmp/
 .vscode/
 .venv/
 .tox/
+.pytest_cache/
 
 # игнорировать расширения и файлы:
 *.deb

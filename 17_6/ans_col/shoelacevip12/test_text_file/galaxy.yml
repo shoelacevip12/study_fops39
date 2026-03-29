@@ -1,0 +1,32 @@
+namespace: shoelacevip12
+
+name: test_text_file
+
+version: 0.1.0
+
+readme: README.md
+
+
+authors:
+  - shoelacevip12 <shoelacevip12@gmail.com>
+
+description: Коллекция для создания текстовых файлов на управляемых узлах с помощью Ansible модуля text_file. Включает роль, позволяющую удобно задавать путь и содержимое файла через переменные по умолчанию.
+
+license:
+  - GPL-2.0-or-later
+
+tags:
+  - file
+  - text
+  - simple
+  - ansible-role
+
+dependencies: {}
+
+repository: https://github.com/shoelacevip12/ans_col
+
+build_ignore:
+  - .vscode/
+  - __pycache__/
+  - .pytest_cache/
+  - .gitignore
