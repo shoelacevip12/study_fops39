@@ -1737,49 +1737,4 @@ study_fops39_gitflic_ru \
 ```
 ## commit_59, master `17_5-ansible_testing`
 ```bash
-eval $(ssh-agent) \
-&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
-&& ssh-add ~/.ssh/id_github_2026_ed25519 \
-&& ssh-agent -c
-
-git checkout master
-
-git branch -v
-
-git merge 17_5-ansible_testing
-
-git branch -v
-
-git status
-
-git diff \
-&& git diff \
---staged
-
-git add . .. \
-&& git status
-
-git log --oneline
-
-git commit -am 'commit_59, master' \
-&& git push \
---set-upstream \
-study_fops39 \
-master \
-&& git push \
---set-upstream \
-study_fops39_gitflic_ru \
-master
-
-git add . .. \
-&& git status \
-&& git commit --amend --no-edit \
-&& git push \
---set-upstream \
-study_fops39 \
-master --force \
-&& git push \
---set-upstream \
-study_fops39_gitflic_ru \
-master --force
 ```
