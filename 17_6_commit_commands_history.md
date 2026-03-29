@@ -731,7 +731,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit2, 17_6-ansible-modules' \
+git commit -am 'commit2_upd1, 17_6-ansible-modules' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -740,4 +740,157 @@ study_fops39 \
 --set-upstream \
 study_fops39_gitflic_ru \
 17_6-ansible-modules
+```
+### Создание Репозитория для коллекции
+```bash
+# смена каталога для нового репозитория с ролью
+pwd 
+
+cd ../..
+
+# создание репозитория через github cli
+gh repo \
+create \
+ansib_collec_skv --public
+```
+```
+✓ Created repository shoelacevip12/ansib_collec_skv on github.com
+  https://github.com/shoelacevip12/ansib_collec_skv
+```
+```bash
+# клонирование пустого репозитория
+git clone https://github.com/shoelacevip12/ansib_collec_skv
+
+# смена названия каталога локально 
+mv ansib_collec_skv \
+gh_ansible_collection
+
+cd !$
+
+git config \
+--global \
+--add safe.directory \
+/home/shoel/nfs_git/gh_ansible_collection
+```
+#### Копирование файлов в отдельно созданный репозиторий коллекции
+##### копирование в локальный каталог
+```bash
+cp -r \
+../gited/17_6/ans_col/shoelacevip12/test_text_file/* \
+.
+
+cp ../gited/.gitignore \
+.
+
+
+# вывод всего что есть в репозитории + бинарные файлы git
+tree .
+
+# Просмотр текущих удаленных репозиториев
+git remote -v
+```
+```
+origin  https://github.com/shoelacevip12/ansib_collec_skv (fetch)
+origin  https://github.com/shoelacevip12/ansib_collec_skv (push)
+```
+```bash
+# Проверка текущего локального состояния репозитория
+git status
+```
+
+
+<details>
+<summary>Вывод состояния репозитория</summary>
+
+```
+Текущая ветка: main
+
+Еще нет коммитов
+
+Неотслеживаемые файлы:
+  (используйте «git add <файл>...», чтобы добавить в то, что будет включено в коммит)
+        README.md
+        defaults/
+        handlers/
+        tasks/
+        templates/
+        vars/
+```
+
+</details>
+
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленные репозиторий
+git commit -am '1 commmit, master' \
+&& git push origin main
+```
+
+<details>
+<summary>Вывод о формировании первого коммита</summary>
+
+```
+[main (корневой коммит) 0e8da9a] 1 commmit, master
+ 10 files changed, 278 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 README.md
+ create mode 100644 galaxy.yml
+ create mode 100644 meta/runtime.yml
+ create mode 100644 playbook_to_tmp_example.yaml
+ create mode 100644 plugins/README.md
+ create mode 100644 plugins/modules/text_file.py
+ create mode 100644 roles/text_file/README.md
+ create mode 100644 roles/text_file/defaults/main.yml
+ create mode 100644 roles/text_file/tasks/main.yml
+Перечисление объектов: 19, готово.
+Подсчет объектов: 100% (19/19), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (13/13), готово.
+Запись объектов: 100% (19/19), 4.16 KiB | 2.08 MiB/s, готово.
+Total 19 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To https://github.com/shoelacevip12/ansib_collec_skv
+ * [new branch]      main -> main
+```
+
+</details>
+
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+```
+```
+0e8da9a (HEAD -> main, origin/main) 1 commmit, master
+```
+```bash
+# Удаление тега 0.1.0
+git tag \
+-d 0.1.0
+
+# Создание Аннотированного тега 0.1.0
+git tag \
+-a 0.1.0 \
+-m 'skv_ansible_collection_test_nodule'
+
+
+# отображение всех тегов
+git tag 
+```
+```
+0.1.0
+```
+```bash
+# Внесение изменений в текущий коммит
+git add . \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+origin main --tags --force
+
+# Создание релиза через таг
+gh release \
+create 0.1.0 \
+--generate-notes
 ```

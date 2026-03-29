@@ -1139,7 +1139,7 @@ study_fops39_gitflic_ru \
 17_4-ansible_role
 ```
 ## Создание репозиториев для загрузки ролей
-### создание роли для роли vector
+### создание репозитория для роли vector
 ```bash
 # смена каталога для нового репозитория с ролью
 pwd 
@@ -1274,6 +1274,7 @@ git log --oneline
 ```
 54b481e (HEAD -> main, origin/main) 1 commmit vector, master
 ```
+```bash
 # Создание Аннотированного тега v0.1
 git tag \
 -a v0.1 \

@@ -327,9 +327,16 @@ Passed: 0 failure(s), 0 warning(s) in 3 files processed of 3 encountered. Last p
 yamllint ./*.yaml
 ```
 
+![](./img/4.png)
+
+
 **Шаг 12.** Заполните всю документацию по collection, выложите в свой репозиторий, поставьте тег `1.0.0` на этот коммит.
 
+[Ссылка на репозиторий коллекции под тегом](https://github.com/shoelacevip12/ansib_collec_skv)
+
 [Galaxy info](./ans_col/shoelacevip12/test_text_file/galaxy.yml)
+
+[Описание](./ans_col/shoelacevip12/test_text_file/README.md)
 
 **Шаг 13.** Создайте .tar.gz этой collection: `ansible-galaxy collection build` в корневой директории collection.
 
