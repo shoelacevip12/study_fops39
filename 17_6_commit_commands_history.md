@@ -894,3 +894,53 @@ gh release \
 create 0.1.0 \
 --generate-notes
 ```
+## commit_61, master
+```bash
+cd ../gited/17_6
+
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+git checkout master
+
+git branch -v
+
+git merge 17_6-ansible-modules
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . .. \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_61, master' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master
+
+git add . .. \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force
+```
