@@ -11,6 +11,7 @@ galaxy_cache/
 tmp/
 .vscode/
 .venv/
+.tox/
 
 # игнорировать расширения и файлы:
 *.deb

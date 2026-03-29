@@ -1033,6 +1033,708 @@ git add . \
 && git push \
 --set-upstream \
 origin main --tags --force
+```
+```bash
+cd -
+
+
+cp -r \
+../../example/* \
+.
+
+docker run --privileged=True -v \
+./:/opt/vector-role \
+-w /opt/vector-role \
+-it aragast/netology:latest \
+/bin/bash
+```
+
+<details>
+<summary>Вывод из консоли контейнера</summary>
+
+```bash
+[root@531a67d2f34e vector-role]# tox
+py37-ansible210 create: /opt/vector-role/.tox/py37-ansible210
+py37-ansible210 installdeps: -rtox-requirements.txt, ansible<3.0
+py37-ansible210 installed: ansible==2.10.7,ansible-base==2.10.17,ansible-compat==1.0.0,arrow==1.2.3,bcrypt==4.2.1,binaryornot==0.4.4,cached-property==1.5.2,Cerberus==1.3.8,certifi==2026.2.25,cffi==1.15.1,chardet==5.2.0,charset-normalizer==3.4.6,click==8.1.8,click-help-colors==0.9.4,cookiecutter==2.6.0,cryptography==45.0.7,distro==1.9.0,enrich==1.2.7,idna==3.10,importlib-metadata==6.7.0,Jinja2==3.1.6,jmespath==1.0.1,lxml==5.4.0,markdown-it-py==2.2.0,MarkupSafe==2.1.5,mdurl==0.1.2,molecule==3.6.1,molecule-podman==1.1.0,packaging==24.0,paramiko==2.12.0,pluggy==1.2.0,pycparser==2.21,Pygments==2.17.2,PyNaCl==1.5.0,python-dateutil==2.9.0.post0,python-slugify==8.0.4,PyYAML==6.0.1,requests==2.31.0,rich==13.8.1,selinux==0.2.1,six==1.17.0,subprocess-tee==0.3.5,text-unidecode==1.3,typing_extensions==4.7.1,urllib3==2.0.7,zipp==3.15.0
+py37-ansible210 run-test-pre: PYTHONHASHSEED='2009604167'
+py37-ansible210 run-test: commands[0] | molecule test -s compatibility --destroy always
+/opt/vector-role/.tox/py37-ansible210/lib/python3.7/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.7 is no longer supported by the Python core team and support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.7.
+  from cryptography.exceptions import InvalidSignature
+CRITICAL 'molecule/compatibility/molecule.yml' glob failed.  Exiting.
+ERROR: InvocationError for command /opt/vector-role/.tox/py37-ansible210/bin/molecule test -s compatibility --destroy always (exited with code 1)
+py37-ansible30 create: /opt/vector-role/.tox/py37-ansible30
+py37-ansible30 installdeps: -rtox-requirements.txt, ansible<3.1
+py37-ansible30 installed: ansible==3.0.0,ansible-base==2.10.17,ansible-compat==1.0.0,arrow==1.2.3,bcrypt==4.2.1,binaryornot==0.4.4,cached-property==1.5.2,Cerberus==1.3.8,certifi==2026.2.25,cffi==1.15.1,chardet==5.2.0,charset-normalizer==3.4.6,click==8.1.8,click-help-colors==0.9.4,cookiecutter==2.6.0,cryptography==45.0.7,distro==1.9.0,enrich==1.2.7,idna==3.10,importlib-metadata==6.7.0,Jinja2==3.1.6,jmespath==1.0.1,lxml==5.4.0,markdown-it-py==2.2.0,MarkupSafe==2.1.5,mdurl==0.1.2,molecule==3.6.1,molecule-podman==1.1.0,packaging==24.0,paramiko==2.12.0,pluggy==1.2.0,pycparser==2.21,Pygments==2.17.2,PyNaCl==1.5.0,python-dateutil==2.9.0.post0,python-slugify==8.0.4,PyYAML==6.0.1,requests==2.31.0,rich==13.8.1,selinux==0.2.1,six==1.17.0,subprocess-tee==0.3.5,text-unidecode==1.3,typing_extensions==4.7.1,urllib3==2.0.7,zipp==3.15.0
+py37-ansible30 run-test-pre: PYTHONHASHSEED='2009604167'
+py37-ansible30 run-test: commands[0] | molecule test -s compatibility --destroy always
+/opt/vector-role/.tox/py37-ansible30/lib/python3.7/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.7 is no longer supported by the Python core team and support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.7.
+  from cryptography.exceptions import InvalidSignature
+CRITICAL 'molecule/compatibility/molecule.yml' glob failed.  Exiting.
+ERROR: InvocationError for command /opt/vector-role/.tox/py37-ansible30/bin/molecule test -s compatibility --destroy always (exited with code 1)
+py39-ansible210 create: /opt/vector-role/.tox/py39-ansible210
+py39-ansible210 installdeps: -rtox-requirements.txt, ansible<3.0
+py39-ansible210 installed: ansible==2.10.7,ansible-base==2.10.17,ansible-compat==24.10.0,ansible-core==2.15.13,attrs==26.1.0,bracex==2.6,cffi==2.0.0,click==8.1.8,click-help-colors==0.9.4,cryptography==46.0.6,distro==1.9.0,enrich==1.2.7,importlib-resources==5.0.7,Jinja2==3.1.6,jmespath==1.1.0,jsonschema==4.25.1,jsonschema-specifications==2025.9.1,lxml==6.0.2,markdown-it-py==3.0.0,MarkupSafe==3.0.3,mdurl==0.1.2,molecule==6.0.3,molecule-podman==2.0.3,packaging==26.0,pluggy==1.6.0,pycparser==2.23,Pygments==2.19.2,PyYAML==6.0.3,referencing==0.36.2,resolvelib==1.0.1,rich==14.3.3,rpds-py==0.27.1,selinux==0.3.0,subprocess-tee==0.4.2,typing_extensions==4.15.0,wcmatch==10.1
+py39-ansible210 run-test-pre: PYTHONHASHSEED='2009604167'
+py39-ansible210 run-test: commands[0] | molecule test -s compatibility --destroy always
+CRITICAL 'molecule/compatibility/molecule.yml' glob failed.  Exiting.
+ERROR: InvocationError for command /opt/vector-role/.tox/py39-ansible210/bin/molecule test -s compatibility --destroy always (exited with code 1)
+py39-ansible30 create: /opt/vector-role/.tox/py39-ansible30
+py39-ansible30 installdeps: -rtox-requirements.txt, ansible<3.1
+py39-ansible30 installed: ansible==3.0.0,ansible-base==2.10.17,ansible-compat==24.10.0,ansible-core==2.15.13,attrs==26.1.0,bracex==2.6,cffi==2.0.0,click==8.1.8,click-help-colors==0.9.4,cryptography==46.0.6,distro==1.9.0,enrich==1.2.7,importlib-resources==5.0.7,Jinja2==3.1.6,jmespath==1.1.0,jsonschema==4.25.1,jsonschema-specifications==2025.9.1,lxml==6.0.2,markdown-it-py==3.0.0,MarkupSafe==3.0.3,mdurl==0.1.2,molecule==6.0.3,molecule-podman==2.0.3,packaging==26.0,pluggy==1.6.0,pycparser==2.23,Pygments==2.19.2,PyYAML==6.0.3,referencing==0.36.2,resolvelib==1.0.1,rich==14.3.3,rpds-py==0.27.1,selinux==0.3.0,subprocess-tee==0.4.2,typing_extensions==4.15.0,wcmatch==10.1
+py39-ansible30 run-test-pre: PYTHONHASHSEED='2009604167'
+py39-ansible30 run-test: commands[0] | molecule test -s compatibility --destroy always
+CRITICAL 'molecule/compatibility/molecule.yml' glob failed.  Exiting.
+ERROR: InvocationError for command /opt/vector-role/.tox/py39-ansible30/bin/molecule test -s compatibility --destroy always (exited with code 1)
+__________________________________________________________________________________________ summary ___________________________________________________________________________________________
+ERROR:   py37-ansible210: commands failed
+ERROR:   py37-ansible30: commands failed
+ERROR:   py39-ansible210: commands failed
+ERROR:   py39-ansible30: commands failed
+[root@531a67d2f34e vector-role]# 
+```
+
+</details>
+
+```bash
+# Создание сценария тестирования default
+molecule init \
+scenario \
+podman
+```
+
+<details>
+<summary>Molecule_podman</summary>
+
+```bash
+[root@531a67d2f34e vector-role]# tox
+INFO     podman ➜ init: Initializing new scenario podman...
+
+PLAY [Create a new molecule scenario] ******************************************
+
+TASK [Check if destination folder exists] **************************************
+changed: [localhost]
+
+TASK [Check if destination folder is empty] ************************************
+ok: [localhost]
+
+TASK [Fail if destination folder is not empty] *********************************
+skipping: [localhost]
+
+TASK [Expand templates] ********************************************************
+changed: [localhost] => (item=molecule/podman/converge.yml)
+changed: [localhost] => (item=molecule/podman/create.yml)
+changed: [localhost] => (item=molecule/podman/destroy.yml)
+changed: [localhost] => (item=molecule/podman/molecule.yml)
+changed: [localhost] => (item=molecule/podman/verify.yml)
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     podman ➜ init: Initialized scenario in /home/shoel/nfs_git/gited/17_5/roles/vector/molecule/podman successfully.
+```
+
+</details>
+
+### Файл сценария molecule podman
+```bash
+cat > molecule/podman/molecule.yml <<'EOF'
+---
+driver:
+  name: podman
+
+platforms:
+  - name: ubuntu
+    image: docker.io/pycontribs/ubuntu:latest
+    command: /bin/sh -c "while true; do sleep 3600; done"
+ 
+provisioner:
+  name: ansible
+  ansible_args:
+    - --skip-tags=service,verify
+  config_options:
+    defaults:
+      remote_tmp: /tmp
+  inventory:
+    host_vars:
+      ubuntu:
+        ansible_user: root
+        ansible_connection: containers.podman.podman
+        ansible_python_interpreter: /usr/bin/python3
+  playbooks:
+    converge: ../default/converge.yml
+    verify: ../default/verify.yml
+
+verifier:
+  name: ansible
+...
+EOF
+```
+
+### Скачивание коллекций для локального развертывания
+```bash
+mkdir -p molecule/_vendor/collections
+
+curl -L \
+  -o molecule/_vendor/collections/containers-podman-1.19.0.tar.gz \
+  https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts/containers-podman-1.19.0.tar.gz
+
+curl -L \
+  -o molecule/_vendor/collections/ansible-posix-2.1.0.tar.gz \
+  https://github.com/ansible-collections/ansible.posix/archive/refs/tags/2.1.0.tar.gz
+```
+
+```bash
+cat > ./tox.ini <<'EOF'
+[tox]
+skipsdist = True
+envlist = molecule
+
+[testenv]
+deps =
+  -r tox-requirements.txt
+  ansible-core>=2.11,<2.12
+
+commands_pre =
+  ansible-galaxy collection install -f {toxinidir}/molecule/_vendor/collections/containers-podman-1.19.0.tar.gz
+  ansible-galaxy collection install -f {toxinidir}/molecule/_vendor/collections/ansible-posix-2.1.0.tar.gz
+commands =
+  molecule test -s podman --destroy=never
+  molecule converge -s podman
+  molecule verify -s podman
+  molecule destroy -s podman
+passenv = *
+EOF
+```
+
+### Создание файлов для заглушки
+```bash
+mkdir -p molecule/podman/roles/
+
+cd molecule/podman/roles/
+
+ln -s ../../.. \
+./vector
 
 cd -
+
+ll molecule/podman/roles/vector \
+| cut -d ' ' -f9-11
+```
+```
+molecule/podman/roles/vector -> ../../..
+```
+
+### Запуск и взаимодействие из-под контейнера podman
+
+```bash
+podman run --privileged \
+-v ./:/opt/vector-role \
+-w /opt/vector-role \
+-it docker.io/aragast/netology:latest \
+/bin/bash
+```
+#### Команду tox внутри контейнера запускать 2 раза
+```bash
+[root@2adc6c8eca45 vector-role]# tox
+```
+
+<details>
+<summary>PODMAN CONTAINER LOG</summary>
+
+```
+molecule installed: ansible-compat==1.0.0,ansible-core==2.11.12,arrow==1.2.3,bcrypt==4.0.1,binaryornot==0.4.4,cached-property==1.5.2,Cerberus==1.3.5,certifi==2025.4.26,cffi==1.15.1,chardet==5.0.0,charset-normalizer==2.0.12,click==8.0.4,click-help-colors==0.9.4,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==40.0.2,dataclasses==0.8,distro==1.9.0,enrich==1.2.7,idna==3.10,importlib-metadata==4.8.3,Jinja2==3.0.3,jinja2-time==0.2.0,jmespath==0.10.0,lxml==5.4.0,MarkupSafe==2.0.1,molecule==3.6.1,molecule-podman==1.1.0,packaging==21.3,paramiko==2.12.0,pluggy==1.0.0,poyo==0.5.0,pycparser==2.21,Pygments==2.14.0,PyNaCl==1.5.0,pyparsing==3.1.4,python-dateutil==2.9.0.post0,python-slugify==6.1.2,PyYAML==6.0.1,requests==2.27.1,resolvelib==0.5.4,rich==12.6.0,selinux==0.2.1,six==1.17.0,subprocess-tee==0.3.5,text-unidecode==1.3,typing_extensions==4.1.1,urllib3==1.26.20,zipp==3.6.0
+molecule run-test-pre: PYTHONHASHSEED='1600649737'
+molecule run-test-pre: commands[0] | ansible-galaxy collection install -f /opt/vector-role/molecule/_vendor/collections/containers-podman-1.19.0.tar.gz
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the controller starting with Ansible 
+2.12. Current version: 3.6.8 (default, Jan 14 2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This 
+feature will be removed from ansible-core in version 2.12. Deprecation warnings can be disabled by setting 
+deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/requests/__init__.py:104: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (5.0.0)/charset_normalizer (2.0.12) doesn't match a supported version!
+  RequestsDependencyWarning)
+Starting galaxy collection install process
+Process install dependency map
+Starting collection install process
+Installing 'containers.podman:1.19.0' to '/root/.ansible/collections/ansible_collections/containers/podman'
+containers.podman:1.19.0 was installed successfully
+molecule run-test-pre: commands[1] | ansible-galaxy collection install -f /opt/vector-role/molecule/_vendor/collections/ansible-posix-2.1.0.tar.gz
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the controller starting with Ansible 
+2.12. Current version: 3.6.8 (default, Jan 14 2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This 
+feature will be removed from ansible-core in version 2.12. Deprecation warnings can be disabled by setting 
+deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/requests/__init__.py:104: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (5.0.0)/charset_normalizer (2.0.12) doesn't match a supported version!
+  RequestsDependencyWarning)
+Starting galaxy collection install process
+Process install dependency map
+Starting collection install process
+Installing 'ansible.posix:2.1.0' to '/root/.ansible/collections/ansible_collections/ansible/posix'
+ansible.posix:2.1.0 was installed successfully
+molecule run-test: commands[0] | molecule test -s podman --destroy=never
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/requests/__init__.py:104: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (5.0.0)/charset_normalizer (2.0.12) doesn't match a supported version!
+  RequestsDependencyWarning)
+INFO     podman scenario test matrix: destroy, create, converge, verify, destroy
+INFO     Performing prerun...
+INFO     Running ansible-galaxy role install -vr requirements.yml --roles-path /root/.cache/ansible-compat/b984a4/roles
+INFO     Set ANSIBLE_LIBRARY=/root/.cache/ansible-compat/b984a4/modules:/root/.ansible/plugins/modules:/usr/share/ansible/plugins/modules
+INFO     Set ANSIBLE_COLLECTIONS_PATH=/root/.cache/ansible-compat/b984a4/collections:/root/.ansible/collections:/usr/share/ansible/collections
+INFO     Set ANSIBLE_ROLES_PATH=/root/.cache/ansible-compat/b984a4/roles:/root/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+INFO     Using /root/.ansible/roles/shoelacevip12.vector symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Running podman > destroy
+WARNING  Skipping, '--destroy=never' requested.
+INFO     Running podman > create
+WARNING  Skipping, instances already created.
+INFO     Running podman > converge
+INFO     Sanity checks: 'podman'
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+
+PLAY [Converge] ****************************************************************
+
+TASK [Применить тестируемую роль] **********************************************
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+
+TASK [vector : Обновление и установка основных пакетов] ************************
+included: /opt/vector-role/tasks/upd_inst.yml for ubuntu
+
+TASK [vector : Установка для загрузки Vector] **********************************
+ok: [ubuntu]
+
+TASK [vector : Скачать Vector tar.gz] ******************************************
+ok: [ubuntu]
+
+TASK [vector : Распаковать Vector в /opt] **************************************
+skipping: [ubuntu]
+
+TASK [vector : Создать symlink] ************************************************
+ok: [ubuntu]
+
+TASK [vector : Обновление и создание необходимых каталогов и файлов] ***********
+included: /opt/vector-role/tasks/upd_dir.yml for ubuntu
+
+TASK [vector : Директория для конфигурации Vector datadog] *********************
+ok: [ubuntu]
+
+TASK [vector : Директория для дискового буФЕРА Vector datadog] *****************
+ok: [ubuntu]
+
+TASK [vector : Первое Развертывание из шаблона] ********************************
+ok: [ubuntu]
+
+TASK [vector : Повторное Развертывание из шаблона с валидацией] ****************
+skipping: [ubuntu]
+
+PLAY RECAP *********************************************************************
+ubuntu                     : ok=8    changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+
+INFO     Running podman > verify
+INFO     Running Ansible Verifier
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+
+PLAY [Проверка роли vector] ****************************************************
+
+TASK [Проверка наличия исполняемого файла] *************************************
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+ok: [ubuntu]
+
+TASK [Подтверждение наличия исполняемого файла vector] *************************
+ok: [ubuntu] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Существует ли конфигурация vector] ***************************************
+ok: [ubuntu]
+
+TASK [Подтверждение наличия vector config] *************************************
+ok: [ubuntu] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Проверка синтаксиса конфигурации vector] *********************************
+ok: [ubuntu]
+
+TASK [Вывод проверки результата] ***********************************************
+ok: [ubuntu] => {
+    "msg": "Valid = no (rc=78)"
+}
+
+PLAY RECAP *********************************************************************
+ubuntu                     : ok=6    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+INFO     Verifier completed successfully.
+INFO     Running podman > destroy
+WARNING  Skipping, '--destroy=never' requested.
+molecule run-test: commands[1] | molecule converge -s podman
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/requests/__init__.py:104: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (5.0.0)/charset_normalizer (2.0.12) doesn't match a supported version!
+  RequestsDependencyWarning)
+INFO     podman scenario test matrix: dependency, create, prepare, converge
+INFO     Performing prerun...
+INFO     Running ansible-galaxy role install -vr requirements.yml --roles-path /root/.cache/ansible-compat/b984a4/roles
+INFO     Set ANSIBLE_LIBRARY=/root/.cache/ansible-compat/b984a4/modules:/root/.ansible/plugins/modules:/usr/share/ansible/plugins/modules
+INFO     Set ANSIBLE_COLLECTIONS_PATH=/root/.cache/ansible-compat/b984a4/collections:/root/.ansible/collections:/usr/share/ansible/collections
+INFO     Set ANSIBLE_ROLES_PATH=/root/.cache/ansible-compat/b984a4/roles:/root/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+INFO     Using /root/.ansible/roles/shoelacevip12.vector symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Running podman > dependency
+WARNING  Skipping, missing the requirements file.
+WARNING  Skipping, missing the requirements file.
+INFO     Running podman > create
+WARNING  Skipping, instances already created.
+INFO     Running podman > prepare
+WARNING  Skipping, prepare playbook not configured.
+INFO     Running podman > converge
+INFO     Sanity checks: 'podman'
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+
+PLAY [Converge] ****************************************************************
+
+TASK [Применить тестируемую роль] **********************************************
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+
+TASK [vector : Обновление и установка основных пакетов] ************************
+included: /opt/vector-role/tasks/upd_inst.yml for ubuntu
+
+TASK [vector : Установка для загрузки Vector] **********************************
+ok: [ubuntu]
+
+TASK [vector : Скачать Vector tar.gz] ******************************************
+ok: [ubuntu]
+
+TASK [vector : Распаковать Vector в /opt] **************************************
+skipping: [ubuntu]
+
+TASK [vector : Создать symlink] ************************************************
+ok: [ubuntu]
+
+TASK [vector : Обновление и создание необходимых каталогов и файлов] ***********
+included: /opt/vector-role/tasks/upd_dir.yml for ubuntu
+
+TASK [vector : Директория для конфигурации Vector datadog] *********************
+ok: [ubuntu]
+
+TASK [vector : Директория для дискового буФЕРА Vector datadog] *****************
+ok: [ubuntu]
+
+TASK [vector : Первое Развертывание из шаблона] ********************************
+ok: [ubuntu]
+
+TASK [vector : Повторное Развертывание из шаблона с валидацией] ****************
+skipping: [ubuntu]
+
+PLAY RECAP *********************************************************************
+ubuntu                     : ok=8    changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+
+molecule run-test: commands[2] | molecule verify -s podman
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/requests/__init__.py:104: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (5.0.0)/charset_normalizer (2.0.12) doesn't match a supported version!
+  RequestsDependencyWarning)
+INFO     podman scenario test matrix: verify
+INFO     Performing prerun...
+INFO     Running ansible-galaxy role install -vr requirements.yml --roles-path /root/.cache/ansible-compat/b984a4/roles
+INFO     Set ANSIBLE_LIBRARY=/root/.cache/ansible-compat/b984a4/modules:/root/.ansible/plugins/modules:/usr/share/ansible/plugins/modules
+INFO     Set ANSIBLE_COLLECTIONS_PATH=/root/.cache/ansible-compat/b984a4/collections:/root/.ansible/collections:/usr/share/ansible/collections
+INFO     Set ANSIBLE_ROLES_PATH=/root/.cache/ansible-compat/b984a4/roles:/root/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+INFO     Using /root/.ansible/roles/shoelacevip12.vector symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Running podman > verify
+INFO     Running Ansible Verifier
+INFO     Sanity checks: 'podman'
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+
+PLAY [Проверка роли vector] ****************************************************
+
+TASK [Проверка наличия исполняемого файла] *************************************
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+ok: [ubuntu]
+
+TASK [Подтверждение наличия исполняемого файла vector] *************************
+ok: [ubuntu] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Существует ли конфигурация vector] ***************************************
+ok: [ubuntu]
+
+TASK [Подтверждение наличия vector config] *************************************
+ok: [ubuntu] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Проверка синтаксиса конфигурации vector] *********************************
+ok: [ubuntu]
+
+TASK [Вывод проверки результата] ***********************************************
+ok: [ubuntu] => {
+    "msg": "Valid = no (rc=78)"
+}
+
+PLAY RECAP *********************************************************************
+ubuntu                     : ok=6    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+INFO     Verifier completed successfully.
+molecule run-test: commands[3] | molecule destroy -s podman
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/requests/__init__.py:104: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (5.0.0)/charset_normalizer (2.0.12) doesn't match a supported version!
+  RequestsDependencyWarning)
+INFO     podman scenario test matrix: dependency, cleanup, destroy
+INFO     Performing prerun...
+INFO     Running ansible-galaxy role install -vr requirements.yml --roles-path /root/.cache/ansible-compat/b984a4/roles
+INFO     Set ANSIBLE_LIBRARY=/root/.cache/ansible-compat/b984a4/modules:/root/.ansible/plugins/modules:/usr/share/ansible/plugins/modules
+INFO     Set ANSIBLE_COLLECTIONS_PATH=/root/.cache/ansible-compat/b984a4/collections:/root/.ansible/collections:/usr/share/ansible/collections
+INFO     Set ANSIBLE_ROLES_PATH=/root/.cache/ansible-compat/b984a4/roles:/root/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+INFO     Using /root/.ansible/roles/shoelacevip12.vector symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Running podman > dependency
+WARNING  Skipping, missing the requirements file.
+WARNING  Skipping, missing the requirements file.
+INFO     Running podman > cleanup
+WARNING  Skipping, cleanup playbook not configured.
+INFO     Running podman > destroy
+INFO     Sanity checks: 'podman'
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+[DEPRECATION WARNING]: Ansible will require Python 3.8 or newer on the 
+controller starting with Ansible 2.12. Current version: 3.6.8 (default, Jan 14 
+2022, 11:04:20) [GCC 8.5.0 20210514 (Red Hat 8.5.0-7)]. This feature will be 
+removed from ansible-core in version 2.12. Deprecation warnings can be disabled
+ by setting deprecation_warnings=False in ansible.cfg.
+
+PLAY [Destroy] *****************************************************************
+
+TASK [Destroy molecule instance(s)] ********************************************
+/opt/vector-role/.tox/molecule/lib/python3.6/site-packages/ansible/parsing/vault/__init__.py:44: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
+  from cryptography.exceptions import InvalidSignature
+changed: [localhost] => (item={'command': '/bin/sh -c "while true; do sleep 3600; done"', 'image': 'docker.io/pycontribs/ubuntu:latest', 'name': 'ubuntu'})
+
+TASK [Wait for instance(s) deletion to complete] *******************************
+FAILED - RETRYING: Wait for instance(s) deletion to complete (300 retries left).
+FAILED - RETRYING: Wait for instance(s) deletion to complete (299 retries left).
+changed: [localhost] => (item={'started': 1, 'finished': 0, 'ansible_job_id': '674396060676.19818', 'results_file': '/root/.ansible_async/674396060676.19818', 'changed': True, 'failed': False, 'item': {'command': '/bin/sh -c "while true; do sleep 3600; done"', 'image': 'docker.io/pycontribs/ubuntu:latest', 'name': 'ubuntu'}, 'ansible_loop_var': 'item'})
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+INFO     Pruning extra files from scenario ephemeral directory
+__________________________________________________ summary __________________________________________________
+  molecule: commands succeeded
+  congratulations :)
+[root@2adc6c8eca45 vector-role]# 
+```
+
+</details>
+
+```bash
+rsync -arvP \
+--exclude=.tox \
+./ \
+../../../../gh_vector_role/
+```
+
+<details>
+<summary>rsync log</summary>
+
+```
+sending incremental file list
+molecule/
+molecule/_vendor/
+molecule/_vendor/collections/
+molecule/_vendor/collections/ansible-posix-2.1.0.tar.gz
+        166.818 100%  127,84MB/s    0:00:00 (xfr#1, to-chk=24/46)
+molecule/_vendor/collections/containers-podman-1.19.0.tar.gz
+      8.288.072 100%  494,01MB/s    0:00:00 (xfr#2, to-chk=23/46)
+molecule/_vendor/collections/@eaDir/
+molecule/_vendor/collections/@eaDir/ansible-posix-2.1.0.tar.gz@SynoEAStream
+            709 100%   40,73kB/s    0:00:00 (xfr#3, to-chk=21/46)
+molecule/default/converge.yml
+            175 100%   10,05kB/s    0:00:00 (xfr#4, to-chk=18/46)
+molecule/podman/
+molecule/podman/converge.yml
+            199 100%   10,80kB/s    0:00:00 (xfr#5, to-chk=11/46)
+molecule/podman/molecule.yml
+            586 100%   31,79kB/s    0:00:00 (xfr#6, to-chk=10/46)
+molecule/podman/roles/
+molecule/podman/roles/vector -> ../../..
+
+sent 8.460.275 bytes  received 165 bytes  5.640.293,33 bytes/sec
+total size is 8.475.278  speedup is 1,00
+```
+
+</details>
+
+```bash
+cd !$
+```
+```
+cd ../../../../gh_vector_role/
+```
+```bash
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . \
+&& git status
+
+# Создание Аннотированного тега v0.3
+git tag \
+-a v0.3 \
+-m 'skv_ansible_vector_role'
+
+# отображение всех тегов начинающихся с "v"
+git tag \
+-l "v*"
+```
+```
+v0.1
+v0.2
+v0.3
+```
+```bash
+# Внесение изменений в текущий коммит
+git add . \
+&& git commit -am 'version3' \
+&& git push \
+--set-upstream \
+origin main --tags --force
+
+# возврат в рабочий каталог роли
+cd -
+```
+```bash
+# Переключение\формирование новой ветки git
+git checkout -b 17_5-ansible_testing
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+# выход из виртуального окружения Python
+deactivate
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. ../../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit4_upd1, 17_5-ansible_testing' \
+&& git push \
+--set-upstream \
+study_fops39 \
+17_5-ansible_testing \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+17_5-ansible_testing
+```
+## commit_59, master `17_5-ansible_testing`
+```bash
 ```
