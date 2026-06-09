@@ -74,6 +74,13 @@ resource "yandex_vpc_security_group" "host-vm-sg" {
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description    = "Разрешить web доступ"
+    protocol       = "TCP"
+    port           = 8081
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     description    = "Разрешить весь исходящий трафик"
     protocol       = "ANY"

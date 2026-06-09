@@ -341,6 +341,13 @@ resource "yandex_vpc_security_group" "host-vm-sg" {
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description    = "Разрешить web доступ"
+    protocol       = "TCP"
+    port           = 8081
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     description    = "Разрешить весь исходящий трафик"
     protocol       = "ANY"
@@ -1074,7 +1081,7 @@ yc compute instance list
 ```
 |          ID          |       NAME       |    ZONE ID    | STATUS  |  EXTERNAL IP   | INTERNAL IP  |
 |----------------------|------------------|---------------|---------|----------------|--------------|
-| epd1sorcep9oq1svf4d7 | team-c-vm-nexus  | ru-central1-b | RUNNING | 158.160.9.223  | 10.10.10.250 |
+| epd1sorcep9oq1svf4d7 | team-c-vm-nexus  | ru-central1-b | RUNNING | 111.88.144.184 | 10.10.10.244 |
 | epd9htmnnpllnefcofk2 | team-c-con-agent | ru-central1-b | RUNNING |                | 10.10.10.243 |
 | epdqcl7kqto7tli23vm3 | team-c-con-srv   | ru-central1-b | RUNNING | 37.230.168.225 | 10.10.10.254 |
 
@@ -2102,20 +2109,322 @@ nexus-01                   : ok=15   changed=0    unreachable=0    failed=0    s
 </details>
 
 
+```bash
+cd ..
 
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit2, 18_5-Teamcity' \
+&& git push \
+--set-upstream \
+study_fops39 \
+18_5-Teamcity \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+18_5-Teamcity
+```
+## commit_3, `18_5-Teamcity`
 
 ```bash
 # Выход за пределы рабочей дирректории работы
-cd ../../../
+cd ../../
 
+# создание катлога для git fork
+mkdir -p fork/18_5
+
+# Переход в созданный каталог
+cd !$
 
 # создание форка GH
 gh repo fork aragastmatb/example-teamcity
 ```
 
+<details>
+<summary>лог содания fork</summary>
+
+```log
+✓ Created fork shoelacevip12/example-teamcity
+? Would you like to clone the fork? Yes
+Клонирование в «example-teamcity»...
+remote: Enumerating objects: 364, done.
+remote: Total 364 (delta 0), reused 0 (delta 0), pack-reused 364 (from 1)
+Получение объектов: 100% (364/364), 49.66 KiB | 924.00 KiB/s, готово.
+Определение изменений: 100% (116/116), готово.
+failed to run git: fatal: detected dubious ownership in repository at '/home/shoel/nfs_git/fork/18_5/example-teamcity'
+To add an exception for this directory, call:
+
+        git config --global --add safe.directory /home/shoel/nfs_git/fork/18_5/example-teamcity
+```
+
+</details>
+
+```bash
+# РАзрешение использования каталога для git
+git config --global --add safe.directory /home/shoel/nfs_git/fork/18_5/example-teamcity
+```
+
+![](18_5/img/3.png)
+![](18_5/img/4.png)
+![](18_5/img/5.png)
+![](18_5/img/6.png)
+![](18_5/img/6.1.png)
+![](18_5/img/7.png)
 
 
+```bash
+# Вход в катлог fork
+cd example-teamcity/
 
+# Подготовка переменной для настроек подключения nexus
+NEXUS_i="$(yc compute instance list | awk '/team-c-vm-nexus/ {print $12}')"
+
+# Нзначение IP для подключения
+sed -i "s/51.250.13.64/$NEXUS_i/" \
+pom.xml
+
+# изменение версии 
+sed -i "s/0.0.2/0.0.1/" \
+pom.xml
+
+git add . \
+&& git status
+
+git commit -am "pom_prep"
+
+git push origin master
+```
+
+<details>
+<summary>логи коммита и статуса </summary>
+
+```log
+Текущая ветка: master
+Эта ветка соответствует «origin/master».
+
+Изменения, которые будут включены в коммит:
+  (используйте «git restore --staged <файл>...», чтобы убрать из индекса)
+        изменено:      pom.xml
+```
+
+```log
+[master f896eff] pom_prep
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+```
+
+```log
+Перечисление объектов: 5, готово.
+Подсчет объектов: 100% (5/5), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (3/3), готово.
+Запись объектов: 100% (3/3), 298 bytes | 298.00 KiB/s, готово.
+Total 3 (delta 2), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (2/2), completed with 2 local objects.
+To https://github.com/shoelacevip12/example-teamcity.git
+   4021122..f896eff  master -> master
+```
+
+</details>
+
+![](18_5/img/8.png)
+![](18_5/img/9.png)
+![](18_5/img/10.png)
+![](18_5/img/11.png)
+
+```bash
+# Забираем внесенные изменения
+git pull
+```
+
+<details>
+<summary>лог после автосинхронизации</summary>
+
+```log
+remote: Enumerating objects: 5, done.
+remote: Counting objects: 100% (5/5), done.
+remote: Compressing objects: 100% (5/5), done.
+remote: Total 5 (delta 0), reused 5 (delta 0), pack-reused 0 (from 0)
+Распаковка объектов: 100% (5/5), 1.94 KiB | 142.00 KiB/s, готово.
+Из https://github.com/shoelacevip12/example-teamcity
+   d02fce6..33685f2  master     -> origin/master
+Обновление d02fce6..33685f2
+Fast-forward
+ .teamcity/pluginData/_Self/mavenSettings/settings.xml | 261 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ .teamcity/pom.xml                                     | 104 ++++++++++++++++++++
+ .teamcity/settings.kts                                |  61 ++++++++++++
+ 3 files changed, 426 insertions(+)
+ create mode 100644 .teamcity/pluginData/_Self/mavenSettings/settings.xml
+ create mode 100644 .teamcity/pom.xml
+ create mode 100644 .teamcity/settings.kts
+```
+
+</details>
+
+
+```bash
+# Создание
+git checkout -b feature/add_reply
+```
+
+<details>
+<summary>изменение методов для класса Welcomer</summary>
+
+```bash
+cat > ./src/main/java/plaindoll/Welcomer.java <<'EOF'
+package plaindoll;
+
+public class Welcomer{
+	// Если хочешь больше веселья и информации про ДевОпс - приходи в мои каналы NotOps (telegram, YT, Boosty, Patreon)
+	// https://t.me/notopsofficial
+	public String sayWelcome() {
+		return "Welcome home, good hunter. What is it your desire?";
+	}
+	public String sayFarewell() {
+		return "Farewell, good hunter. May you find your worth in waking world.";
+	}
+	public String sayNeedGold(){
+		return "Not enough gold";
+	}
+	public String saySome(){
+		return "something in the way";
+	}
+
+	public String sayHunterReplica() {
+		return "What are you yelling at? What have I done to you? Hunter... Hunting is when hunting. And when you don't want to, who needs it?";
+	}
+}
+EOF
+```
+
+</details>
+
+![](18_5/img/12.png)
+
+```bash
+git commit -am "change_welcomer"
+
+git push --set-upstream origin feature/add_reply
+```
+
+
+<details>
+<summary>Git лог новой ветки </summary>
+
+```log
+[feature/add_reply e784a7c] change_welcomer
+ 1 file changed, 4 insertions(+)
+```
+
+```log
+Перечисление объектов: 29, готово.
+Подсчет объектов: 100% (29/29), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (17/17), готово.
+Запись объектов: 100% (22/22), 6.90 KiB | 3.45 MiB/s, готово.
+Total 22 (delta 6), reused 4 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (6/6), completed with 2 local objects.
+remote: 
+remote: Create a pull request for 'feature/add_reply' on GitHub by visiting:
+remote:      https://github.com/shoelacevip12/example-teamcity/pull/new/feature/add_reply
+remote: 
+To https://github.com/shoelacevip12/example-teamcity.git
+ * [new branch]      feature/add_reply -> feature/add_reply
+branch 'feature/add_reply' set up to track 'origin/feature/add_reply'.
+```
+
+</details>
+
+
+![](18_5/img/13.png)
+
+```bash
+# переключение на ветку master
+git checkout master
+
+# Получение внесенных изменений
+git pull
+
+git merge feature/add_reply
+
+git status
+
+git push
+```
+
+
+<details>
+<summary>Git лог ветки master </summary>
+
+```log
+Переключились на ветку «master»
+Ветка отстает от «origin/master» на 3 коммита и может быть быстро перемотана.
+  (используйте «git pull», чтобы обновить вашу локальную ветку)
+```
+
+```log
+Обновление 33685f2..d0e8a70
+Fast-forward
+ .teamcity/settings.kts | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+```
+
+```log
+Merge made by the 'ort' strategy.
+ src/main/java/plaindoll/Welcomer.java | 4 ++++
+ 1 file changed, 4 insertions(+)
+```
+
+```log
+Текущая ветка: master
+Ваша ветка опережает «origin/master» на 2 коммита.
+  (используйте «git push», чтобы опубликовать ваши локальные коммиты)
+
+нечего коммитить, нет изменений в рабочем каталоге
+```
+
+```log
+Перечисление объектов: 4, готово.
+Подсчет объектов: 100% (4/4), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (2/2), готово.
+Запись объектов: 100% (2/2), 289 bytes | 289.00 KiB/s, готово.
+Total 2 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (1/1), completed with 1 local object.
+To https://github.com/shoelacevip12/example-teamcity.git
+   d0e8a70..015bd9c  master -> master
+```
+
+</details>
+
+![](18_5/img/13.png)
 
 <details>
 <summary>лог содания </summary>
