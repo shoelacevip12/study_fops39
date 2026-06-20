@@ -385,3 +385,48 @@ study_fops39 \
 study_fops39_gitflic_ru \
 19_1-monitoring_base
 ```
+
+## commit_65, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge 19_1-monitoring_base
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_65, master' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force
+```
