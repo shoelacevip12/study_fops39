@@ -2504,7 +2504,7 @@ master \
 study_fops39_gitflic_ru \
 master
 
-git add . .. \
+git add . \
 && git status \
 && git commit --amend --no-edit \
 && git push \

@@ -1,12 +1,16 @@
 # Для домашнего задания 17.4 `Работа с roles`
+
 ## commit_56, master Предварительная подготовка
+
 ```bash
 # Переключение на мастер-ветку на случай работы в соседней ветке репозитория
 git checkout master
 ```
-```
+
+```log
 Уже на «master»
 ```
+
 ```bash
 # Просмотр имеющихся веток
 git branch -v
@@ -31,9 +35,11 @@ cd !$
 # создание каталогов под скриншоты
 mkdir img
 ```
-```
+
+```log
 cd 17_4
 ```
+
 ```bash
 # Удаление оставшейся оставшейся части клона репозитория
 rm -rf \
@@ -110,7 +116,9 @@ master \
 study_fops39_gitflic_ru \
 master
 ```
+
 ## commit_1, `17_4-ansible_role`
+
 ```bash
 # Просмотр истории коммитов в кратком формате
 git log --oneline
@@ -155,7 +163,9 @@ study_fops39 \
 study_fops39_gitflic_ru \
 17_4-ansible_role
 ```
+
 ## commit_2, `17_4-ansible_role`
+
 ```bash
 # Директории для работы
 cd 17_4
@@ -175,21 +185,26 @@ ansible-galaxy install \
 -p roles \
 -r requirements.yml
 ```
-```
+
+```log
 Starting galaxy role install process
 - extracting clickhouse to /home/shoel/nfs_git/gited/17_4/roles/clickhouse
 - clickhouse (1.13) was installed successfully
 ```
+
 ```bash
 # Новая структура с ролью vector
 ansible-galaxy role \
 init \
 roles/vector
 ```
-```
+
+```log
 - Role vector was created successfully
 ```
-## Создание настроек работы ansible для текущего проекта в каталоге 
+
+## Создание настроек работы ansible для текущего проекта в каталоге
+
 ```bash
 cat > ansible.cfg <<'EOF'
 [defaults]
@@ -223,7 +238,9 @@ EOF
 # ignoring it as an ansible.cfg source"
 export ANSIBLE_CONFIG=./ansible.cfg
 ```
+
 ## РАспределение значений переменных по умолчанию
+
 ```bash
 # создание общего словаря vector_config переменных по умолчанию
 cat > roles/vector/defaults/main.yml <<'EOF'
@@ -265,8 +282,11 @@ vector_config:
 ...
 EOF
 ```
+
 ## Формирование шаблонов для роли vector datadog
+
 ### основной конфиг
+
 ```bash
 cat > roles/vector/templates/vector.yaml.j2 <<'EOF'
 ---
@@ -301,7 +321,9 @@ sinks:
 ...
 EOF
 ```
+
 ### служба для vector
+
 ```bash
 cat > roles/vector/templates/vector.service.j2 <<'EOF'
 [Unit]
@@ -328,7 +350,9 @@ StartLimitBurst=5
 WantedBy=multi-user.target
 EOF
 ```
+
 ## Формирование Tasks Для vector datadog
+
 ```bash
 # Задачи установки ПО
 cat > roles/vector/tasks/upd_inst.yml <<'EOF'
@@ -362,6 +386,7 @@ cat > roles/vector/tasks/upd_inst.yml <<'EOF'
 ...
 EOF
 ```
+
 ```bash
 # Задачи по созданию нужных каталогов и файлов
 cat > roles/vector/tasks/upd_dir.yml <<'EOF'
@@ -406,6 +431,7 @@ cat > roles/vector/tasks/upd_dir.yml <<'EOF'
 ...
 EOF
 ```
+
 ```bash
 # Задачи по запуску службы
 cat > roles/vector/tasks/upd_serv.yml <<'EOF'
@@ -429,6 +455,7 @@ cat > roles/vector/tasks/upd_serv.yml <<'EOF'
 ...
 EOF
 ```
+
 ```bash
 # Проверка работы службы в рамках отдельных задач
 cat > roles/vector/tasks/upd_verif.yml <<'EOF'
@@ -450,7 +477,9 @@ cat > roles/vector/tasks/upd_verif.yml <<'EOF'
 ...
 EOF
 ```
+
 ## Создание playbook роли vector
+
 ```bash
 cat > playbook_vector.yaml <<'EOF'
 #!/usr/bin/env ansible-playbook
@@ -465,7 +494,9 @@ cat > playbook_vector.yaml <<'EOF'
 ...
 EOF
 ```
+
 ## Развертывание тестового стенда из playbook для lxc
+
 ```bash
 # для вывода в yaml формате
 export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
@@ -473,16 +504,20 @@ export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 # Запуск формирования стенда
 ./containers.yml -b -K -v
 ```
+
 ```bash
 # вывод получившихся Ip
 scripts/ip_check.sh
 ```
-```
+
+```log
 clickhouse - 192.168.89.104
 lighthouse - 192.168.89.105
 vector - 192.168.89.106
 ```
+
 ## Создание инвентаря хостов для взаимодействия
+
 ```bash
 # выход из каталога с развертыванием тестового стенда
 cd ..
@@ -492,7 +527,8 @@ cd ..
 
 cat hosts.ini
 ```
-```
+
+```log
 [clickhouse]
 192.168.89.104
 
@@ -507,7 +543,9 @@ clickhouse
 lighthouse
 vector
 ```
+
 ## Создание общих переменной между ролями
+
 ```bash
 # каталог для переопределения переменных
 mkdir group_vars
@@ -529,6 +567,7 @@ clickhouse_listen_host_custom:
 ...
 EOF
 ```
+
 ```bash
 # создание файла общих переменной для всех групп
 cat > group_vars/all.yml <<'EOF'
@@ -543,7 +582,9 @@ ansible_ssh_private_key_file: "~/.ssh/id_kvm_host_to_vms"
 ...
 EOF
 ```
+
 ## Проверка подключения
+
 ```bash
 # Регистрация прописанного в переменных ключа
 eval $(ssh-agent) \
@@ -560,7 +601,8 @@ ansible stack_log -v \
 -m ping \
 -i hosts.ini
 ```
-```
+
+```log
 Using /home/shoel/nfs_git/gited/17_4/ansible.cfg as config file
 192.168.89.105 | SUCCESS => 
     ansible_facts:
@@ -578,7 +620,9 @@ Using /home/shoel/nfs_git/gited/17_4/ansible.cfg as config file
     changed: false
     ping: pong
 ```
+
 ## Создание общего playbook для вызова ролей
+
 ```bash
 cat > playbook_main.yaml <<'EOF'
 #!/usr/bin/env ansible-playbook
@@ -605,7 +649,9 @@ cat > playbook_main.yaml <<'EOF'
 ...
 EOF
 ```
+
 ## Создание playbook для роли clickhouse
+
 ```bash
 cat >playbook_clickhouse.yaml <<'EOF'
 #!/usr/bin/env ansible-playbook
@@ -620,7 +666,9 @@ cat >playbook_clickhouse.yaml <<'EOF'
 ...
 EOF
 ```
+
 ## Создание playbook для роли vector
+
 ```bash
 cat >playbook_vector.yaml <<'EOF'
 #!/usr/bin/env ansible-playbook
@@ -635,7 +683,9 @@ cat >playbook_vector.yaml <<'EOF'
 ...
 EOF
 ```
+
 ## Запуск установки на стенде clickhouse и vector
+
 ```bash
 # Для исключения
 # "Ansible is being run in a world writable directory ...
@@ -648,7 +698,8 @@ export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 # Запуск Playbook как sh скрипт из-за "#!/usr/bin/env" ansible-playbook в начале файла
 ./playbook_main.yaml -v
 ```
-```
+
+```log
 ....
 TASK [vector : Проверка конфигурации Vector (валидация)] **************
 ok: [192.168.89.106] => 
@@ -682,6 +733,7 @@ PLAY RECAP *************
 192.168.89.105  : ok=1    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
 192.168.89.106  : ok=20   changed=10   unreachable=0    failed=0    skipped=1    rescued=0    ignored=0 
 ```
+
 ## Создание структуры роли Lighthouse
 
 ```bash
@@ -690,11 +742,13 @@ ansible-galaxy role \
 init \
 roles/lighthouse-role
 ```
-```
+
+```log
 - Role roles/lighthouse-role was created successfully
 ```
 
 ## Создание playbook для роли lighthouse
+
 ```bash
 cat >playbook_lighthouse.yaml <<'EOF'
 #!/usr/bin/env ansible-playbook
@@ -709,7 +763,9 @@ cat >playbook_lighthouse.yaml <<'EOF'
 ...
 EOF
 ```
+
 ## Описание переменных роли lighthouse
+
 ```bash
 cat > roles/lighthouse-role/defaults/main.yml <<'EOF'
 ---
@@ -774,8 +830,11 @@ lighthouse_config:
 ...
 EOF
 ```
+
 ## Описание задач роли
+
 ### Главный собирательный файл выполнения задач роли
+
 ```bash
 cat > roles/lighthouse-role/tasks/main.yml <<'EOF'
 ---
@@ -797,7 +856,9 @@ cat > roles/lighthouse-role/tasks/main.yml <<'EOF'
 ...
 EOF
 ```
+
 ### Задачи по базовой установке необходимых пакетов и использования исходников Lighthouse из репозитория VKCOM
+
 ```bash
 cat > roles/lighthouse-role/tasks/lh_inst.yml <<'EOF'
 # roles/lighthouse-role/tasks/upd_inst.yml
@@ -832,7 +893,9 @@ cat > roles/lighthouse-role/tasks/lh_inst.yml <<'EOF'
 ...
 EOF
 ```
+
 ### Развёртывание файлов приложения и предварительная подготовка nginx
+
 ```bash
 cat > roles/lighthouse-role/tasks/lh_dir.yml <<'EOF'
 ---
@@ -913,7 +976,9 @@ cat > roles/lighthouse-role/tasks/lh_dir.yml <<'EOF'
 ...
 EOF
 ```
+
 ### Предварительная проверка и запуск настроенной службы на базе nginx
+
 ```bash
 cat >roles/lighthouse-role/tasks/lh_serv.yml <<'EOF'
 ---
@@ -936,7 +1001,9 @@ cat >roles/lighthouse-role/tasks/lh_serv.yml <<'EOF'
 ...
 EOF
 ```
+
 ### Тестирование запущенной службы
+
 ```bash
 cat > roles/lighthouse-role/tasks/lh_verif.yml <<'EOF'
 ---
@@ -993,7 +1060,9 @@ cat > roles/lighthouse-role/tasks/lh_verif.yml <<'EOF'
 ...
 EOF
 ```
+
 ## Описание задач обработчиков
+
 ```bash
 cat > roles/lighthouse-role/handlers/main.yml <<'EOF'
 ---
@@ -1013,7 +1082,9 @@ cat > roles/lighthouse-role/handlers/main.yml <<'EOF'
 ...
 EOF
 ```
+
 ## Шаблон Nginx под revers proxy
+
 ```bash
 cat > roles/lighthouse-role/templates/lighthouse.conf.j2 <<'EOF'
 server {
@@ -1070,6 +1141,7 @@ server {
 }
 EOF
 ```
+
 ## изменение файла переменных group_vars/all.yml для работы с общим playbook с light house
 
 ```bash
@@ -1087,7 +1159,9 @@ ansible_ssh_private_key_file: "~/.ssh/id_kvm_host_to_vms"
 ...
 EOF
 ```
+
 ## Проверки собравшегося проекта в данном каталоге
+
 ```bash
 ansible-playbook *.yaml --syntax-check
 
@@ -1099,7 +1173,9 @@ ansible-inventory all -i hosts.ini --graph
 
 ansible-inventory all -i hosts.ini --list
 ```
+
 ## Запуск ролей через общий playbook
+
 ```bash
 # Для исключения
 # "Ansible is being run in a world writable directory ...
@@ -1112,6 +1188,7 @@ export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 # Запуск Playbook как sh скрипт из-за "#!/usr/bin/env" ansible-playbook в начале файла
 ./playbook_main.yaml -v
 ```
+
 ```bash
 # Добавляем ключи агенту ssh от репозитория gitflic и github
 eval $(ssh-agent) \
@@ -1138,8 +1215,11 @@ study_fops39 \
 study_fops39_gitflic_ru \
 17_4-ansible_role
 ```
+
 ## Создание репозиториев для загрузки ролей
+
 ### создание репозитория для роли vector
+
 ```bash
 # смена каталога для нового репозитория с ролью
 pwd 
@@ -1164,8 +1244,11 @@ git config \
 --add safe.directory \
 /home/shoel/nfs_git/gh_vector_role
 ```
+
 ### Копирование файлов в отдельно созданный репозиторий роли vector
+
 #### копирование в локальный каталог
+
 ```bash
 cp -r \
 ../gited/17_4/roles/vector/* \
@@ -1174,7 +1257,8 @@ cp -r \
 # вывод всего что есть в репозитории + бинарные файлы git
 tree . -a
 ```
-```
+
+```log
 .
 ├── defaults
 │   └── main.yml
@@ -1223,20 +1307,25 @@ tree . -a
 
 16 directories, 29 files
 ```
+
 #### Формирование коммита в новом репозитории
+
 ```bash
 # Просмотр текущих удаленных репозиториев
 git remote -v
 ```
-```
+
+```log
 origin  git@github.com:shoelacevip12/vector.git (fetch)
 origin  git@github.com:shoelacevip12/vector.git (push)
 ```
+
 ```bash
 # Проверка текущего локального состояния репозитория
 git status
 ```
-```
+
+```log
 Текущая ветка: main
 
 Еще нет коммитов
@@ -1250,13 +1339,16 @@ git status
         templates/
         vars/
 ```
+
 ```bash
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 ```
-```
+
+```log
 fatal: ваша текущая ветка «main» еще не содержит ни одного коммита
 ```
+
 ```bash
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
 git add . \
@@ -1266,14 +1358,18 @@ git add . \
 git commit -am '1 commmit vector, master' \
 && git push origin main
 ```
+
 #### Формирование тега по семантическому версионированию
+
 ```bash
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 ```
-```
+
+```log
 54b481e (HEAD -> main, origin/main) 1 commmit vector, master
 ```
+
 ```bash
 # Создание Аннотированного тега v0.1
 git tag \
@@ -1284,9 +1380,11 @@ git tag \
 git tag \
 -l "v*"
 ```
-```
+
+```log
 v0.1
 ```
+
 ```bash
 # Внесение изменений в текущий коммит
 git add . \
@@ -1295,7 +1393,9 @@ git add . \
 --set-upstream \
 origin main --tags --force
 ```
+
 ### создание роли для роли lighthouse
+
 ```bash
 # смена каталога для нового репозитория с ролью
 pwd 
@@ -1320,8 +1420,11 @@ git config \
 --add safe.directory \
 /home/shoel/nfs_git/gh_lighthouse_role/
 ```
+
 ### Копирование файлов в отдельно созданный репозиторий роли lighthouse
-#### копирование в локальный каталог
+
+#### Копирование в локальный каталог
+
 ```bash
 cp -r \
 ../gited/17_4/roles/lighthouse-role/* \
@@ -1330,7 +1433,8 @@ cp -r \
 # вывод всего что есть в репозитории + бинарные файлы git
 tree . -a
 ```
-```
+
+```log
 .
 ├── defaults
 │   └── main.yml
@@ -1378,20 +1482,25 @@ tree . -a
 
 16 directories, 28 files
 ```
-#### Формирование коммита в новом репозитории
+
+#### Формирование  коммита в новом репозитории
+
 ```bash
 # Просмотр текущих удаленных репозиториев
 git remote -v
 ```
-```
+
+```log
 origin  https://github.com/shoelacevip12/lighthouse-role (fetch)
 origin  https://github.com/shoelacevip12/lighthouse-role (push)
 ```
+
 ```bash
 # Проверка текущего локального состояния репозитория
 git status
 ```
-```
+
+```log
 Текущая ветка: main
 
 Еще нет коммитов
@@ -1405,13 +1514,16 @@ git status
         templates/
         vars/
 ```
+
 ```bash
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 ```
-```
+
+```log
 fatal: ваша текущая ветка «main» еще не содержит ни одного коммита
 ```
+
 ```bash
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
 git add . \
@@ -1421,14 +1533,18 @@ git add . \
 git commit -am '1 commmit lighthouse-role, main' \
 && git push origin main
 ```
-#### Формирование тега по семантическому версионированию
+
+#### Формирование  тега по семантическому версионированию
+
 ```bash
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 ```
-```
+
+```log
 8c99979 (HEAD -> main, origin/main) 1 commmit lighthouse-role, main
 ```
+
 ```bash
 # Создание Аннотированного тега v0.1
 git tag \
@@ -1439,9 +1555,11 @@ git tag \
 git tag \
 -l "v*"
 ```
-```
+
+```log
 v0.1
 ```
+
 ```bash
 # Внесение изменений в текущий коммит
 git add . \
@@ -1450,7 +1568,9 @@ git add . \
 --set-upstream \
 origin main --tags --force
 ```
+
 ## Формирование нового requirements.yml для проекта
+
 ```bash
 # Переход в каталог с проектом развертывания vector\clickhouse\lighthouse
 cd ../gited/17_4
@@ -1474,8 +1594,11 @@ cat > requirements.yml <<'EOF'
     name: lighthouse-role
 EOF
 ```
+
 ### Минимальное Заполнение файла meta для новых ролей
+
 #### для vector
+
 ```bash
 cat > roles/vector/meta/main.yml <<'EOF'
 ---
@@ -1505,7 +1628,9 @@ git add . \
 --set-upstream \
 origin main --tags --force
 ```
+
 #### для lighthouse
+
 ```bash
 cd -
 
@@ -1539,6 +1664,7 @@ origin main --tags --force
 ```
 
 ## Тестирование работы requirements.yml
+
 ```bash
 mkdir  1
 
@@ -1549,26 +1675,30 @@ cp ../requirements.yml .
 pwd \
 && ls -al
 ```
-```
+
+```log
 /home/shoel/nfs_git/gited/17_4/1
 итого 4
 drwxrwxrwx 1 1024 100  32 мар 24 22:10 .
 drwxrwxrwx 1 1024 100 372 мар 24 22:07 ..
 -rwxrwxrwx 1 1024 100 351 мар 24 22:10 requirements.yml
 ```
+
 ```bash
 # Скачивание роли из git репозитория источника 
 ansible-galaxy install \
 -p roles \
 -r requirements.yml --ignore-errors
 ```
-```
+
+```log
 - clickhouse (1.13) is already installed, skipping.
 - extracting vector to /home/shoel/nfs_git/gited/17_4/1/roles/vector
 - vector was installed successfully
 - extracting lighthouse-role to /home/shoel/nfs_git/gited/17_4/1/roles/lighthouse-role
 - lighthouse-role was installed successfully
 ```
+
 ```bash
 # Добавляем ключи агенту ssh от репозитория gitflic и github
 eval $(ssh-agent) \
@@ -1595,7 +1725,9 @@ study_fops39 \
 study_fops39_gitflic_ru \
 17_4-ansible_role
 ```
+
 ## commit_57, master
+
 ```bash
 eval $(ssh-agent) \
 && ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
