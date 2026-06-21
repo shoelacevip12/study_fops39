@@ -903,7 +903,7 @@ EOF
 ```bash
 cp -v ansible.cfg ansible_gr/
 
-cat >ansible/prometheus_server.yaml<<'EOF'
+cat >ansible_gr/Grafana_server.yaml<<'EOF'
 #!/usr/bin/env ansible-playbook
 ---
 - hosts: prom-core[0]
@@ -1818,3 +1818,21 @@ sed -i 's/Description=Prometheus/Description=Prometheus Service Netology Lesson 
 sed -i 's/Description=Prometheus Node Exporter/Description=Node Exporter Netology Lesson 19.2 — [Скворцов Д.В.]/g' \
 "ansible/roles/node_exporter/templates/node_exporter.service.j2"
 ```
+
+```bash
+# Для nfs сетевого хранилища и отключения сообщения
+# "Ansible is being run in a world writable directory ...
+# ignoring it as an ansible.cfg source"
+export ANSIBLE_CONFIG=./ansible/ansible.cfg
+
+# для вывода в yaml формате
+export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
+
+# Отключение warning при выполнении
+export ANSIBLE_ALLOW_BROKEN_CONDITIONALS=true
+
+# ЗАпуск здян
+ansible-playbook ansible/prometheus_server.yaml
+
+ansible-playbook ansible_gr/Grafana_server.yaml
+...
