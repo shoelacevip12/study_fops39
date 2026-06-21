@@ -893,6 +893,14 @@ EOF
 
 </details>
 
+```bash
+sed -i 's/Description=Prometheus/Description=Prometheus Service Netology Lesson 19.2 — [Скворцов Д.В.]/g' \
+"ansible/roles/prometheus/templates/prometheus.service.j2"
+
+sed -i 's/Description=Prometheus Node Exporter/Description=Node Exporter Netology Lesson 19.2 — [Скворцов Д.В.]/g' \
+"ansible/roles/node_exporter/templates/node_exporter.service.j2"
+```
+
 ---
 
 <details>
@@ -1794,11 +1802,20 @@ popd
 ## commit_4, `19_2-monitoring_prom_graf`
 
 ```bash
-
-export ANSIBLE_ALLOW_BROKEN_CONDITIONALS=true
-
 terraform apply "tfplan"
 ```
+
+<details>
+<summary>
+Лог развертывания ВМ
+</summary>
+
+```log
+
+```
+
+</details>
+
 
 ```bash
 rm ~/.ssh/known_hosts \
@@ -1812,11 +1829,7 @@ echo -n "Лучше подождать чем получить ошибку =): 
 ~/.ssh/id_19-2_ed25519 -A skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) hostnamectl \
 && yc compute instance list
 
-sed -i 's/Description=Prometheus/Description=Prometheus Service Netology Lesson 19.2 — [Скворцов Д.В.]/g' \
-"ansible/roles/prometheus/templates/prometheus.service.j2"
 
-sed -i 's/Description=Prometheus Node Exporter/Description=Node Exporter Netology Lesson 19.2 — [Скворцов Д.В.]/g' \
-"ansible/roles/node_exporter/templates/node_exporter.service.j2"
 ```
 
 ```bash
