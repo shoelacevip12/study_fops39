@@ -2580,3 +2580,48 @@ study_fops39 \
 study_fops39_gitflic_ru \
 19_2-monitoring_prom_graf
 ```
+
+## commit_67, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge 19_2-monitoring_prom_graf
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_67, master' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force
+```
