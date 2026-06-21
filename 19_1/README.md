@@ -98,7 +98,7 @@
 |--|--|--|--|
 |Prometheus|[x]|[ ]|может быть настроено только между Pushgateway и Prometheus|
 |TICK|[ ]|[x]|[ ]|
-|Zabbix|[ ]|[x]|gj SNMP, ssh и по HTTP API|
+|Zabbix|[ ]|[x]|по SNMP, SSH и по HTTP API|
 |VictoriaMetrics|[x]|[ ]|[ ]|
 |Nagios|[x]|[ ]|Через Nagios Remote Plugin Executor на узлах|
 
