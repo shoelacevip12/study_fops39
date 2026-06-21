@@ -267,7 +267,7 @@ grafana.grafana \
 
 <details>
 <summary>
-Обновление модулей коллекции prometheus
+Обновление модулей коллекции prometheus и grafana
 </summary>
 
 ```log
@@ -350,7 +350,7 @@ rm -rfv ansible/.git
 
 ```bash
 git clone \
-git clone https://github.com/grafana/grafana-ansible-collection.git
+https://github.com/grafana/grafana-ansible-collection.git
 
 mv -v grafana-ansible-collection ansible_gr
 
@@ -824,7 +824,7 @@ EOG
 ```bash
 cat >ansible.cfg<<'EOF'
 [defaults]
-inventory=./hosts.ini
+inventory=../hosts.ini
 host_key_checking=False
 interpreter_python=auto_silent
 deprecation_warnings=False
@@ -860,3 +860,961 @@ EOF
 </details>
 
 ---
+
+<details>
+<summary>
+Файл playbook установки prometheus
+</summary>
+
+```bash
+cp -v ansible.cfg ansible/
+
+cat >ansible/prometheus_server.yaml<<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- hosts: prom-core[0]
+  become: yes
+  vars:
+    prometheus_targets:
+      node:
+      - targets:
+        - localhost:9100
+        - "{{ groups['node_exp'][0] }}:9100"
+  roles:
+    - prometheus
+
+- hosts: node_exp:prom-core[0]
+  become: yes
+  roles:
+    - node_exporter
+...
+EOF
+```
+
+</details>
+
+---
+
+<details>
+<summary>
+Файл playbook установки grafana
+</summary>
+
+```bash
+cp -v ansible.cfg ansible_gr/
+
+cat >ansible/prometheus_server.yaml<<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- hosts: prom-core[0]
+  become: yes
+  vars:
+    grafana_ini:
+      security:
+        admin_user: admin
+        admin_password: test@skv
+    grafana_datasources:
+      - name: "Prometheus"
+        type: "prometheus"
+        url: 'http://localhost:9090'
+    grafana_deb_url: "https://drive.usercontent.google.com/download?id=10Wo3Dhrian9jF45VxwRjmkZyzxZqFgc3&export=download&authuser=0&confirm=t&uuid=9e8897bf-399b-4531-a2e6-31d77f27dd43&at=AAINaIJK6oaBpb0lKiG6oZqVCAFu%3A1782061744193"
+    grafana_deb_file: "grafana_13.0.2_26816849631_linux_amd64.deb"
+
+  pre_tasks:
+    - name: Download Grafana DEB package
+      get_url:
+        url: "{{ grafana_deb_url }}"
+        dest: "/tmp/{{ grafana_deb_file }}"
+        mode: '0644'
+        timeout: 300
+        headers:
+          Content-Disposition: "attachment"
+
+    - name: Install Grafana from DEB package
+      apt:
+        deb: "/tmp/{{ grafana_deb_file }}"
+        state: present
+  roles:
+    - grafana
+...
+EOF
+```
+
+</details>
+
+---
+
+<details>
+<summary>
+Исправление Ansible Такси для роли Grafana под установку из .deb пакета
+</summary>
+
+```bash
+cat >ansible_gr/roles/grafana/tasks/install.yml<<'EOF'
+---
+- name: "Remove conflicting grafana packages"
+  ansible.builtin.package:
+    name: grafana-data
+    state: absent
+
+- name: "Prepare zypper"
+  when:
+    - "ansible_facts['pkg_mgr'] == 'zypper'"
+    - "(grafana_manage_repo)"
+  environment: "{{ grafana_environment }}"
+  block:
+    - name: import Grafana RPM Key
+      ansible.builtin.rpm_key:
+        state: present
+        key: "{{ grafana_yum_key }}"
+
+    - name: "Add Grafana zypper repository"
+      community.general.zypper_repository:
+        name: grafana
+        description: grafana
+        repo: "{{ grafana_yum_repo }}"
+        enabled: true
+        disable_gpg_check : "{{ false if (grafana_yum_key) else omit }}"
+        runrefresh: true
+      when: "(not grafana_rhsm_repo)"
+
+- name: "Prepare yum/dnf"
+  when:
+    - "ansible_facts['pkg_mgr'] in ['yum', 'dnf']"
+    - "(grafana_manage_repo)"
+  environment: "{{ grafana_environment }}"
+  block:
+    - name: "Add Grafana yum/dnf repository"
+      ansible.builtin.yum_repository:
+        name: grafana
+        description: grafana
+        baseurl: "{{ grafana_yum_repo }}"
+        enabled: true
+        gpgkey: "{{ grafana_yum_key | default(omit) }}"
+        repo_gpgcheck: "{{ true if (grafana_yum_key) else omit }}"
+        gpgcheck: "{{ true if (grafana_yum_key) else omit }}"
+      when: "(not grafana_rhsm_repo)"
+
+    - name: "Attach RHSM subscription"
+      when: "(grafana_rhsm_subscription)"
+      block:
+        - name: "Check if Grafana RHSM subscription is enabled"
+          ansible.builtin.command:
+            cmd: "subscription-manager list --consumed --matches={{ grafana_rhsm_subscription | quote }} --pool-only"
+          register: __subscription_manager_consumed
+          changed_when: false
+          when: (grafana_rhsm_subscription)
+
+        - name: "Find RHSM repo subscription pool id"
+          ansible.builtin.command:
+            cmd: "subscription-manager list --available --matches={{ grafana_rhsm_subscription | quote }} --pool-only"
+          register: __subscription_manager_available
+          changed_when: false
+          when:
+            - "(grafana_rhsm_subscription)"
+            - "__subscription_manager_consumed.stdout | length <= 0"
+
+        - name: "Attach RHSM subscription"
+          ansible.builtin.command:
+            cmd: "subscription-manager attach --pool={{ __subscription_manager_available.stdout }}"
+          register: __subscription_manager_attach
+          changed_when: "__subscription_manager_attach.stdout is search('Successfully attached a subscription')"
+          failed_when: "__subscription_manager_attach.stdout is search('could not be found')"
+          when:
+            - "(grafana_rhsm_subscription)"
+            - "__subscription_manager_consumed.stdout | default() | length <= 0"
+            - "__subscription_manager_available.stdout | default() | length > 0"
+
+    - name: "Enable RHSM repository"
+      community.general.rhsm_repository:
+        name: "{{ grafana_rhsm_repo }}"
+        state: enabled
+      when: (grafana_rhsm_repo)
+EOF
+```
+
+</details>
+
+---
+
+<details>
+<summary>
+Исправление Ansible главной Такси для роли Grafana под установку из .deb пакета
+</summary>
+
+```bash
+cat >ansible_gr/roles/grafana/tasks/main.yml<<'EOF'
+---
+- name: Inherit default vars
+  ansible.builtin.set_fact:
+    grafana_ini: "{{ grafana_ini_default | ansible.builtin.combine(grafana_ini | default({}), recursive=true) }}"
+  no_log: "{{ 'false' if lookup('env', 'CI') else 'true' }}"
+  tags:
+    - always
+- name: "Gather variables for each operating system"
+  ansible.builtin.include_vars: "{{ distrovars }}"
+  vars:
+    distrovars: "{{ lookup('first_found', params, errors='ignore') }}"
+    params:
+      skip: true
+      files:
+        - "{{ ansible_facts['distribution'] | lower }}-{{ ansible_facts['distribution_version'] | lower }}.yml"
+        - "{{ ansible_facts['distribution'] | lower }}-{{ ansible_facts['distribution_major_version'] | lower }}.yml"
+        - "{{ ansible_facts['os_family'] | lower }}-{{ ansible_facts['distribution_major_version'] | lower }}.yml"
+        - "{{ ansible_facts['distribution'] | lower }}.yml"
+        - "{{ ansible_facts['os_family'] | lower }}.yml"
+      paths:
+        - "vars/distro"
+  tags:
+    - grafana_configure
+    - grafana_datasources
+    - grafana_notifications
+    - grafana_dashboards
+
+- name: Preflight
+  ansible.builtin.include_tasks:
+    file: preflight.yml
+    apply:
+      tags:
+        - grafana_configure
+        - grafana_datasources
+        - grafana_notifications
+        - grafana_dashboards
+
+- name: Configure
+  ansible.builtin.include_tasks:
+    file: configure.yml
+    apply:
+      become: true
+      tags:
+        - grafana_configure
+
+- name: Plugins
+  ansible.builtin.include_tasks:
+    file: plugins.yml
+    apply:
+      tags:
+        - grafana_configure
+  when: "grafana_plugins != []"
+
+- name: "Restart grafana before configuring datasources and dashboards"
+  ansible.builtin.meta: flush_handlers
+  tags:
+    - grafana_configure
+    - grafana_datasources
+    - grafana_notifications
+    - grafana_dashboards
+    - grafana_run
+
+- name: "Wait for grafana to start"
+  ansible.builtin.wait_for:
+    host: "{{ grafana_ini.server.http_addr if grafana_ini.server.protocol is undefined or grafana_ini.server.protocol in ['http', 'https'] else omit }}"
+    port: "{{ grafana_ini.server.http_port if grafana_ini.server.protocol is undefined or grafana_ini.server.protocol in ['http', 'https'] else omit }}"
+    path: "{{ grafana_ini.server.socket | default() if grafana_ini.server.protocol is defined and grafana_ini.server.protocol == 'socket' else omit }}"
+  tags:
+    - grafana_configure
+    - grafana_datasources
+    - grafana_notifications
+    - grafana_dashboards
+    - grafana_run
+
+- name: "Api keys"
+  ansible.builtin.include_tasks:
+    file: api_keys.yml
+    apply:
+      tags:
+        - grafana_configure
+        - grafana_run
+  when: "grafana_api_keys | length > 0"
+
+- name: Datasources
+  ansible.builtin.include_tasks:
+    file: datasources.yml
+    apply:
+      tags:
+        - grafana_configure
+        - grafana_datasources
+        - grafana_run
+  when: "grafana_datasources != []"
+
+- name: Notifications
+  ansible.builtin.include_tasks:
+    file: notifications.yml
+    apply:
+      tags:
+        - grafana_configure
+        - grafana_notifications
+        - grafana_run
+  when: "grafana_alert_notifications | length > 0 or grafana_alert_resources | length > 0"
+
+- name: Find dashboards to be provisioned
+  ansible.builtin.find:
+    paths: "{{ grafana_dashboards_dir }}"
+    recurse: true
+    patterns: "*.json"
+  delegate_to: localhost
+  become: false
+  register: __found_dashboards
+
+- name: Dashboards
+  ansible.builtin.include_tasks:
+    file: dashboards.yml
+    apply:
+      tags:
+        - grafana_configure
+        - grafana_dashboards
+        - grafana_run
+  when: "grafana_dashboards | length > 0 or __found_dashboards['files'] | length > 0"
+EOF
+```
+
+</details>
+
+---
+
+```bash
+yc components update
+
+export YC_TOKEN=$(yc iam create-token)
+export YC_CLOUD_ID=$(yc config get cloud-id)
+export YC_FOLDER_ID=$(yc config get folder-id)
+
+terraform init
+```
+
+<details>
+<summary>
+Лог инициализации terraform
+</summary>
+
+```log
+Initializing provider plugins found in the configuration...
+- Finding latest version of yandex-cloud/yandex...
+- Finding latest version of hashicorp/local...
+- Installing yandex-cloud/yandex v0.209.0...
+- Installed yandex-cloud/yandex v0.209.0 (unauthenticated)
+- Installing hashicorp/local v2.9.0...
+- Installed hashicorp/local v2.9.0 (unauthenticated)
+
+Initializing the backend...
+
+
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+
+╷
+│ Warning: Incomplete lock file information for providers
+│ 
+│ Due to your customized provider installation methods, Terraform was forced to calculate lock file checksums locally for the following providers:
+│   - hashicorp/local
+│   - yandex-cloud/yandex
+│ 
+│ The current .terraform.lock.hcl file only includes checksums for linux_amd64, so Terraform running on another platform will fail to install these providers.
+│ 
+│ To calculate additional checksums for another platform, run:
+│   terraform providers lock -platform=linux_amd64
+│ (where linux_amd64 is the platform to generate)
+╵
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+```
+
+</details>
+
+```bash
+terraform validate \
+&& terraform fmt  \
+&& terraform init --upgrade \
+&& terraform plan -out=tfplan
+```
+
+<details>
+<summary>
+Лог проверок, авто-форматирования и создания plan запуска
+</summary>
+
+```log
+Success! The configuration is valid.
+
+Initializing provider plugins found in the configuration...
+- Finding latest version of hashicorp/local...
+- Finding latest version of yandex-cloud/yandex...
+- Using previously-installed hashicorp/local v2.9.0
+- Using previously-installed yandex-cloud/yandex v0.209.0
+
+Initializing the backend...
+
+
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+data.yandex_compute_image.ubuntu_2404_lts: Reading...
+data.yandex_compute_image.ubuntu_2404_lts: Read complete after 1s [id=fd8tm4ja1he7v7vknauu]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # local_file.hosts-ans will be created
+  + resource "local_file" "hosts-ans" {
+      + content              = (known after apply)
+      + content_base64sha256 = (known after apply)
+      + content_base64sha512 = (known after apply)
+      + content_md5          = (known after apply)
+      + content_sha1         = (known after apply)
+      + content_sha256       = (known after apply)
+      + content_sha512       = (known after apply)
+      + directory_permission = "0777"
+      + file_permission      = "0777"
+      + filename             = "./hosts.ini"
+      + id                   = (known after apply)
+    }
+
+  # yandex_compute_instance.node-epx will be created
+  + resource "yandex_compute_instance" "node-epx" {
+      + created_at                = (known after apply)
+      + folder_id                 = (known after apply)
+      + fqdn                      = (known after apply)
+      + gpu_cluster_id            = (known after apply)
+      + hardware_generation       = (known after apply)
+      + hostname                  = "node-epx"
+      + id                        = (known after apply)
+      + maintenance_grace_period  = (known after apply)
+      + maintenance_policy        = (known after apply)
+      + metadata                  = {
+          + "serial-port-enable" = "1"
+          + "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 XXXXXXXxxxxXXXXxxXXXXXxxXXxXXxxXxXXXxxXXxxxxxXxxxXXxxxxXXXXxxxXXXxxx 19-02
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+            EOT
+        }
+      + name                      = "node-epx"
+      + network_acceleration_type = "standard"
+      + platform_id               = "standard-v2"
+      + status                    = (known after apply)
+      + zone                      = "ru-central1-a"
+
+      + boot_disk {
+          + auto_delete = true
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = (known after apply)
+
+          + initialize_params {
+              + block_size  = (known after apply)
+              + description = (known after apply)
+              + image_id    = "fd8tm4ja1he7v7vknauu"
+              + name        = (known after apply)
+              + size        = 10
+              + snapshot_id = (known after apply)
+              + type        = "network-hdd"
+            }
+        }
+
+      + metadata_options (known after apply)
+
+      + network_interface {
+          + index              = (known after apply)
+          + ip_address         = (known after apply)
+          + ipv4               = true
+          + ipv6               = (known after apply)
+          + ipv6_address       = (known after apply)
+          + mac_address        = (known after apply)
+          + nat                = false
+          + nat_ip_address     = (known after apply)
+          + nat_ip_version     = (known after apply)
+          + security_group_ids = (known after apply)
+          + subnet_id          = (known after apply)
+        }
+
+      + placement_policy (known after apply)
+
+      + resources {
+          + core_fraction = 5
+          + cores         = 2
+          + memory        = 2
+        }
+
+      + scheduling_policy {
+          + preemptible = true
+        }
+    }
+
+  # yandex_compute_instance.prom-core will be created
+  + resource "yandex_compute_instance" "prom-core" {
+      + created_at                = (known after apply)
+      + folder_id                 = (known after apply)
+      + fqdn                      = (known after apply)
+      + gpu_cluster_id            = (known after apply)
+      + hardware_generation       = (known after apply)
+      + hostname                  = "prom-core"
+      + id                        = (known after apply)
+      + maintenance_grace_period  = (known after apply)
+      + maintenance_policy        = (known after apply)
+      + metadata                  = {
+          + "serial-port-enable" = "1"
+          + "user-data"          = <<-EOT
+                #cloud-config
+                users:
+                  - name: skv
+                    groups: sudo
+                    shell: /bin/bash
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    ssh_authorized_keys:
+                      - ssh-ed25519 XXXXXXXxxxxXXXXxxXXXXXxxXXxXXxxXxXXXxxXXxxxxxXxxxXXxxxxXXXXxxxXXXxxx 19-02
+                    lock_passwd: false
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - wget
+                  - curl
+                  - gnupg
+                  - software-properties-common
+                  - python3-psycopg2
+                  - acl
+                  - locales-all
+            EOT
+        }
+      + name                      = "prom-core"
+      + network_acceleration_type = "standard"
+      + platform_id               = "standard-v2"
+      + status                    = (known after apply)
+      + zone                      = "ru-central1-a"
+
+      + boot_disk {
+          + auto_delete = true
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = (known after apply)
+
+          + initialize_params {
+              + block_size  = (known after apply)
+              + description = (known after apply)
+              + image_id    = "fd8tm4ja1he7v7vknauu"
+              + name        = (known after apply)
+              + size        = 20
+              + snapshot_id = (known after apply)
+              + type        = "network-hdd"
+            }
+        }
+
+      + metadata_options (known after apply)
+
+      + network_interface {
+          + index              = (known after apply)
+          + ip_address         = (known after apply)
+          + ipv4               = true
+          + ipv6               = (known after apply)
+          + ipv6_address       = (known after apply)
+          + mac_address        = (known after apply)
+          + nat                = true
+          + nat_ip_address     = (known after apply)
+          + nat_ip_version     = (known after apply)
+          + security_group_ids = (known after apply)
+          + subnet_id          = (known after apply)
+        }
+
+      + placement_policy (known after apply)
+
+      + resources {
+          + core_fraction = 20
+          + cores         = 4
+          + memory        = 4
+        }
+
+      + scheduling_policy {
+          + preemptible = true
+        }
+    }
+
+  # yandex_vpc_gateway.nat_gateway will be created
+  + resource "yandex_vpc_gateway" "nat_gateway" {
+      + created_at = (known after apply)
+      + folder_id  = (known after apply)
+      + id         = (known after apply)
+      + labels     = (known after apply)
+      + name       = "fops-gateway-19-02"
+
+      + shared_egress_gateway {}
+    }
+
+  # yandex_vpc_network.skv will be created
+  + resource "yandex_vpc_network" "skv" {
+      + created_at                = (known after apply)
+      + default_security_group_id = (known after apply)
+      + folder_id                 = (known after apply)
+      + id                        = (known after apply)
+      + labels                    = (known after apply)
+      + name                      = "skv-fops39-19-02"
+      + subnet_ids                = (known after apply)
+    }
+
+  # yandex_vpc_route_table.route will be created
+  + resource "yandex_vpc_route_table" "route" {
+      + created_at = (known after apply)
+      + folder_id  = (known after apply)
+      + id         = (known after apply)
+      + labels     = (known after apply)
+      + name       = "fops-route-table-19-02"
+      + network_id = (known after apply)
+
+      + static_route {
+          + destination_prefix = "0.0.0.0/0"
+          + gateway_id         = (known after apply)
+            # (1 unchanged attribute hidden)
+        }
+    }
+
+  # yandex_vpc_security_group.LAN will be created
+  + resource "yandex_vpc_security_group" "LAN" {
+      + created_at = (known after apply)
+      + folder_id  = (known after apply)
+      + id         = (known after apply)
+      + labels     = (known after apply)
+      + name       = "LAN-19-02"
+      + network_id = (known after apply)
+      + status     = (known after apply)
+
+      + egress {
+          + description       = "Permit ANY"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+
+      + ingress {
+          + description       = "Allow 10.10.10.0/26"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = [
+              + "10.10.10.0/26",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+  # yandex_vpc_security_group.nod_gra will be created
+  + resource "yandex_vpc_security_group" "nod_gra" {
+      + created_at = (known after apply)
+      + folder_id  = (known after apply)
+      + id         = (known after apply)
+      + labels     = (known after apply)
+      + name       = "nod_gra-19-02"
+      + network_id = (known after apply)
+      + status     = (known after apply)
+
+      + egress (known after apply)
+
+      + ingress {
+          + description       = "Allow HTTP"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 80
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "Allow HTTPS"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 443
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "Allow Prometheus"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 9090
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "10.10.10.0/26",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "Node Exporter"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 9100
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "10.10.10.0/26",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+  # yandex_vpc_security_group.prom-core will be created
+  + resource "yandex_vpc_security_group" "prom-core" {
+      + created_at = (known after apply)
+      + folder_id  = (known after apply)
+      + id         = (known after apply)
+      + labels     = (known after apply)
+      + name       = "prom-core-19-02"
+      + network_id = (known after apply)
+      + status     = (known after apply)
+
+      + egress (known after apply)
+
+      + ingress {
+          + description       = "Allow 0.0.0.0/0"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 22
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "Allow HTTP"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 80
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "Allow HTTPS"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 443
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "Allow Prometheus"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 9090
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "Grafana веб UI"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 3000
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "Node Exporter"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 9100
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+  # yandex_vpc_subnet.skv_a will be created
+  + resource "yandex_vpc_subnet" "skv_a" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "skv-fops-19-02-ru-central1-a"
+      + network_id     = (known after apply)
+      + route_table_id = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.0/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-a"
+    }
+
+Plan: 10 to add, 0 to change, 0 to destroy.
+
+Saved the plan to: tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "tfplan
+```
+
+</details>
+
+```bash
+pushd ../..
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+git rm -r --cached \
+./
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit3, 19_2-monitoring_prom_graf_2' \
+&& git push \
+--set-upstream \
+study_fops39 \
+19_2-monitoring_prom_graf \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+19_2-monitoring_prom_graf
+
+popd
+```
+
+<details>
+<summary>
+Возврат в директорию с работой
+</summary>
+
+```log
+~/nfs_git/gited/19_2/tf
+```
+
+</details>
+
+## commit_4, `19_2-monitoring_prom_graf`
+
+```bash
+
+export ANSIBLE_ALLOW_BROKEN_CONDITIONALS=true
+
+terraform apply "tfplan"
+```
+
+```bash
+rm ~/.ssh/known_hosts \
+; eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_19-2_ed25519 \
+&& for d in {120..1}; do \
+echo -n "Лучше подождать чем получить ошибку =): $d сек." \
+; sleep 1 \
+; echo -ne "\r"; done \
+&& ssh -o StrictHostKeyChecking=no -i \
+~/.ssh/id_19-2_ed25519 -A skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) hostnamectl \
+&& yc compute instance list
+
+sed -i 's/Description=Prometheus/Description=Prometheus Service Netology Lesson 19.2 — [Скворцов Д.В.]/g' \
+"ansible/roles/prometheus/templates/prometheus.service.j2"
+
+sed -i 's/Description=Prometheus Node Exporter/Description=Node Exporter Netology Lesson 19.2 — [Скворцов Д.В.]/g' \
+"ansible/roles/node_exporter/templates/node_exporter.service.j2"
+```

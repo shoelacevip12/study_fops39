@@ -31,7 +31,7 @@ resource "yandex_compute_instance" "prom-core" {
   scheduling_policy { preemptible = true }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.skv_a.id
+    subnet_id          = yandex_vpc_subnet.skv_a.id #зона ВМ должна совпадать с зоной subnet!!!
     nat                = true
     security_group_ids = [yandex_vpc_security_group.LAN.id, yandex_vpc_security_group.prom-core.id]
   }
@@ -42,7 +42,7 @@ resource "yandex_compute_instance" "node-epx" {
   name        = "node-epx"
   hostname    = "node-epx"
   platform_id = "standard-v2"
-  zone        = "ru-central1-a"
+  zone        = "ru-central1-a" #зона ВМ должна совпадать с зоной subnet!!!
 
 
   resources {
@@ -78,7 +78,7 @@ resource "local_file" "hosts-ans" {
   content  = <<-XYZ
   [all:vars]
   ansible_user=skv
-  ansible_ssh_private_key_file=~/.ssh/id_09-4_ed25519
+  ansible_ssh_private_key_file=~/.ssh/id_19-2_ed25519
   [prom-core]
   ${yandex_compute_instance.prom-core.network_interface.0.nat_ip_address}
   ${yandex_compute_instance.prom-core.network_interface.0.ip_address} 

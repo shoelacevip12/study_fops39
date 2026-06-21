@@ -1,0 +1,33 @@
+#!/usr/bin/env ansible-playbook
+---
+- hosts: prom-core[0]
+  become: yes
+  vars:
+    grafana_ini:
+      security:
+        admin_user: admin
+        admin_password: test@skv
+    grafana_datasources:
+      - name: "Prometheus"
+        type: "prometheus"
+        url: 'http://localhost:9090'
+    grafana_deb_url: "https://drive.usercontent.google.com/download?id=10Wo3Dhrian9jF45VxwRjmkZyzxZqFgc3&export=download&authuser=0&confirm=t&uuid=9e8897bf-399b-4531-a2e6-31d77f27dd43&at=AAINaIJK6oaBpb0lKiG6oZqVCAFu%3A1782061744193"
+    grafana_deb_file: "grafana_13.0.2_26816849631_linux_amd64.deb"
+
+  pre_tasks:
+    - name: Download Grafana DEB package
+      get_url:
+        url: "{{ grafana_deb_url }}"
+        dest: "/tmp/{{ grafana_deb_file }}"
+        mode: '0644'
+        timeout: 300
+        headers:
+          Content-Disposition: "attachment"
+
+    - name: Install Grafana from DEB package
+      apt:
+        deb: "/tmp/{{ grafana_deb_file }}"
+        state: present
+  roles:
+    - grafana
+...

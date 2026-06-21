@@ -30,4 +30,3 @@ variable "srv" {
     core_fraction = 20
   }
 }
-
