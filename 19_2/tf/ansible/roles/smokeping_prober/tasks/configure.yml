@@ -1,0 +1,52 @@
+---
+- name: Configure
+  ansible.builtin.include_role:
+    name: prometheus.prometheus._common
+    tasks_from: configure.yml
+  vars:
+    _common_system_user: "{{ smokeping_prober_system_user }}"
+    _common_system_group: "{{ smokeping_prober_system_group }}"
+    _common_config_dir: "{{ smokeping_prober_config_dir }}"
+    _common_tls_server_config: "{{ smokeping_prober_tls_server_config }}"
+    _common_http_server_config: "{{ smokeping_prober_http_server_config }}"
+    _common_basic_auth_users: "{{ smokeping_prober_basic_auth_users }}"
+  tags:
+    - smokeping_prober
+    - configure
+    - smokeping_prober_configure
+
+- name: Ensure smokeping prober binary has cap_net_raw capability
+  community.general.capabilities:
+    path: "{{ smokeping_prober_binary_install_dir }}/smokeping_prober"
+    capability: cap_net_raw=ep
+    state: present
+  become: true
+  when: not ansible_check_mode
+  tags:
+    - smokeping_prober
+    - configure
+    - smokeping_prober_configure
+
+- name: Check Debug Message
+  ansible.builtin.debug:
+    msg: "The capabilities module is skipped during check mode, as the file may not exist, causing execution to fail."
+  when: ansible_check_mode
+  tags:
+    - smokeping_prober
+    - configure
+    - smokeping_prober_configure
+
+- name: Copy the smokeping_prober config file
+  ansible.builtin.template:
+    src: probes.yml.j2
+    dest: "{{ smokeping_prober_config_dir }}/{{ smokeping_prober_config_file }}"
+    owner: root
+    group: root
+    mode: 0644
+  no_log: "{{ false if (lookup('env', 'CI')) or (lookup('env', 'MOLECULE_PROVISIONER_NAME')) else true }}"
+  notify: restart smokeping_prober
+  become: true
+  tags:
+    - smokeping_prober
+    - configure
+    - smokeping_prober_configure

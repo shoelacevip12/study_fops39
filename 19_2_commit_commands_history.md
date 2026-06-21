@@ -180,3 +180,199 @@ study_fops39 \
 study_fops39_gitflic_ru \
 19_2-monitoring_prom_graf
 ```
+
+## commit_2, `19_2-monitoring_prom_graf`
+
+```bash
+ssh-keygen \
+-f ~/.ssh/id_19-2_ed25519 \
+-t ed25519 -C "19-02"
+```
+
+<details>
+<summary>
+Генерация ключу для работы
+</summary>
+
+```log
+Generating public/private ed25519 key pair.
+Enter passphrase for "/home/shoel/.ssh/id_19-2_ed25519" (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/shoel/.ssh/id_19-2_ed25519
+Your public key has been saved in /home/shoel/.ssh/id_19-2_ed25519.pub
+The key fingerprint is:
+SHA256:avRJjDVk5pUZtS289cjrFPZyrf1nYCGxE3WYWsjJ4uc 19-02
+The key's randomart image is:
++--[ED25519 256]--+
+|        + oB.+.o.|
+|       = .+.Bo+. |
+|        +. .+*o  |
+|       + .. *=.o |
+|      o S  o.o=..|
+|     . + .  E.o+.|
+|      o o    .+.+|
+|     .       o =o|
+|              o.=|
++----[SHA256]-----+
+```
+
+</details>
+
+```bash
+mkdir -v tf
+
+cd !$
+
+cat >cloud-init.yml<<'EOF'
+#cloud-config
+users:
+  - name: skv
+    groups: sudo
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ssh-ed25519
+    lock_passwd: false
+package_update: true
+package_upgrade: true
+packages:
+  - wget
+  - curl
+  - gnupg
+  - software-properties-common
+  - python3-psycopg2
+  - acl
+  - locales-all
+EOF
+
+sed -i "8s|.*|      - $(cat ~/.ssh/id_19-2_ed25519.pub)|" cloud-init.yml
+```
+
+```bash
+ansible-galaxy collection \
+install \
+prometheus.prometheus --force
+```
+
+<details>
+<summary>
+Обновление модулей коллекции prometheus
+</summary>
+
+```log
+Starting galaxy collection install process
+Process install dependency map
+Starting collection install process
+Downloading https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts/prometheus-prometheus-0.30.0.tar.gz to /home/shoel/.ansible/tmp/ansible-local-22497fydy0vw_/tmp7kjx95pm/prometheus-prometheus-0.30.0-s2tjjxmn
+Installing 'prometheus.prometheus:0.30.0' to '/home/shoel/.ansible/collections/ansible_collections/prometheus/prometheus'
+prometheus.prometheus:0.30.0 was installed successfully
+'community.general:13.0.1' is already installed, skipping.
+```
+
+</details>
+
+```bash
+git clone \
+https://github.com/prometheus-community/ansible.git
+
+rm -rfv ansible/.git
+```
+
+<details>
+<summary>
+удаление кеша git проекта
+</summary>
+
+```log
+удалён 'ansible/.git/description'
+удалён 'ansible/.git/hooks/post-update.sample'
+удалён 'ansible/.git/hooks/pre-rebase.sample'
+удалён 'ansible/.git/hooks/pre-commit.sample'
+удалён 'ansible/.git/hooks/pre-receive.sample'
+удалён 'ansible/.git/hooks/commit-msg.sample'
+удалён 'ansible/.git/hooks/pre-push.sample'
+удалён 'ansible/.git/hooks/applypatch-msg.sample'
+удалён 'ansible/.git/hooks/pre-applypatch.sample'
+удалён 'ansible/.git/hooks/update.sample'
+удалён 'ansible/.git/hooks/fsmonitor-watchman.sample'
+удалён 'ansible/.git/hooks/push-to-checkout.sample'
+удалён 'ansible/.git/hooks/pre-merge-commit.sample'
+удалён 'ansible/.git/hooks/sendemail-validate.sample'
+удалён 'ansible/.git/hooks/prepare-commit-msg.sample'
+удалён каталог 'ansible/.git/hooks'
+удалён 'ansible/.git/info/exclude'
+удалён каталог 'ansible/.git/info'
+удалён 'ansible/.git/objects/pack/pack-82d0b30c5d6e31e6ae590f368ac6e8df7a99d0b8.pack'
+удалён 'ansible/.git/objects/pack/pack-82d0b30c5d6e31e6ae590f368ac6e8df7a99d0b8.rev'
+удалён 'ansible/.git/objects/pack/pack-82d0b30c5d6e31e6ae590f368ac6e8df7a99d0b8.idx'
+удалён каталог 'ansible/.git/objects/pack'
+удалён каталог 'ansible/.git/objects/info'
+удалён каталог 'ansible/.git/objects'
+удалён 'ansible/.git/refs/heads/main'
+удалён каталог 'ansible/.git/refs/heads'
+удалён каталог 'ansible/.git/refs/tags'
+удалён 'ansible/.git/refs/remotes/origin/HEAD'
+удалён каталог 'ansible/.git/refs/remotes/origin'
+удалён каталог 'ansible/.git/refs/remotes'
+удалён каталог 'ansible/.git/refs'
+удалён 'ansible/.git/packed-refs'
+удалён 'ansible/.git/logs/refs/remotes/origin/HEAD'
+удалён каталог 'ansible/.git/logs/refs/remotes/origin'
+удалён каталог 'ansible/.git/logs/refs/remotes'
+удалён 'ansible/.git/logs/refs/heads/main'
+удалён каталог 'ansible/.git/logs/refs/heads'
+удалён каталог 'ansible/.git/logs/refs'
+удалён 'ansible/.git/logs/HEAD'
+удалён каталог 'ansible/.git/logs'
+удалён 'ansible/.git/HEAD'
+удалён 'ansible/.git/config'
+удалён 'ansible/.git/index'
+удалён каталог 'ansible/.git'
+```
+
+</details>
+
+```bash
+pushd ../..
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+git rm -r --cached \
+./
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit2, 19_2-monitoring_prom_graf' \
+&& git push \
+--set-upstream \
+study_fops39 \
+19_2-monitoring_prom_graf \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+19_2-monitoring_prom_graf
+```
+

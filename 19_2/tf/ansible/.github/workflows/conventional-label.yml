@@ -1,0 +1,121 @@
+---
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+permissions:
+  pull-requests: write
+name: Auto label pull request
+jobs:
+  pr-label:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: "Confirm correct pull request title"
+        uses: deepakputhraya/action-pr-title@077bddd7bdabd0d2b1b25ed0754c7e62e184d7ee
+        with:
+          allowed_prefixes: "breaking,chore,feat,feature,fix,major,minor,enhancement,\
+           deprecated,removed,security,bug,bugfix,docs,packaging,\
+           test,refactor,refactoring,skip-release,skip_changelog,patch"
+
+      - name: "Apply label"
+        if: github.event.pull_request.labels.length == 0
+        uses: bcoe/conventional-release-labels@886f696738527c7be444262c327c89436dfb95a8  # v1.3.1
+        with:
+          type_labels: |
+              {
+              "feature": "enhancement",
+              "feat": "enhancement",
+              "fix": "bugfix",
+              "major": "major",
+              "breaking": "breaking",
+              "minor": "minor",
+              "enhancement": "enhancement",
+              "deprecated": "deprecated",
+              "removed": "removed",
+              "security": "security",
+              "bug": "bug",
+              "bugfix": "bugfix",
+              "docs": "trivial",
+              "packaging": "trivial",
+              "test": "trivial",
+              "refactor": "trivial",
+              "refactoring": "trivial",
+              "skip-release": "skip_changelog",
+              "skip_changelog": "skip_changelog",
+              "patch": "trivial",
+              "chore": "trivial"
+              }
+
+  role-label:
+    runs-on: ubuntu-latest
+    needs: pr-label
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Add changed roles labels
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // List all files in the PR
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              {
+                owner,
+                repo,
+                pull_number: prNumber,
+              }
+            );
+
+            // Collect changed role names
+            const changedRoles = new Set();
+            for (const file of files) {
+              const path = file.filename;
+              if (!path.startsWith("roles/")) continue;
+
+              const parts = path.split("/");
+              if (parts.length < 2) continue;
+
+              const roleName = parts[1];
+              changedRoles.add(roleName);
+            }
+
+            if (changedRoles.size === 0) {
+              console.log("No role changes detected; skipping role labels.");
+              return;
+            }
+
+            // Turn role names into labels
+            const labels = new Set(
+              Array.from(changedRoles, (name) => `roles/${name}`)
+            );
+
+            // If _common changed, add ALL existing roles/* labels
+            if (changedRoles.has("_common")) {
+              const allLabels = await github.paginate(
+                github.rest.issues.listLabelsForRepo,
+                { owner, repo }
+              );
+
+              for (const label of allLabels) {
+                if (label.name.startsWith("roles/")) {
+                  labels.add(label.name);
+                }
+              }
+            }
+
+            // Apply labels to the PR
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: prNumber,
+              labels: Array.from(labels),
+            });
+
+            console.log("Added labels:", Array.from(labels).join(", "));
