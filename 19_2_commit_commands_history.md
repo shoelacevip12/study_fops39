@@ -1811,14 +1811,34 @@ terraform apply "tfplan"
 </summary>
 
 ```log
+yandex_vpc_gateway.nat_gateway: Creating...
+yandex_vpc_network.skv: Creating...
+yandex_vpc_gateway.nat_gateway: Creation complete after 0s [id=enpkq1vetpbim1flopcc]
+yandex_vpc_network.skv: Creation complete after 1s [id=enp8q8d5dn5i36kopfht]
+yandex_vpc_route_table.route: Creating...
+yandex_vpc_security_group.LAN: Creating...
+yandex_vpc_security_group.nod_gra: Creating...
+yandex_vpc_security_group.prom-core: Creating...
+yandex_vpc_security_group.LAN: Creation complete after 1s [id=enpvnvamhqt0qsm9dea9]
+yandex_vpc_route_table.route: Creation complete after 1s [id=enp9o2sprqf3taead20p]
+yandex_vpc_subnet.skv_a: Creating...
+yandex_vpc_security_group.prom-core: Creation complete after 1s [id=enp3h0r9n4iq95jdtns9]
+yandex_vpc_subnet.skv_a: Creation complete after 0s [id=e9bhir286jvidjdum80m]
+yandex_compute_instance.prom-core: Creating...
+yandex_vpc_security_group.nod_gra: Creation complete after 2s [id=enppebrs8rlp6v7q96ak]
+yandex_compute_instance.node-epx: Creating...
+yandex_compute_instance.prom-core: Creation complete after 51s [id=fhme2i8f3nuft79qf281]
+yandex_compute_instance.node-epx: Creation complete after 54s [id=fhm43mvdg5ohprpcs8fd]
+local_file.hosts-ans: Creating...
+local_file.hosts-ans: Creation complete after 0s [id=9516ac4044014c3453bf4bc23d3c6a6f0fef40ce]
 
+Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
 ```
 
 </details>
 
-
 ```bash
-rm ~/.ssh/known_hosts \
+> ~/.ssh/known_hosts \
 ; eval $(ssh-agent) \
 && ssh-add ~/.ssh/id_19-2_ed25519 \
 && for d in {120..1}; do \
@@ -1828,15 +1848,47 @@ echo -n "Лучше подождать чем получить ошибку =): 
 && ssh -o StrictHostKeyChecking=no -i \
 ~/.ssh/id_19-2_ed25519 -A skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) hostnamectl \
 && yc compute instance list
-
-
 ```
+
+<details>
+<summary>
+Подтверждение развертывания
+</summary>
+
+```log
+Agent pid 23790
+Identity added: /home/shoel/.ssh/id_19-2_ed25519 (19-02)
+Лучше подождать чем получить ошибку =): 113 сек.  
+Warning: Permanently added '93.77.191.134' (ED25519) to the list of known hosts.
+ Static hostname: prom-core
+       Icon name: computer-vm
+         Chassis: vm 🖴
+      Machine ID: 23000007c6ce1490f1dfcfe9d3a78901
+         Boot ID: c97d48dd703a4fe9a208257e26c7de9d
+  Virtualization: kvm
+Operating System: Ubuntu 24.04.4 LTS
+          Kernel: Linux 6.8.0-124-generic
+    Architecture: x86-64
+ Hardware Vendor: Yandex
+  Hardware Model: xeon-gold-6230
+Firmware Version: 1.16.3-1
+   Firmware Date: Tue 2014-04-01
+    Firmware Age: 12y 2month 2w 6d
++----------------------+-----------+---------------+---------+---------------+-------------+
+|          ID          |   NAME    |    ZONE ID    | STATUS  |  EXTERNAL IP  | INTERNAL IP |
++----------------------+-----------+---------------+---------+---------------+-------------+
+| fhm43mvdg5ohprpcs8fd | node-epx  | ru-central1-a | RUNNING |               | 10.10.10.12 |
+| fhme2i8f3nuft79qf281 | prom-core | ru-central1-a | RUNNING | 93.77.191.134 | 10.10.10.13 |
++----------------------+-----------+---------------+---------+---------------+-------------+
+```
+
+</details>
 
 ```bash
 # Для nfs сетевого хранилища и отключения сообщения
 # "Ansible is being run in a world writable directory ...
 # ignoring it as an ansible.cfg source"
-export ANSIBLE_CONFIG=./ansible/ansible.cfg
+# export ANSIBLE_CONFIG=./ansible/ansible.cfg
 
 # для вывода в yaml формате
 export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
@@ -1844,8 +1896,687 @@ export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 # Отключение warning при выполнении
 export ANSIBLE_ALLOW_BROKEN_CONDITIONALS=true
 
-# ЗАпуск здян
-ansible-playbook ansible/prometheus_server.yaml
+# ЗАпуск playbook
+ANSIBLE_CONFIG=./ansible/ansible.cfg \
+ansible-playbook \
+ansible/prometheus_server.yaml
+```
 
-ansible-playbook ansible_gr/Grafana_server.yaml
-...
+<details>
+<summary>
+Лог развертывания prometheus
+</summary>
+
+```log
+[WARNING]: Invalid characters were found in group names but not replaced, use -vvvv to see details
+
+PLAY [prom-core[0]] ****************************************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [prometheus : Validating arguments against arg spec 'main' - Installs and configures prometheus] ******************************************************************************************
+ok: [93.77.191.134]
+
+TASK [prometheus : Preflight] ******************************************************************************************************************************************************************
+included: /home/shoel/nfs_git/gited/19_2/tf/ansible/roles/prometheus/tasks/preflight.yml for 93.77.191.134
+
+TASK [Common preflight] ************************************************************************************************************************************************************************
+included: prometheus.prometheus._common for 93.77.191.134
+
+TASK [prometheus.prometheus._common : Validate invocation of _common role] *********************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Check for deprecated skip_install variable] **************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Check for deprecated binary_local_dir variable] **********************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Check for deprecated archive_path variable] **************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Assert usage of systemd as an init system] ***************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Install dependencies] ************************************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Gather package facts] ************************************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Naive assertion of proper listen address] ****************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus : Assert that used version supports listen address type] **********************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus : Assert no duplicate config flags] *******************************************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus : Assert external_labels aren't configured twice] *****************************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus : Fail when prometheus_config_flags_extra duplicates parameters set by other variables] ***************************************************************************************
+skipping: [93.77.191.134] => (item=storage.tsdb.retention) 
+skipping: [93.77.191.134] => (item=storage.tsdb.path) 
+skipping: [93.77.191.134] => (item=storage.local.retention) 
+skipping: [93.77.191.134] => (item=storage.local.path) 
+skipping: [93.77.191.134] => (item=config.file) 
+skipping: [93.77.191.134] => (item=web.listen-address) 
+skipping: [93.77.191.134] => (item=web.external-url) 
+skipping: [93.77.191.134]
+
+TASK [prometheus : Get all file_sd files from scrape_configs] **********************************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [prometheus : Fail when file_sd targets are not defined in scrape_configs] ****************************************************************************************************************
+skipping: [93.77.191.134] => (item={'key': 'node', 'value': [{'targets': ['localhost:9100', '10.10.10.12:9100']}]}) 
+skipping: [93.77.191.134]
+
+TASK [prometheus : Alert when prometheus_alertmanager_config is empty, but prometheus_alert_rules is specified] ********************************************************************************
+ok: [93.77.191.134] => 
+    msg: |-
+        No alertmanager configuration was specified. If you want your alerts to be sent make sure to specify a prometheus_alertmanager_config in defaults/main.yml.
+
+TASK [prometheus : Alert when alert rules files are found in the old .rules format] ************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus : Discover latest version] ****************************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [Install] *********************************************************************************************************************************************************************************
+included: prometheus.prometheus._common for 93.77.191.134
+
+TASK [prometheus.prometheus._common : Validate invocation of _common role] *********************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Gather system user and group facts] **********************************************************************************************************************
+ok: [93.77.191.134] => (item=passwd)
+ok: [93.77.191.134] => (item=group)
+
+TASK [prometheus.prometheus._common : Create system group prometheus] **************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Create system user prometheus] ***************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Create localhost binary cache path] **********************************************************************************************************************
+ok: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Download prometheus-3.12.0.linux-amd64.tar.gz] ***********************************************************************************************************
+ok: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Fetch checksum list for prometheus-3.12.0.linux-amd64.tar.gz] ********************************************************************************************
+ok: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Parse checksum list for prometheus-3.12.0.linux-amd64.tar.gz] ********************************************************************************************
+ok: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Calculate checksum of prometheus-3.12.0.linux-amd64.tar.gz] **********************************************************************************************
+ok: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Verify correct checksum of prometheus-3.12.0.linux-amd64.tar.gz] *****************************************************************************************
+ok: [93.77.191.134 -> localhost] => 
+    changed: false
+    msg: prometheus-3.12.0.linux-amd64.tar.gz checksum verified successfully
+
+TASK [prometheus.prometheus._common : Unpack binary archive prometheus-3.12.0.linux-amd64.tar.gz] **********************************************************************************************
+changed: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Check existence of binary install dir] *******************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Make sure binary install dir exists] *********************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Propagate binaries] **************************************************************************************************************************************
+changed: [93.77.191.134] => (item=prometheus)
+changed: [93.77.191.134] => (item=promtool)
+
+TASK [SELinux] *********************************************************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus : Configure] ******************************************************************************************************************************************************************
+included: /home/shoel/nfs_git/gited/19_2/tf/ansible/roles/prometheus/tasks/configure.yml for 93.77.191.134
+
+TASK [Configure] *******************************************************************************************************************************************************************************
+included: prometheus.prometheus._common for 93.77.191.134
+
+TASK [prometheus.prometheus._common : Validate invocation of _common role] *********************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Create systemd service unit prometheus] ******************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Create config dir /etc/prometheus] ***********************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Install web config for prometheus] ***********************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus : Create prometheus data directory] *******************************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [prometheus : Create additional prometheus configuration directories] *********************************************************************************************************************
+changed: [93.77.191.134] => (item=/etc/prometheus/consoles)
+changed: [93.77.191.134] => (item=/etc/prometheus/console_libraries)
+changed: [93.77.191.134] => (item=/etc/prometheus/rules)
+changed: [93.77.191.134] => (item=/etc/prometheus/file_sd)
+changed: [93.77.191.134] => (item=/etc/prometheus/scrape_configs)
+
+TASK [prometheus : Propagate official console templates] ***************************************************************************************************************************************
+skipping: [93.77.191.134] => (item=console_libraries) 
+skipping: [93.77.191.134] => (item=consoles) 
+skipping: [93.77.191.134]
+
+TASK [prometheus : Alerting rules file] ********************************************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [prometheus : Copy custom alerting rule files] ********************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus : Configure prometheus] *******************************************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [prometheus : Configure prometheus static targets] ****************************************************************************************************************************************
+changed: [93.77.191.134] => (item={'key': 'node', 'value': [{'targets': ['localhost:9100', '10.10.10.12:9100']}]})
+
+TASK [prometheus : Copy prometheus custom static targets] **************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus : Copy prometheus scrape config files] ****************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [prometheus : Remove "scrapes" folder replaced by "scrape_configs"] ***********************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [prometheus : Ensure prometheus service is started and enabled] ***************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [prometheus : Make sure prometheus service is running] ************************************************************************************************************************************
+ok: [93.77.191.134]
+
+RUNNING HANDLER [prometheus : Restart prometheus] **********************************************************************************************************************************************
+changed: [93.77.191.134]
+
+RUNNING HANDLER [prometheus : Reload prometheus] ***********************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+PLAY [node_exp:prom-core[0]] *******************************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************************************
+ok: [93.77.191.134]
+ok: [10.10.10.12]
+
+TASK [node_exporter : Validating arguments against arg spec 'main' - Prometheus Node Exporter] *************************************************************************************************
+ok: [10.10.10.12]
+ok: [93.77.191.134]
+
+TASK [node_exporter : Preflight] ***************************************************************************************************************************************************************
+included: /home/shoel/nfs_git/gited/19_2/tf/ansible/roles/node_exporter/tasks/preflight.yml for 10.10.10.12, 93.77.191.134
+
+TASK [Common preflight] ************************************************************************************************************************************************************************
+included: prometheus.prometheus._common for 10.10.10.12, 93.77.191.134
+
+TASK [prometheus.prometheus._common : Validate invocation of _common role] *********************************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Check for deprecated skip_install variable] **************************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Check for deprecated binary_local_dir variable] **********************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Check for deprecated archive_path variable] **************************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Assert usage of systemd as an init system] ***************************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Install dependencies] ************************************************************************************************************************************
+ok: [93.77.191.134]
+ok: [10.10.10.12]
+
+TASK [prometheus.prometheus._common : Gather package facts] ************************************************************************************************************************************
+skipping: [93.77.191.134]
+ok: [10.10.10.12]
+
+TASK [prometheus.prometheus._common : Naive assertion of proper listen address] ****************************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [node_exporter : Assert that used version supports listen address type] *******************************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [node_exporter : Assert collectors are not both disabled and enabled at the same time] ****************************************************************************************************
+skipping: [10.10.10.12]
+skipping: [93.77.191.134]
+
+TASK [node_exporter : Assert that TLS key and cert path are set] *******************************************************************************************************************************
+skipping: [10.10.10.12]
+skipping: [93.77.191.134]
+
+TASK [node_exporter : Check existence of TLS cert file] ****************************************************************************************************************************************
+skipping: [10.10.10.12]
+skipping: [93.77.191.134]
+
+TASK [node_exporter : Check existence of TLS key file] *****************************************************************************************************************************************
+skipping: [10.10.10.12]
+skipping: [93.77.191.134]
+
+TASK [node_exporter : Assert that TLS key and cert are present] ********************************************************************************************************************************
+skipping: [10.10.10.12]
+skipping: [93.77.191.134]
+
+TASK [node_exporter : Discover latest version] *************************************************************************************************************************************************
+skipping: [10.10.10.12]
+
+TASK [Install] *********************************************************************************************************************************************************************************
+included: prometheus.prometheus._common for 10.10.10.12, 93.77.191.134
+
+TASK [prometheus.prometheus._common : Validate invocation of _common role] *********************************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Gather system user and group facts] **********************************************************************************************************************
+ok: [93.77.191.134] => (item=passwd)
+ok: [10.10.10.12] => (item=passwd)
+ok: [93.77.191.134] => (item=group)
+ok: [10.10.10.12] => (item=group)
+
+TASK [prometheus.prometheus._common : Create system group node-exp] ****************************************************************************************************************************
+changed: [93.77.191.134]
+changed: [10.10.10.12]
+
+TASK [prometheus.prometheus._common : Create system user node-exp] *****************************************************************************************************************************
+changed: [93.77.191.134]
+changed: [10.10.10.12]
+
+TASK [prometheus.prometheus._common : Create localhost binary cache path] **********************************************************************************************************************
+changed: [10.10.10.12 -> localhost]
+ok: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Download node_exporter-1.11.1.linux-amd64.tar.gz] ********************************************************************************************************
+changed: [10.10.10.12 -> localhost]
+changed: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Fetch checksum list for node_exporter-1.11.1.linux-amd64.tar.gz] *****************************************************************************************
+ok: [10.10.10.12 -> localhost]
+
+TASK [prometheus.prometheus._common : Parse checksum list for node_exporter-1.11.1.linux-amd64.tar.gz] *****************************************************************************************
+ok: [10.10.10.12 -> localhost]
+
+TASK [prometheus.prometheus._common : Calculate checksum of node_exporter-1.11.1.linux-amd64.tar.gz] *******************************************************************************************
+ok: [10.10.10.12 -> localhost]
+
+TASK [prometheus.prometheus._common : Verify correct checksum of node_exporter-1.11.1.linux-amd64.tar.gz] **************************************************************************************
+ok: [10.10.10.12 -> localhost] => 
+    changed: false
+    msg: node_exporter-1.11.1.linux-amd64.tar.gz checksum verified successfully
+
+TASK [prometheus.prometheus._common : Unpack binary archive node_exporter-1.11.1.linux-amd64.tar.gz] *******************************************************************************************
+changed: [10.10.10.12 -> localhost]
+ok: [93.77.191.134 -> localhost]
+
+TASK [prometheus.prometheus._common : Check existence of binary install dir] *******************************************************************************************************************
+ok: [93.77.191.134]
+ok: [10.10.10.12]
+
+TASK [prometheus.prometheus._common : Make sure binary install dir exists] *********************************************************************************************************************
+skipping: [10.10.10.12]
+skipping: [93.77.191.134]
+
+TASK [prometheus.prometheus._common : Propagate binaries] **************************************************************************************************************************************
+changed: [93.77.191.134] => (item=node_exporter)
+changed: [10.10.10.12] => (item=node_exporter)
+
+TASK [SELinux] *********************************************************************************************************************************************************************************
+skipping: [10.10.10.12]
+skipping: [93.77.191.134]
+
+TASK [node_exporter : Configure] ***************************************************************************************************************************************************************
+included: /home/shoel/nfs_git/gited/19_2/tf/ansible/roles/node_exporter/tasks/configure.yml for 10.10.10.12, 93.77.191.134
+
+TASK [Configure] *******************************************************************************************************************************************************************************
+included: prometheus.prometheus._common for 10.10.10.12, 93.77.191.134
+
+TASK [prometheus.prometheus._common : Validate invocation of _common role] *********************************************************************************************************************
+ok: [10.10.10.12] => 
+    changed: false
+    msg: All assertions passed
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [prometheus.prometheus._common : Create systemd service unit node_exporter] ***************************************************************************************************************
+changed: [93.77.191.134]
+changed: [10.10.10.12]
+
+TASK [prometheus.prometheus._common : Create config dir /etc/node_exporter] ********************************************************************************************************************
+changed: [93.77.191.134]
+changed: [10.10.10.12]
+
+TASK [prometheus.prometheus._common : Install web config for node_exporter] ********************************************************************************************************************
+skipping: [10.10.10.12]
+skipping: [93.77.191.134]
+
+TASK [node_exporter : Create textfile collector dir] *******************************************************************************************************************************************
+changed: [93.77.191.134]
+changed: [10.10.10.12]
+
+TASK [node_exporter : Ensure Node Exporter is enabled on boot] *********************************************************************************************************************************
+changed: [93.77.191.134]
+changed: [10.10.10.12]
+
+RUNNING HANDLER [node_exporter : Restart node_exporter] ****************************************************************************************************************************************
+changed: [93.77.191.134]
+changed: [10.10.10.12]
+
+PLAY RECAP *****************************************************************************************************************************
+10.10.10.12                : ok=35   changed=11   unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   
+93.77.191.134              : ok=73   changed=20   unreachable=0    failed=0    skipped=23   rescued=0    ignored=0  
+```
+
+</details>
+
+```bash
+ANSIBLE_CONFIG=./ansible_gr/ansible.cfg \
+ansible-playbook \
+ansible_gr/Grafana_server.yaml
+```
+
+<details>
+<summary>
+Лог развертывания grafana
+</summary>
+
+```log
+[WARNING]: Invalid characters were found in group names but not replaced, use -vvvv to see details
+
+PLAY [prom-core[0]] ****************************************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [Download Grafana DEB package] ************************************************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [Install Grafana from DEB package] ********************************************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [grafana : Inherit default vars] **********************************************************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [grafana : Gather variables for each operating system] ************************************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [grafana : Preflight] *********************************************************************************************************************************************************************
+included: /home/shoel/nfs_git/gited/19_2/tf/ansible_gr/roles/grafana/tasks/preflight.yml for 93.77.191.134
+
+TASK [grafana : Check variable types] **********************************************************************************************************************************************************
+ok: [93.77.191.134] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [grafana : Fail when datasources aren't configured when dashboards are set to be installed] ***********************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Fail when grafana admin user isn't set] ****************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Fail when grafana admin password isn't set] ************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Fail on incorrect variable types in datasource definitions] ********************************************************************************************************************
+skipping: [93.77.191.134] => (item={'name': 'Prometheus', 'type': 'prometheus', 'url': 'http://localhost:9090'}) 
+skipping: [93.77.191.134]
+
+TASK [grafana : Fail on bad database configuration] ********************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Fail when grafana_api_keys uses invalid role names] ****************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Fail when grafana_ldap isn't set when grafana_ini.auth.ldap is] ****************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Force grafana_use_provisioning to false if grafana_version is < 5.0 ( grafana_version is set to 'latest' )] ********************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Fail if grafana_ini.server.http_port is lower than 1024 and grafana_cap_net_bind_service is not true] **************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Fail if grafana_ini.server.socket not defined when in socket mode] *************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Configure] *********************************************************************************************************************************************************************
+included: /home/shoel/nfs_git/gited/19_2/tf/ansible_gr/roles/grafana/tasks/configure.yml for 93.77.191.134
+
+TASK [grafana : Ensure grafana directories exist] **********************************************************************************************************************************************
+changed: [93.77.191.134] => (item={'path': '/etc/grafana'})
+changed: [93.77.191.134] => (item={'path': '/etc/grafana/datasources'})
+ok: [93.77.191.134] => (item={'path': '/etc/grafana/provisioning'})
+ok: [93.77.191.134] => (item={'path': '/etc/grafana/provisioning/datasources'})
+ok: [93.77.191.134] => (item={'path': '/etc/grafana/provisioning/dashboards'})
+changed: [93.77.191.134] => (item={'path': '/etc/grafana/provisioning/notifiers'})
+changed: [93.77.191.134] => (item={'path': '/etc/grafana/provisioning/notification'})
+ok: [93.77.191.134] => (item={'path': '/etc/grafana/provisioning/plugins'})
+ok: [93.77.191.134] => (item={'path': '/etc/grafana/provisioning/alerting'})
+ok: [93.77.191.134] => (item={'path': '/var/log/grafana', 'owner': 'grafana'})
+ok: [93.77.191.134] => (item={'path': '/var/lib/grafana', 'owner': 'grafana'})
+changed: [93.77.191.134] => (item={'path': '/var/lib/grafana/dashboards', 'owner': 'grafana'})
+changed: [93.77.191.134] => (item={'path': '/var/lib/grafana/plugins', 'owner': 'grafana'})
+
+TASK [grafana : Create grafana main configuration file] ****************************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [grafana : Create grafana LDAP configuration file] ****************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Create grafana socket directory] ***********************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Ensure grafana socket directory created on startup] ****************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Enable grafana to ports lower than port 1024] **********************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Create a directory for overrides.conf unit file if it does not exist] **********************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Enable grafana to ports lower than port 1024 in systemd unitfile] **************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Enable and start Grafana systemd unit] *****************************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [grafana : Plugins] ***********************************************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Restart grafana before configuring datasources and dashboards] *****************************************************************************************************************
+
+RUNNING HANDLER [grafana : Restart grafana] ****************************************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [grafana : Wait for grafana to start] *****************************************************************************************************************************************************
+ok: [93.77.191.134]
+
+TASK [grafana : Api keys] **********************************************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Datasources] *******************************************************************************************************************************************************************
+included: /home/shoel/nfs_git/gited/19_2/tf/ansible_gr/roles/grafana/tasks/datasources.yml for 93.77.191.134
+
+TASK [grafana : Ensure datasources exist (via API)] ********************************************************************************************************************************************
+skipping: [93.77.191.134] => (item={'name': 'Prometheus', 'type': 'prometheus', 'url': 'http://localhost:9090'}) 
+skipping: [93.77.191.134]
+
+TASK [grafana : Create/Update datasources file (provisioning)] *********************************************************************************************************************************
+changed: [93.77.191.134]
+
+TASK [grafana : Notifications] *****************************************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+TASK [grafana : Find dashboards to be provisioned] *********************************************************************************************************************************************
+[WARNING]: Skipped 'dashboards' path due to this access issue: 'dashboards' is not a directory
+ok: [93.77.191.134 -> localhost]
+
+TASK [grafana : Dashboards] ********************************************************************************************************************************************************************
+skipping: [93.77.191.134]
+
+RUNNING HANDLER [grafana : Restart grafana] ****************************************************************************************************************************************************
+changed: [93.77.191.134]
+
+PLAY RECAP ***********************************************************************************************************************
+93.77.191.134              : ok=17   changed=8    unreachable=0    failed=0    skipped=21   rescued=0    ignored=0   
+```
+
+</details>
+
+### Для google gmail
+
+После включения 2FA перейдите по ссылке: [Пароли приложений (App Passwords)](https://myaccount.google.com/apppasswords)
+
+>Примечание: Этот пункт появляется `только после включения` 2FA.
+
+Создать новый пароль приложения:
+
+    Название: Grafana (любое понятное имя)
+    Скопируйте сгенерированный 16-символьный пароль (например, abcd efgh ijkl mnop).
+    Пробелы при вставке в конфиг можно убрать или оставить - Gmail принимает оба варианта.
+
+![](./19_2/img/0.1.png)
+![](./19_2/img/0.2.png)
+
+```bash
+ssh -t \
+-o StrictHostKeyChecking=no \
+-i ~/.ssh/id_19-2_ed25519 \
+-A skv@$(awk 'NR==5' hosts.ini | cut -d' ' -f1) "sudo -i"
+```
+
+
+```bash
+cat >> /etc/grafana/grafana.ini
+
+[smtp]
+enabled = true
+host = smtp.gmail.com:587
+user = yourXXX_emailXX@gmail.com
+password = xxxx xxxx xxxx xxxx
+cert_file =
+key_file =
+skip_verify = false
+from_address = yourXXX_emailXX@gmail.com
+from_name = Grafana Alerts
+ehlo_identity =
+startTLS_policy = MandatoryStartTLS
+
+CTRL+D
+```
+
+```bash
+cd ../../../gited
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+git rm -r --cached \
+./
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit4, 19_2-monitoring_prom_graf' \
+&& git push \
+--set-upstream \
+study_fops39 \
+19_2-monitoring_prom_graf \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+19_2-monitoring_prom_graf
+```

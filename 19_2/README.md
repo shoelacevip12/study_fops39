@@ -26,6 +26,12 @@
 1. Подключите поднятый вами prometheus, как источник данных.
 1. Решение домашнего задания — скриншот веб-интерфейса grafana со списком подключенных Datasource.
 
+![](./img/0.png)
+![](./img/1.png)
+![](./img/2.png)
+![](./img/3.png)
+
+
 ## Задание 2
 
 Изучите самостоятельно ресурсы:
@@ -36,22 +42,78 @@
 
 Создайте Dashboard и в ней создайте Panels:
 
+#
+
 - утилизация CPU для nodeexporter (в процентах, 100-idle);
+
+```promql
+100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+```
+
+![](./img/4.1.png)
+
+#
+
 - CPULA 1/5/15;
+
+```promql
+node_load1
+```
+
+```promql
+node_load5
+```
+
+```promql
+node_load15
+```
+
+![](./img/4.2.png)
+
+#
+
 - количество свободной оперативной памяти;
+
+```promql
+node_memory_MemAvailable_bytes / 1024 / 1024 /1024
+```
+
+![](./img/4.3.png)
+
+#
 - количество места на файловой системе.
 
+```promql
+100 - ((node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"} * 100) / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"})
+```
+
+![](./img/4.4.png)
+
+#
+
 Для решения этого задания приведите promql-запросы для выдачи этих метрик, а также скриншот получившейся Dashboard.
+
+![](./img/4.png)
 
 ## Задание 3
 
 1. Создайте для каждой Dashboard подходящее правило alert — можно обратиться к первой лекции в блоке «Мониторинг».
 1. В качестве решения задания приведите скриншот вашей итоговой Dashboard.
 
+![](./img/5.0.png)
+![](./img/5.1.png)
+![](./img/5.2.png)
+![](./img/5.3.png)
+![](./img/5.4.png)
+
 ## Задание 4
 
 1. Сохраните ваш Dashboard.Для этого перейдите в настройки Dashboard, выберите в боковом меню «JSON MODEL». Далее скопируйте отображаемое json-содержимое в отдельный файл и сохраните его.
 1. В качестве решения задания приведите листинг этого файла.
+
+[Dashboard JSON MODEL](./dashboard-skv_den.json)
+
+[Dashboard YAML MODEL](./dashboard-skv_den.yaml)
 
 ---
 
