@@ -49,7 +49,6 @@ cd в рабочую директорию
 
 ```log
 cd 19_3
-
 удалён 'help/configs/filebeat.yml'
 удалён 'help/configs/logstash.conf'
 удалён 'help/configs/logstash.yml'
@@ -129,7 +128,7 @@ git diff \
 git log --oneline
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий
-git commit -am 'commit_66_1, master' \
+git commit -am 'commit_67_1, master' \
 && git push \
 --set-upstream \
 study_fops39 \
