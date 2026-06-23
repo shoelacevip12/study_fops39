@@ -52,8 +52,7 @@ services:
     environment:
       ES_HOST: "es-hot:9200"
     ports:
-      - "5044:5044/udp" # Для Nginx
-      - "5046:5046/udp" # Для Python pinger
+      - "5044:5044/udp"
     depends_on:
       - es-hot
       - es-warm
@@ -78,12 +77,15 @@ services:
 
   filebeat:
     image: elastic/filebeat:9.4.2
-    group_add:
-      - 959
+    privileged: true
+    user: root
+    # group_add:
+    #   - 959
     volumes:
       - ./data_logs:/var/log/app/:ro
-      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:Z
+      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     depends_on:
       - logstash
       - es-hot
