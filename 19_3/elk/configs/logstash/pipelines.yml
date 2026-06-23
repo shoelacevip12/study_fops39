@@ -1,4 +1,4 @@
-- pipeline.id: service_stamped_json_logs
+- pipeline.id: main_pipeline
+  path.config: "/usr/share/logstash/config/pipelines/pipeline_main.conf"
   pipeline.workers: 1
-  pipeline.batch.size: 1
-  path.config: "/usr/share/logstash/config/pipelines/nginx.conf"
+  pipeline.batch.size: 125

@@ -44,6 +44,164 @@ Filebeat следует сконфигурировать для отправки
 - docker-compose манифест (если вы не использовали директорию help);
 - ваши yml-конфигурации для стека (если вы не использовали директорию help).
 
+#
+
+![](./img/1.png)
+
+> docker-compose
+```yaml
+version: "3.9"
+services:
+  es-hot:
+    image: elasticsearch:9.4.2
+    container_name: es-hot
+    environment:
+      - node.name=es-hot
+      - discovery.seed_hosts=es-hot,es-warm
+      - cluster.initial_master_nodes=es-hot,es-warm
+      - cluster.name=es_SKV-DV
+      - node.roles=master,data_content,data_hot
+      - "ES_JAVA_OPTS=-Xms4G -Xmx4G"
+      - "http.host=0.0.0.0"
+      - xpack.security.enabled=false
+    ports:
+      - 9200:9200
+    networks:
+      - ELK-net
+
+  es-warm:
+    image: elasticsearch:9.4.2
+    container_name: es-warm
+    environment:
+      - node.name=es-warm
+      - discovery.seed_hosts=es-hot,es-warm
+      - cluster.initial_master_nodes=es-hot,es-warm
+      - cluster.name=es_SKV-DV
+      - node.roles=master,data_warm
+      - "ES_JAVA_OPTS=-Xms4G -Xmx4G"
+      - "http.host=0.0.0.0"
+      - xpack.security.enabled=false
+    depends_on:
+      - es-hot
+    networks:
+      - ELK-net
+
+  kibana:
+    image: kibana:9.4.2
+    ports:
+      - "5601:5601"
+    depends_on:
+      - es-hot
+      - es-warm
+    environment:
+      ELASTICSEARCH_URL: http://es-hot:9200
+      ELASTICSEARCH_HOSTS: '["http://es-hot:9200","http://es-warm:9200"]'
+    networks:
+      - ELK-net
+
+  logstash:
+    image: logstash:9.4.2
+    environment:
+      ES_HOST: "es-hot:9200"
+    ports:
+      - "5044:5044/udp"
+    depends_on:
+      - es-hot
+      - es-warm
+    volumes:
+      - ./configs/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml
+      - ./configs/logstash/pipelines:/usr/share/logstash/config/pipelines
+      - ./data_logs:/var/log/nginx
+    networks:
+      - ELK-net
+
+  nginx:
+    image: nginx:1.29.1-perl
+    ports:
+      - 8080:80
+      - 8443:443
+    depends_on:
+      - logstash
+    volumes:
+      - ./data_logs/access.log:/var/log/nginx/access.log
+    networks:
+      - ELK-net
+
+  filebeat:
+    image: elastic/filebeat:9.4.2
+    privileged: true
+    user: root
+    # group_add:
+    #   - 959
+    volumes:
+      - ./data_logs:/var/log/app/:ro
+      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - logstash
+      - es-hot
+      - es-warm
+      - kibana
+      - nginx
+      - some_application
+    networks:
+      - ELK-net
+
+  some_application:
+    image: library/python:3.9-alpine
+    container_name: some_app
+    volumes:
+      - ./pinger/:/opt
+    entrypoint: python3 /opt/run.py
+
+networks:
+  ELK-net:
+    driver: bridge
+```
+
+#
+
+> filebeat
+
+```yaml
+filebeat.inputs:
+  # Вход для логов Nginx
+  - type: filestream
+    id: nginx-access-log
+    paths:
+      - /var/log/app/access.log
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}'
+          negate: true
+          match: after
+    fields:
+      service: nginx_access
+    fields_under_root: true
+
+  # Вход для *всех* логов Docker-контейнеров
+  - type: filestream
+    id: docker-all-logs
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    parsers:
+      - container:
+          format: auto
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+          match_source: true
+          match_short_id: true
+
+output.logstash:
+  enabled: true
+  hosts: ["logstash:5044"]
+```
+
+#
+
 ## Задание 2
 
 Перейдите в меню [создания index-patterns  в kibana](http://localhost:5601/app/management/kibana/indexPatterns/create) и создайте несколько index-patterns из имеющихся.
@@ -52,7 +210,11 @@ Filebeat следует сконфигурировать для отправки
 
 В манифесте директории help также приведенно dummy-приложение, которое генерирует рандомные события в stdout-контейнера.
 Эти логи должны порождать индекс logstash-* в elasticsearch. Если этого индекса нет — воспользуйтесь советами и источниками из раздела «Дополнительные ссылки» этого задания.
- 
+
+#
+
+![](./img/GIF.gif)
+
 ---
 
 ### Как оформить решение задания
@@ -60,5 +222,3 @@ Filebeat следует сконфигурировать для отправки
 Выполненное домашнее задание пришлите в виде ссылки на .md-файл в вашем репозитории.
 
 ---
-
- 

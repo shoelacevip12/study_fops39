@@ -178,7 +178,7 @@ git add . .. \
 && 
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий
-git commit -am 'commit2, 19_3-elk' \
+git commit -am 'commit1, 19_3-elk' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -210,7 +210,7 @@ cd elk
 
 </details>
 
-#
+---
 
 ```bash
 mkdir -vp \
@@ -235,7 +235,7 @@ mkdir: создан каталог 'pinger'
 
 </details>
 
-#
+---
 
 <details>
 <summary>
@@ -298,8 +298,7 @@ services:
     environment:
       ES_HOST: "es-hot:9200"
     ports:
-      - "5044:5044/udp" # Для Nginx
-      - "5046:5046/udp" # Для Python pinger
+      - "5044:5044/udp"
     depends_on:
       - es-hot
       - es-warm
@@ -324,12 +323,15 @@ services:
 
   filebeat:
     image: elastic/filebeat:9.4.2
-    group_add:
-      - 959
+    privileged: true
+    user: root
+    # group_add:
+    #   - 959
     volumes:
       - ./data_logs:/var/log/app/:ro
-      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:Z
+      - ./configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     depends_on:
       - logstash
       - es-hot
@@ -355,7 +357,7 @@ EOF
 
 </details>
 
-#
+---
 
 <details>
 <summary>
@@ -389,7 +391,7 @@ EOF
 
 </details>
 
-#
+---
 
 <details>
 <summary>
@@ -399,32 +401,52 @@ EOF
 ```bash
 cat >./configs/filebeat/filebeat.yml <<'EOF'
 filebeat.inputs:
+  # Вход для логов Nginx
   - type: filestream
-    enabled: true
+    id: nginx-access-log
     paths:
       - /var/log/app/access.log
-
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}'
+          negate: true
+          match: after
     fields:
-      service: log_gen
+      service: nginx_access
+    fields_under_root: true
+
+  # Вход для *всех* логов Docker-контейнеров
+  - type: filestream
+    id: docker-all-logs
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    parsers:
+      - container:
+          format: auto
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+          match_source: true
+          match_short_id: true
 
 output.logstash:
   enabled: true
-  hosts: ["logstash:5044"] 
+  hosts: ["logstash:5044"]
 EOF
 ```
 
 </details>
 
-#
-
+---
 
 <details>
 <summary>
-Настройка pipeline logstash
+Настройка pipeline logstash под nginx и python pinger
 </summary>
 
 ```bash
-cat >./elk/configs/logstash/pipelines/nginx.conf<<'EOF'
+cat >./configs/logstash/pipelines/pipeline_main.conf<<'EOF'
 input {
   beats {
     port => 5044
@@ -432,36 +454,108 @@ input {
 }
 
 filter {
-  grok {
-    match => { "message" => '%{IPORHOST:client_ip} - - \[%{HTTPDATE:timestamp}\] "%{WORD:http_method} %{URIPATHPARAM:request} HTTP/%{NUMBER:http_version}" %{NUMBER:response_code:int} %{NUMBER:bytes_sent:int} "%{GREEDYDATA:referrer}" "%{GREEDYDATA:user_agent}" "%{GREEDYDATA:other}"' }
+  # Обработка логов Nginx
+  if [service] == "nginx_access" {
+    grok {
+      match => { "message" => '%{IPORHOST:client_ip} - - \[%{HTTPDATE:timestamp}\] "%{WORD:http_method} %{URIPATHPARAM:request} HTTP/%{NUMBER:http_version}" %{NUMBER:response_code:int} %{NUMBER:bytes_sent:int} "%{GREEDYDATA:referrer}" "%{GREEDYDATA:user_agent}" "%{GREEDYDATA:other}"' }
+    }
+
+    date {
+      match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss Z"]
+      target => "@timestamp"
+    }
+
+    useragent {
+      source => "user_agent"
+      target => "user_agent_details"
+    }
+    # Добавление тега для идентификации
+    mutate {
+        add_tag => [ "nginx_log" ]
+    }
   }
-  
-  date {
-    match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss Z"]
-    target => "@timestamp"
-  }
-  
-  useragent {
-    source => "user_agent"
-    target => "user_agent_details"
+  # Обработка логов Python по имени контейнера
+  else if [container][name] == "some_app" {
+    # ВСЕГДА добавлять тег python_log для логов этого контейнера
+    mutate {
+        add_tag => [ "python_log" ]
+    }
+    grok {
+      # Паттерн: (УРОВЕНЬ):(ИМЯ_ЛОГГЕРА):(СООБЩЕНИЕ)
+      match => { "message" => "^%{LOGLEVEL:log_level}:%{DATA:logger_name}:%{GREEDYDATA:log_message_original}$" }
+      tag_on_failure => [ "_grokparsefailure_python" ]
+    }
+    # Извлечение уровеня и сообщения отработки grok 
+    if [log_message_original] {
+        mutate {
+           copy => { "log_message_original" => "[log][message]" }
+        }
+    } else {
+        # Если grok не сработал, копировать оригинальное сообщение
+        mutate {
+           copy => { "message" => "[log][message]" }
+        }
+    }
+    if [log_level] {
+        mutate {
+           copy => { "log_level" => "[log][level]" }
+        }
+    }
   }
 }
 
 output {
-  stdout {
+  # Вывод для логов Nginx
+  if "nginx_log" in [tags] {
+    stdout {
+      codec => rubydebug
+    }
+    elasticsearch {
+        hosts => [ "${ES_HOST}" ]
+        index => "logs_nginx_access-%{+YYYY.MM.dd}"
+    }
   }
-  elasticsearch {
-      hosts => [ "${ES_HOST}" ]
-      index => "logs_app_gen%-%{+YYYY.MM.dd}"
-  } 
-} 
+  # Вывод для логов Python
+  else if "python_log" in [tags] {
+    stdout {
+      codec => rubydebug
+    }
+    elasticsearch {
+        hosts => [ "${ES_HOST}" ]
+        index => "logs_python_gen-%{+YYYY.MM.dd}"
+    }
+  }
+  # вывод для логов, которые не попали ни под одно условие
+  else {
+    stdout {
+      codec => rubydebug
+    }
+  }
+}
 EOF
 ```
 
 </details>
 
-#
+---
 
+<details>
+<summary>
+Указатель конфиг файлов pipelines.yml Logstash
+</summary>
+
+```bash
+cat >./configs/logstash/pipelines.yml<<'EOF'
+- pipeline.id: main_pipeline
+  path.config: "/usr/share/logstash/config/pipelines/pipeline_main.conf"
+  pipeline.workers: 1
+  pipeline.batch.size: 125
+EOF
+```
+
+</details>
+
+---
 
 ```bash
 touch ./data_logs/access.log
@@ -470,9 +564,11 @@ sudo chmod 777 -Rv ./
 
 sudo chown -v 1000:1000 -R ./
 
-sudo chmod -v go-w -R ./configs/filebeat/filebeat.yml
+sudo chmod -v go-w ./configs/filebeat/filebeat.yml
 
 tree .
+
+sudo chown -v 0:0 ./configs/filebeat/filebeat.yml
 ```
 
 <details>
@@ -482,8 +578,7 @@ tree .
 
 ```log
 Password:
-
-mode of './' changed from 0775 (rwxrwxr-x) to 0777 (rwxrwxrwx)
+mode of './' retained as 0777 (rwxrwxrwx)
 mode of './docker-compose.yml' retained as 0777 (rwxrwxrwx)
 mode of './data_logs' retained as 0777 (rwxrwxrwx)
 mode of './data_logs/access.log' retained as 0777 (rwxrwxrwx)
@@ -491,9 +586,9 @@ mode of './configs' retained as 0777 (rwxrwxrwx)
 mode of './configs/logstash' retained as 0777 (rwxrwxrwx)
 mode of './configs/logstash/pipelines.yml' retained as 0777 (rwxrwxrwx)
 mode of './configs/logstash/pipelines' retained as 0777 (rwxrwxrwx)
-mode of './configs/logstash/pipelines/nginx.conf' retained as 0777 (rwxrwxrwx)
+mode of './configs/logstash/pipelines/pipeline_main.conf' retained as 0777 (rwxrwxrwx)
 mode of './configs/filebeat' retained as 0777 (rwxrwxrwx)
-mode of './configs/filebeat/filebeat.yml' retained as 0777 (rwxrwxrwx)
+mode of './configs/filebeat/filebeat.yml' changed from 0755 (rwxr-xr-x) to 0777 (rwxrwxrwx)
 mode of './pinger' retained as 0777 (rwxrwxrwx)
 mode of './pinger/run.py' retained as 0777 (rwxrwxrwx)
 ```
@@ -503,15 +598,16 @@ ownership of './docker-compose.yml' retained as 1000:1000
 ownership of './data_logs/access.log' retained as 1000:1000
 ownership of './data_logs' retained as 1000:1000
 ownership of './configs/logstash/pipelines.yml' retained as 1000:1000
-ownership of './configs/logstash/pipelines/nginx.conf' retained as 1000:1000
+ownership of './configs/logstash/pipelines/pipeline_main.conf' retained as 1000:1000
 ownership of './configs/logstash/pipelines' retained as 1000:1000
 ownership of './configs/logstash' retained as 1000:1000
-ownership of './configs/filebeat/filebeat.yml' retained as 1000:1000
+changed ownership of './configs/filebeat/filebeat.yml' from root:root to 1000:1000
 ownership of './configs/filebeat' retained as 1000:1000
 ownership of './configs' retained as 1000:1000
 ownership of './pinger/run.py' retained as 1000:1000
 ownership of './pinger' retained as 1000:1000
 ownership of './' retained as 1000:1000
+
 ```
 
 ```log
@@ -525,7 +621,7 @@ mode of './configs/filebeat/filebeat.yml' changed from 0777 (rwxrwxrwx) to 0755 
 │   │   └── filebeat.yml
 │   └── logstash
 │       ├── pipelines
-│       │   └── nginx.conf
+│       │   └── pipeline_main.conf
 │       └── pipelines.yml
 ├── data_logs
 │   └── access.log
@@ -536,6 +632,10 @@ mode of './configs/filebeat/filebeat.yml' changed from 0777 (rwxrwxrwx) to 0755 
 7 directories, 6 files
 ```
 
+```log
+changed ownership of './configs/filebeat/filebeat.yml' from 1000:1000 to 0:0
+```
+
 </details>
 
 ```bash
@@ -544,7 +644,7 @@ docker compose up -d
 
 <details>
 <summary>
-Лог структуры работы
+Лог создания контейнеров
 </summary>
 
 ```log
@@ -561,3 +661,96 @@ docker compose up -d
 ```
 
 </details>
+
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Переключение\формирование новой ветки git
+git checkout -b 19_3-elk
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий
+git commit -am 'commit2, 19_3-elk' \
+&& git push \
+--set-upstream \
+study_fops39 \
+19_3-elk \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+19_3-elk
+```
+
+## commit_68, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge 19_3-elk
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_68, master' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force
+```

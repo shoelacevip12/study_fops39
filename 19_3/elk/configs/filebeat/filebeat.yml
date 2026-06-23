@@ -1,12 +1,33 @@
 filebeat.inputs:
+  # Вход для логов Nginx
   - type: filestream
-    enabled: true
+    id: nginx-access-log
     paths:
       - /var/log/app/access.log
-
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}'
+          negate: true
+          match: after
     fields:
-      service: log_gen
+      service: nginx_access
+    fields_under_root: true
+
+  # Вход для *всех* логов Docker-контейнеров
+  - type: filestream
+    id: docker-all-logs
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    parsers:
+      - container:
+          format: auto
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+          match_source: true
+          match_short_id: true
 
 output.logstash:
   enabled: true
-  hosts: ["logstash:5044"] 
+  hosts: ["logstash:5044"]
