@@ -1,6 +1,6 @@
-# Для домашнего задания 20.1 `Введение в микросервисы`
+# Для домашнего задания 20.2 `Микросервисы: принципы`
 
-## commit_69, master Предварительная подготовка
+## commit_70, master Предварительная подготовка
 
 ```bash
 # Переключение на мастер-ветку на случай работы в соседней ветке репозитория
@@ -26,17 +26,17 @@ git branch -v
 git clone \
 https://github.com/netology-code/micros-homeworks.git
 
-# Удаление всех файлов и каталогов кроме 11-microservices-01-intro
+# Удаление всех файлов и каталогов кроме 11-microservices-02-principles
 find micros-homeworks/ \
 -mindepth 1 \
--not -path "*11-microservices-01-intro*" \
+-not -path "*11-microservices-02-principles*" \
 -delete
 
-# Перемещение нужного каталога в корневую директорию с новым именем 20_1
+# Перемещение нужного каталога в корневую директорию с новым именем 20_2
 mv -v micros-homeworks \
 20_1
 
-# Переход в каталог по последней переменной вывода последней команды (20_1)
+# Переход в каталог по последней переменной вывода последней команды (20_2)
 cd !$
 ```
 
@@ -73,7 +73,7 @@ git diff \
 git log --oneline
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий
-git commit -am 'commit_69_1, master' \
+git commit -am 'commit_70, master' \
 && git push \
 --set-upstream \
 study_fops39 \
