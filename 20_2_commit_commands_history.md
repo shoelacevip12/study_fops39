@@ -44,6 +44,11 @@ cd !$
 # Просмотр текущих удаленных репозиториев
 git remote -v
 
+# Добавление удаленного репозитория на sourcecraft.dev 
+git remote \
+add study-fops39_sc \
+ssh://ssh.sourcecraft.dev/shoelacevip12/study-fops39.git
+
 # Проверка текущего локального состояния репозитория
 git status
 
@@ -72,6 +77,8 @@ git diff \
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 
+
+
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий
 git commit -am 'commit_70, master' \
 && git push \
@@ -84,6 +91,6 @@ study_fops39_gitflic_ru \
 master \
 && git push \
 --set-upstream \
-altlinux_sc \
+study-fops39_sc \
 master
 ```
