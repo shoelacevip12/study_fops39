@@ -34,7 +34,7 @@ find micros-homeworks/ \
 
 # Перемещение нужного каталога в корневую директорию с новым именем 20_2
 mv -v micros-homeworks \
-20_1
+20_2
 
 # Переход в каталог по последней переменной вывода последней команды (20_2)
 cd !$
@@ -81,5 +81,9 @@ master \
 && git push \
 --set-upstream \
 study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+altlinux_sc \
 master
 ```
