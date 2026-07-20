@@ -13,6 +13,7 @@ tmp/
 .venv/
 .tox/
 .pytest_cache/
+.codeassistant/
 
 # игнорировать расширения и файлы:
 *.deb
