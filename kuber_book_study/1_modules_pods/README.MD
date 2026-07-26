@@ -283,9 +283,67 @@ ps ax | wc -l
 
 </details>
 
+### Создание тестового модуля Pod `busybox:latest`
 
+```bash
+kubectl create -f  ./busybox.yaml
 ```
+
+
+<details>
+<summary>
+лог создания Pod
+</summary>
+
+```log
+pod/core-k8s created
 ```
+
+</details>
+
+
+```bash
+ps ax | wc -l
+```
+
+<details>
+<summary>
+количество процессов после запуска pod
+</summary>
+
+```log
+338
+```
+
+</details>
+
+
+### Получение списка всех модулей Pod в кластере
+
+```bash
+kubectl get pods --all-namespaces
+```
+
+<details>
+<summary>
+Получение списка всех подов
+</summary>
+
+```log
+NAMESPACE            NAME                                         READY   STATUS    RESTARTS   AGE
+default              core-k8s                                     1/1     Running   0          2m23s
+kube-system          coredns-589f44dc88-bfc7d                     1/1     Running   0          42m
+kube-system          coredns-589f44dc88-f7tlh                     1/1     Running   0          42m
+kube-system          etcd-kind-control-plane                      1/1     Running   0          42m
+kube-system          kindnet-lmmwq                                1/1     Running   0          42m
+kube-system          kube-apiserver-kind-control-plane            1/1     Running   0          42m
+kube-system          kube-controller-manager-kind-control-plane   1/1     Running   0          42m
+kube-system          kube-proxy-2j6zm                             1/1     Running   0          42m
+kube-system          kube-scheduler-kind-control-plane            1/1     Running   0          42m
+local-path-storage   local-path-provisioner-855c7b7774-r2vjt      1/1     Running   0          42m
+```
+
+</details>
 
 
 ```bash
@@ -316,7 +374,9 @@ git diff \
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 
-git commit -am 'some_word_add_module_1' \
+git add . .. ../.. \
+&& git status \
+&& git commit -am 'some_word_add_module_1' \
 && git push \
 --set-upstream \
 study_fops39 \
