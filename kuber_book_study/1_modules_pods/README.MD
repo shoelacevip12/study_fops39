@@ -233,7 +233,6 @@ exit
 
 ### `Yaml`-файл описания модуля
 
-
 <details>
 <summary>
 Yaml-файл описания модуля
@@ -289,7 +288,6 @@ ps ax | wc -l
 kubectl create -f  ./busybox.yaml
 ```
 
-
 <details>
 <summary>
 лог создания Pod
@@ -300,7 +298,6 @@ pod/core-k8s created
 ```
 
 </details>
-
 
 ```bash
 ps ax | wc -l
@@ -316,7 +313,6 @@ ps ax | wc -l
 ```
 
 </details>
-
 
 ### Получение списка всех модулей Pod в кластере
 
@@ -525,6 +521,29 @@ br-9dd488316d7d  UP  172.18.0.1/16 fc00:f853:ccd:e793::1/64 fe80::c42:ddff:fe8d:
 
 </details>
 
+### Просмотр точек монтирования внутри pod
+
+```bash
+kubectl exec core-k8s --  mount \
+| grep -A3 -B3 resolv.conf
+```
+
+<details>
+<summary>
+Вывод точек монтирования внутри pod
+</summary>
+
+```log
+/dev/nvme0n1p2 on /etc/hosts type ext4 (rw,relatime)
+/dev/nvme0n1p2 on /dev/termination-log type ext4 (rw,relatime)
+/dev/nvme0n1p2 on /etc/hostname type ext4 (rw,relatime)
+/dev/nvme0n1p2 on /etc/resolv.conf type ext4 (rw,relatime)
+shm on /dev/shm type tmpfs (rw,relatime,size=65536k,inode64,huge=advise)
+tmpfs on /var/run/secrets/kubernetes.io/serviceaccount type tmpfs (ro,relatime,size=14576300k,inode64,huge=advise,noswap)
+overlay on /sys/devices/virtual/dmi/id/product_name type overlay (ro,relatime,lowerdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/110/fs,upperdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/111/fs,workdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/111/work,index=off,uuid=on)
+```
+
+</details>
 
 ```bash
 # Просмотр текущих удаленных репозиториев
