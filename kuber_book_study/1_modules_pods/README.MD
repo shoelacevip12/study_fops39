@@ -345,6 +345,186 @@ local-path-storage   local-path-provisioner-855c7b7774-r2vjt      1/1     Runnin
 
 </details>
 
+### Исследование информации о модуле Pod `core-k8s`
+
+```bash
+kubectl get -o yaml pods
+```
+
+<details>
+<summary>
+Получение полной информации о модуле Pod `core-k8s`
+</summary>
+
+```yaml
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    creationTimestamp: "2026-07-26T17:36:10Z"
+    generation: 1
+    labels:
+      app: my-test-app
+      creator: denskv
+      organization: my-test-org
+      role: den-test-exmpl
+    name: core-k8s
+    namespace: default
+    resourceVersion: "3866"
+    uid: d0ae856a-fd71-4309-9340-d0c68371b7f9
+  spec:
+    containers:
+    - command:
+      - sleep
+      - "3600"
+      image: docker.io/busybox:latest
+      imagePullPolicy: Always
+      name: some-name-of-busybox
+      ports:
+      - containerPort: 80
+        name: some-app-port
+        protocol: TCP
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-h8q77
+        readOnly: true
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: true
+    nodeName: kind-control-plane
+    preemptionPolicy: PreemptLowerPriority
+    priority: 0
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext: {}
+    serviceAccount: default
+    serviceAccountName: default
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+      tolerationSeconds: 300
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+      tolerationSeconds: 300
+    volumes:
+    - name: kube-api-access-h8q77
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2026-07-26T17:36:10Z"
+      observedGeneration: 1
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2026-07-26T17:36:10Z"
+      observedGeneration: 1
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2026-07-26T17:36:13Z"
+      observedGeneration: 1
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2026-07-26T17:36:13Z"
+      observedGeneration: 1
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2026-07-26T17:36:10Z"
+      observedGeneration: 1
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://dda6d8fabfaeeba1544c6e0a277badf73c89835844b6be5958bac438448600ba
+      image: docker.io/library/busybox:latest
+      imageID: docker.io/library/busybox@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
+      lastState: {}
+      name: some-name-of-busybox
+      ready: true
+      resources: {}
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2026-07-26T17:36:13Z"
+      user:
+        linux:
+          gid: 0
+          supplementalGroups:
+          - 0
+          - 10
+          uid: 0
+      volumeMounts:
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-h8q77
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 172.18.0.2
+    hostIPs:
+    - ip: 172.18.0.2
+    observedGeneration: 1
+    phase: Running
+    podIP: 10.244.0.5
+    podIPs:
+    - ip: 10.244.0.5
+    qosClass: BestEffort
+    resources: {}
+    startTime: "2026-07-26T17:36:10Z"
+kind: List
+metadata:
+  resourceVersion: ""
+```
+
+</details>
+
+#### Фильтрация вывода файла-состояния
+
+```bash
+kubectl get pods  -o=jsonpath='{.items[0].status.phase}' \
+&& kubectl get pods  -o=jsonpath='{.items[0].status.podIP}' \
+&& kubectl get pods  -o=jsonpath='{.items[0].status.hostIP}' \
+&& ip -br a | grep br | grep -i up
+```
+
+<details>
+<summary>
+Фильтрованный вывод и ip адресов физической машины\Ноды kubernetes
+</summary>
+
+```log
+Running
+10.244.0.5
+172.18.0.2
+br0              UP  192.168.89.193/24 metric 1024 fe80::f832:c0ff:fe95:76f/64 
+br-9dd488316d7d  UP  172.18.0.1/16 fc00:f853:ccd:e793::1/64 fe80::c42:ddff:fe8d:485e/64 
+```
+
+</details>
+
 
 ```bash
 # Просмотр текущих удаленных репозиториев
