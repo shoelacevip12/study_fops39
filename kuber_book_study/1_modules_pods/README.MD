@@ -602,6 +602,10 @@ bash -x ./mk_new_test_pod.sh
 ```bash
 ls
 
+./data/
+
+ps
+
 exit
 ```
 
@@ -626,7 +630,6 @@ removed '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
 + chroot /home/namespace/box /bin/bash
 bash-5.2# ls
 bin  lib  lib64  proc
-bash-5.2# exit
 exit
 root@kind-control-plane:/# 
 ```
@@ -645,7 +648,7 @@ ls /tmp
 
 <details>
 <summary>
-Процесс работы с chroot внутри ноды master\control plane
+создание файлов для переноса методом монтирования
 </summary>
 
 ```log
@@ -666,12 +669,14 @@ ls
 
 ls ./data
 
+ps
+
 exit
 ```
 
 <details>
 <summary>
-Процесс работы с chroot внутри ноды master\control plane
+Результат монтирования в изолированном chroot окружении
 </summary>
 
 ```log
@@ -693,11 +698,56 @@ bin  data  lib  lib64  proc
 bash-5.2# ls ./data/
 1  2  3  A  B  C  a  b  c
 bash-5.2# exit
+    PID TTY          TIME CMD
+   3245 ?        00:00:00 bash
+   3812 ?        00:00:00 bash
+   3818 ?        00:00:00 ps
+bash-5.2# exit
 exit
 root@kind-control-plane:/# 
 ```
 
 </details>
+
+### уязвимость при работе с chroot окружением
+
+#### Вывод текущего PID процесса запущенного Pod `busybox:latest`
+
+```bash
+ps -ax | grep kubelet | cut -c1-46
+
+./mk_new_test_pod.sh
+```
+
+```log
+ps -ax | grep kubelet | cut -c1-46
+    818 ?        Ssl    5:37 /usr/bin/kubelet
+
+root@kind-control-plane:/# ./mk_new_test_pod.sh 
+'/bin/ls' -> '/home/namespace/box/bin/ls'
+'/bin/bash' -> '/home/namespace/box/bin/bash'
+'/usr/bin/kill' -> '/home/namespace/box/bin/kill'
+'/usr/bin/ps' -> '/home/namespace/box/bin/ps'
+removed '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
+'/lib64/ld-linux-x86-64.so.2' -> '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
+```
+
+#### `Завершение процесса` `Pod` `busybox:latest` `в chroot окружении` `нового pod`
+
+```bash
+bash-5.2# kill 818
+```
+
+#### Вывод текущего PID процесса запущенного Pod `busybox:latest` на Ноде
+
+```bash
+ps -ax | grep kubelet | cut -c1-46
+```
+
+```log
+root@kind-control-plane:/# ps -ax | grep kubelet | cut -c1-46
+   4086 ?        Ssl    0:01 /usr/bin/kubelet 
+```
 
 
 ```bash
