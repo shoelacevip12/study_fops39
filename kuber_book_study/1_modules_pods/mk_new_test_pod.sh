@@ -10,4 +10,7 @@ cp -vr /lib64/* /home/namespace/box/lib64
 
 mount -t proc /proc /home/namespace/box/proc
 
+# для изоляции процессов и файловых дескрипторов в chroot окружении
+# unshare -p -f --mount-proc=home/namespace/box/proc
+
 chroot /home/namespace/box /bin/bash

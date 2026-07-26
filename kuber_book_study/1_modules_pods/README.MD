@@ -762,6 +762,8 @@ root@kind-control-plane:/# ps -ax | grep kubelet | cut -c1-46
 
 ### Изоляция chroot окружения для нового pod из-под Ноды `master\control plane`
 
+#### 
+
 ```bash
 ps -ax | grep kubelet | cut -c1-46
 
