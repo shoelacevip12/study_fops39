@@ -545,6 +545,89 @@ overlay on /sys/devices/virtual/dmi/id/product_name type overlay (ro,relatime,lo
 
 </details>
 
+### создание модуля с нуля
+
+```bash
+docker exec -t \
+-i "$(docker ps | grep kind | cut -d ' ' -f1)" \
+bash
+```
+
+#### Установка пакетов для редактирования на Ноде `master\control plane`
+
+```bash
+apt-get update \
+&& apt-get install -y nano
+```
+
+#### Создание сценария запуска Pod с минимальным bash окружением и утилитами
+
+<details>
+<summary>
+создание сценария запуска Pod с минимальным bash окружением и утилитами
+</summary>
+
+```bash
+cat > ./mk_new_test_pod.sh <<EOF
+#!/bin/bash
+
+mkdir -vp /home/namespace/box/{bin,lib,lib64,proc}
+
+cp -v /bin/{ls,bash} /home/namespace/box/bin
+cp -v /usr/bin/{kill,ps} /home/namespace/box/bin
+
+cp -r /lib/* /home/namespace/box/lib
+cp -vr /lib64/* /home/namespace/box/lib64
+
+mount -t proc /proc /home/namespace/box/proc
+
+chroot /home/namespace/box /bin/bash
+EOF
+
+chmod -v +x ./mk_new_test_pod.sh
+```
+
+```log
+mode of './mk_new_test_pod.sh' changed from 0644 (rw-r--r--) to 0755 (rwxr-xr-x)
+```
+
+</details>
+
+#### Запуск сценария создания минимального bash окружением и утилитами Внутри ноды `master\control plane`
+
+```bash
+bash -x ./mk_new_test_pod.sh
+```
+
+<details>
+<summary>
+Процесс работы с chroot внутри ноды master\control plane
+</summary>
+
+```log
++ mkdir -vp /home/namespace/box/bin /home/namespace/box/lib /home/namespace/box/lib64 /home/namespace/box/proc
++ cp -v /bin/ls /bin/bash /home/namespace/box/bin
+'/bin/ls' -> '/home/namespace/box/bin/ls'
+'/bin/bash' -> '/home/namespace/box/bin/bash'
++ cp -v /usr/bin/kill /usr/bin/ps /home/namespace/box/bin
+'/usr/bin/kill' -> '/home/namespace/box/bin/kill'
+'/usr/bin/ps' -> '/home/namespace/box/bin/ps'
++ cp -r /lib/apt /lib/depmod.d /lib/dpkg /lib/environment.d /lib/init /lib/kernel /lib/locale /lib/lsb /lib/mime /lib/modprobe.d /lib/modules /lib/open-iscsi /lib/os-release /lib/pam.d /lib/pcrlock.d /lib/sasl2 /lib/ssl /lib/sysctl.d /lib/systemd /lib/sysusers.d /lib/tmpfiles.d /lib/udev /lib/x86_64-linux-gnu /home/namespace/box/lib
++ cp -vr /lib64/ld-linux-x86-64.so.2 /home/namespace/box/lib64
+removed '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
+'/lib64/ld-linux-x86-64.so.2' -> '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
++ mount -t proc /proc /home/namespace/box/proc
++ chroot /home/namespace/box /bin/bash
+bash-5.2# ls
+bin  lib  lib64  proc
+bash-5.2# exit
+exit
+root@kind-control-plane:/# 
+```
+
+</details>
+
+
 ```bash
 # Просмотр текущих удаленных репозиториев
 git remote -v
