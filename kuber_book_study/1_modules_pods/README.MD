@@ -658,7 +658,7 @@ mount: /tmp bound on /home/namespace/box/data.
 
 </details>
 
-#### Повторный запуск сценария создания минимального bash окружением и утилитами Внутри ноды `master\control plane` 
+#### Повторный запуск сценария создания минимального bash окружением и утилитами Внутри ноды `master\control plane`
 
 ```bash
 bash -x ./mk_new_test_pod.sh
@@ -730,12 +730,23 @@ root@kind-control-plane:/# ./mk_new_test_pod.sh
 '/usr/bin/ps' -> '/home/namespace/box/bin/ps'
 removed '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
 '/lib64/ld-linux-x86-64.so.2' -> '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
+bash-5.2#
 ```
 
 #### `Завершение процесса` `Pod` `busybox:latest` `в chroot окружении` `нового pod`
 
 ```bash
+ps
+
 bash-5.2# kill 818
+```
+
+```log
+    PID TTY          TIME CMD
+   3245 ?        00:00:00 bash
+   4016 ?        00:00:00 mk_new_test_pod
+   4029 ?        00:00:00 bash
+   4352 ?        00:00:00 ps
 ```
 
 #### Вывод текущего PID процесса запущенного Pod `busybox:latest` на Ноде
@@ -747,6 +758,41 @@ ps -ax | grep kubelet | cut -c1-46
 ```log
 root@kind-control-plane:/# ps -ax | grep kubelet | cut -c1-46
    4086 ?        Ssl    0:01 /usr/bin/kubelet 
+```
+
+### Изоляция chroot окружения для нового pod из-под Ноды `master\control plane`
+
+```bash
+ps -ax | grep kubelet | cut -c1-46
+
+unshare -p -f --mount-proc=home/namespace/box/proc
+
+chroot /home/namespace/box /bin/bash
+```
+
+```log
+   4216 ?        Ssl    0:43 /usr/bin/kubelet 
+```
+
+```bash
+ps
+
+kill 4216
+```
+
+```log
+bash-5.2# ps
+    PID TTY          TIME CMD
+      1 ?        00:00:00 sh
+      5 ?        00:00:00 bash
+      6 ?        00:00:00 ps
+bash-5.2# kill 4216
+bash: kill: (4216) - No such process
+bash-5.2# exit
+exit
+# exit
+-sh: 2: Cannot set tty process group (No such process)
+root@kind-control-plane:/#
 ```
 
 
