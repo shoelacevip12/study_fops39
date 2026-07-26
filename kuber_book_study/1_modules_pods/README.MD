@@ -185,10 +185,107 @@ local-path-storage   local-path-provisioner-855c7b7774-r2vjt      1/1     Runnin
 
 </details>
 
+### Расположение Ноды Kubernetes
+
+```bash
+docker ps -a
+```
+
+<details>
+<summary>
+Нода мастера/control-plane
+</summary>
+
+```log
+CONTAINER ID   IMAGE                  COMMAND                  CREATED         STATUS         PORTS                       NAMES
+cd506faa6b65   kindest/node:v1.36.1   "/usr/local/bin/entr…"   6 minutes ago   Up 5 minutes   127.0.0.1:40377->6443/tcp   kind-control-plane
+```
+
+</details>
+
+### Доступ к контейнеру и взаимодействие с контейнером `kind-control-plane`
+
+```bash
+docker exec -it kind-control-plane bash
+```
+
+<details>
+<summary>
+взаимодействие из-под контейнера
+</summary>
+
+```log
+[shoel@shoellin 1_modules_pods]$ docker exec -it kind-control-plane bash
+root@kind-control-plane:/# hostname 
+kind-control-plane
+root@kind-control-plane:/# hostname -i
+fc00:f853:ccd:e793::2 172.18.0.2
+root@kind-control-plane:/# whoami
+root
+root@kind-control-plane:/# exit
+exit
+[shoel@shoellin 1_modules_pods]$
+```
+
+</details>
+
+## ТЕстовый модуль Pod `busybox:latest`
+
+### `Yaml`-файл описания модуля
 
 
+<details>
+<summary>
+Yaml-файл описания модуля
+</summary>
+
+```bash
+cat > busybox.yaml <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: core-k8s
+  labels:
+    role: den-test-exmpl
+    app: my-test-app
+    organization: my-test-org
+    creator: denskv
+spec:
+  containers:
+    - name: some-name-of-busybox
+      image: docker.io/busybox:latest
+      command:
+        - sleep
+        - "3600"
+      ports:
+        - name: some-app-port
+          containerPort: 80
+          protocol: TCP
+EOF
+```
+
+</details>
+
+### отслеживание количества процессов до и после запуска pod
+
+```bash
+ps ax | wc -l
+```
+
+<details>
+<summary>
+количество процессов до запуска pod
+</summary>
+
+```log
+337
+```
+
+</details>
 
 
+```
+```
 
 
 ```bash
@@ -219,19 +316,17 @@ git diff \
 # Просмотр истории коммитов в кратком формате
 git log --oneline
 
-git add . .. ../.. \
-&& git status \
-&& git commit --amend --no-edit \
+git commit -am 'some_word_add_module_1' \
 && git push \
 --set-upstream \
 study_fops39 \
-master --force \
+master \
 && git push \
 --set-upstream \
 study_fops39_gitflic_ru \
-master --force \
+master \
 && git push \
 --set-upstream \
 study-fops39_sc \
-master --force
+master
 ```
