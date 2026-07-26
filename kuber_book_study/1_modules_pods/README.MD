@@ -762,8 +762,6 @@ root@kind-control-plane:/# ps -ax | grep kubelet | cut -c1-46
 
 ### Изоляция chroot окружения для нового pod из-под Ноды `master\control plane`
 
-#### 
-
 ```bash
 ps -ax | grep kubelet | cut -c1-46
 
@@ -772,15 +770,21 @@ unshare -p -f --mount-proc=home/namespace/box/proc
 chroot /home/namespace/box /bin/bash
 ```
 
+#### Вывод текущего PID процесса запущенного Pod `busybox:latest` на Ноде
+
 ```log
    4216 ?        Ssl    0:43 /usr/bin/kubelet 
 ```
+
+#### Попытка завершить процесс `kubelet` вне chroot окружения
 
 ```bash
 ps
 
 kill 4216
 ```
+
+#### Лог действий в chroot окружении для нового pod
 
 ```log
 bash-5.2# ps
