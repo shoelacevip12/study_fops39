@@ -808,9 +808,21 @@ ls -al /usr/sbin/ip
 
 cp -vr /usr/bin/{ip,curl} /home/namespace/box/bin
 
+ip  -br a
+
 unshare -p -n -f --mount-proc=/home/namespace/box/proc
 
 chroot /home/namespace/box /bin/bash
+
+exit
+
+exit
+
+unshare -p -f --mount-proc=/home/namespace/box/proc
+
+chroot /home/namespace/box /bin/bash
+
+ip -br a
 ```
 
 <details>
@@ -821,18 +833,50 @@ chroot /home/namespace/box /bin/bash
 ```log
 root@kind-control-plane:/# ls -al /usr/sbin/ip
 lrwxrwxrwx 1 root root 9 May 26  2025 /usr/sbin/ip -> ../bin/ip
+
 root@kind-control-plane:/# cp -vr /usr/bin/{ip,curl} /home/namespace/box/bin
 '/usr/bin/ip' -> '/home/namespace/box/bin/ip'
 '/usr/bin/curl' -> '/home/namespace/box/bin/curl'
+
+root@kind-control-plane:/# ip -br a
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0@if9         UP             172.18.0.2/16 fc00:f853:ccd:e793::2/64 fe80::5cba:13ff:fe90:c8e2/64 
+veth5383cb3f@if2 UP             10.244.0.1/32 fe80::45f:eff:fe52:a499/64 
+veth237feded@if2 UP             10.244.0.1/32 fe80::c4f5:34ff:fe2c:fed6/64 
+veth8eb91fba@if2 UP             10.244.0.1/32 fe80::e0a0:89ff:fe38:8bf2/64 
+veth9c97bd50@if2 UP             10.244.0.1/32 fe80::b03b:bff:fef8:a72/64 
 root@kind-control-plane:/# unshare -p -n -f --mount-proc=/home/namespace/box/proc
+
 # chroot /home/namespace/box /bin/bash
+
 bash-5.2# ip -br a
 lo               DOWN           
+
 bash-5.2# ip a
 1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+
 bash-5.2# exit
 exit
+
+# exit
+-sh: 2: Cannot set tty process group (No such process)
+
+root@kind-control-plane:/# unshare -p -f --mount-proc=/home/namespace/box/proc
+
+# chroot /home/namespace/box /bin/bash
+
+bash-5.2# ip -br a
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0@if9         UP             172.18.0.2/16 fc00:f853:ccd:e793::2/64 fe80::5cba:13ff:fe90:c8e2/64 
+veth5383cb3f@if2 UP             10.244.0.1/32 fe80::45f:eff:fe52:a499/64 
+veth237feded@if2 UP             10.244.0.1/32 fe80::c4f5:34ff:fe2c:fed6/64 
+veth8eb91fba@if2 UP             10.244.0.1/32 fe80::e0a0:89ff:fe38:8bf2/64 
+veth9c97bd50@if2 UP             10.244.0.1/32 fe80::b03b:bff:fef8:a72/64 
+
+bash-5.2# exit
+exit
+
 # exit
 -sh: 2: Cannot set tty process group (No such process)
 root@kind-control-plane:/# 
