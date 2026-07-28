@@ -892,13 +892,17 @@ kubectl get pods core-k8s
 kubectl delete -f ./busybox.yaml
 
 kubectl create -f ./busybox.yaml
+```
 
+#### вывод информации о сети в pod
+
+```bash
 kubectl exec core-k8s -- ip a 
 ```
 
 <details>
 <summary>
-
+ вывод информации о сети в pod
 </summary>
 
 ```log
