@@ -697,7 +697,7 @@ bash-5.2# ls
 bin  data  lib  lib64  proc
 bash-5.2# ls ./data/
 1  2  3  A  B  C  a  b  c
-bash-5.2# exit
+bash-5.2# ps
     PID TTY          TIME CMD
    3245 ?        00:00:00 bash
    3812 ?        00:00:00 bash
@@ -765,7 +765,7 @@ root@kind-control-plane:/# ps -ax | grep kubelet | cut -c1-46
 ```bash
 ps -ax | grep kubelet | cut -c1-46
 
-unshare -p -f --mount-proc=home/namespace/box/proc
+unshare -p -f --mount-proc=/home/namespace/box/proc
 
 chroot /home/namespace/box /bin/bash
 ```
@@ -801,6 +801,45 @@ exit
 root@kind-control-plane:/#
 ```
 
+### Изоляция сетевого пространства имен для нового pod
+
+```bash
+ls -al /usr/sbin/ip
+
+cp -vr /usr/bin/{ip,curl} /home/namespace/box/bin
+
+unshare -p -n -f --mount-proc=/home/namespace/box/proc
+
+chroot /home/namespace/box /bin/bash
+```
+
+<details>
+<summary>
+Лог действий в chroot окружении для нового pod для сетевого пространства имен
+</summary>
+
+```log
+root@kind-control-plane:/# ls -al /usr/sbin/ip
+lrwxrwxrwx 1 root root 9 May 26  2025 /usr/sbin/ip -> ../bin/ip
+root@kind-control-plane:/# cp -vr /usr/bin/{ip,curl} /home/namespace/box/bin
+'/usr/bin/ip' -> '/home/namespace/box/bin/ip'
+'/usr/bin/curl' -> '/home/namespace/box/bin/curl'
+root@kind-control-plane:/# unshare -p -n -f --mount-proc=/home/namespace/box/proc
+# chroot /home/namespace/box /bin/bash
+bash-5.2# ip -br a
+lo               DOWN           
+bash-5.2# ip a
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+bash-5.2# exit
+exit
+# exit
+-sh: 2: Cannot set tty process group (No such process)
+root@kind-control-plane:/# 
+```
+
+
+</details>
 
 ```bash
 # Просмотр текущих удаленных репозиториев
