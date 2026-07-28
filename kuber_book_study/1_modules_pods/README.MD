@@ -929,7 +929,44 @@ pod/core-k8s created
 
 </details>
 
+### Добавление ограничений в `Yaml`-файл описания модуля pod `core-k8s` c `busybox:latest`
 
+<details>
+<summary>
+Yaml-файл описания модуля с ограничением ресурсов
+</summary>
+
+```bash
+cat > busybox.yaml <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: core-k8s
+  labels:
+    role: den-test-exmpl
+    app: my-test-app
+    organization: my-test-org
+    creator: denskv
+spec:
+  containers:
+    - name: some-name-of-busybox
+      image: docker.io/busybox:latest
+      command:
+        - sleep
+        - "3600"
+      resources:
+        limits:
+          memory: "256Mi"
+        requests:
+          memory: "128Mi"
+      ports:
+        - name: some-app-port
+          containerPort: 80
+          protocol: TCP
+EOF
+```
+
+</details>
 
 ```bash
 # Просмотр текущих удаленных репозиториев
