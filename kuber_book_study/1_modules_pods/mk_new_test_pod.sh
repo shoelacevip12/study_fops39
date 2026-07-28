@@ -9,8 +9,6 @@ cp -vr /usr/bin/curl /home/namespace/box/bin
 cp -r /lib/* /home/namespace/box/lib
 cp -vr /lib64/* /home/namespace/box/lib64
 
-
-
 mount -t proc /proc /home/namespace/box/proc
 
 # для изоляции процессов и файловых дескрипторов в chroot окружении

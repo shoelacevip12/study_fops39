@@ -545,7 +545,7 @@ overlay on /sys/devices/virtual/dmi/id/product_name type overlay (ro,relatime,lo
 
 </details>
 
-### создание модуля с нуля
+### создание модуля с нуля в `chroot`
 
 ```bash
 docker exec -t \
@@ -560,7 +560,7 @@ apt-get update \
 && apt-get install -y nano
 ```
 
-#### Создание сценария запуска Pod с минимальным bash окружением и утилитами
+#### Создание сценария запуска `chroot` окружения с минимальным bash окружением и утилитами
 
 <details>
 <summary>
@@ -784,7 +784,7 @@ ps
 kill 4216
 ```
 
-#### Лог действий в chroot окружении для нового pod
+#### Лог действий в chroot окружении
 
 ```log
 bash-5.2# ps
@@ -801,7 +801,7 @@ exit
 root@kind-control-plane:/#
 ```
 
-### Изоляция сетевого пространства имен для нового pod
+### Изоляция сетевого пространства имен в chroot окружении
 
 ```bash
 ls -al /usr/sbin/ip
@@ -827,7 +827,7 @@ ip -br a
 
 <details>
 <summary>
-Лог действий в chroot окружении для нового pod для сетевого пространства имен
+Лог действий в chroot окружении для сетевого пространства имен
 </summary>
 
 ```log
@@ -964,6 +964,161 @@ spec:
           containerPort: 80
           protocol: TCP
 EOF
+```
+
+</details>
+
+#### пересоздание созданного ранее busybox, но уже с ограничениями
+
+```bash
+kubectl get pods core-k8s
+
+kubectl delete -f ./busybox.yaml
+
+kubectl create -f ./busybox.yaml
+```
+
+### Ограничение ресурсов в `chroot` окружении
+
+#### Вход в ноду `control-plane\master`
+
+```bash
+docker exec -it kind-control-plane bash
+```
+
+#### Вход в `chroot` окружение через сценарий создания `chroot` окружения
+
+<details>
+<summary>
+Скрипт создания `chroot` окружения
+</summary>
+
+```bash
+cat ./mk_new_test_pod.sh <<'EOF'
+#!/bin/bash
+
+mkdir -vp /home/namespace/box/{bin,lib,lib64,proc}
+
+cp -v /bin/{ls,bash} /home/namespace/box/bin
+cp -v /usr/bin/{kill,ps,ip} /home/namespace/box/bin
+cp -vr /usr/bin/curl /home/namespace/box/bin
+
+cp -r /lib/* /home/namespace/box/lib
+cp -vr /lib64/* /home/namespace/box/lib64
+
+mount -t proc /proc /home/namespace/box/proc
+
+# для изоляции процессов и файловых дескрипторов в chroot окружении
+# unshare -p -f --mount-proc=home/namespace/box/proc
+
+# для изоляции сетевого пространства имен в chroot окружении
+# unshare -p -n -f --mount-proc=/home/namespace/box/proc
+
+chroot /home/namespace/box /bin/bash
+EOF
+```
+
+</details>
+
+```bash
+./mk_new_test_pod.sh
+```
+
+<details>
+<summary>
+Вывод скрипта создания `chroot` окружения
+</summary>
+
+```log
+root@kind-control-plane:/# ./mk_new_test_pod.sh 
+'/bin/ls' -> '/home/namespace/box/bin/ls'
+'/bin/bash' -> '/home/namespace/box/bin/bash'
+'/usr/bin/kill' -> '/home/namespace/box/bin/kill'
+'/usr/bin/ps' -> '/home/namespace/box/bin/ps'
+'/usr/bin/ip' -> '/home/namespace/box/bin/ip'
+'/usr/bin/curl' -> '/home/namespace/box/bin/curl'
+removed '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
+'/lib64/ld-linux-x86-64.so.2' -> '/home/namespace/box/lib64/ld-linux-x86-64.so.2'
+bash-5.2#
+```
+
+</details>
+
+
+#### Проверка главного PID процесса в `chroot` окружении
+
+```bash
+echo $$
+
+ps
+```
+
+```log
+3909
+
+PID TTY          TIME CMD
+1698 ?        00:00:00 bash
+3895 ?        00:00:00 mk_new_test_pod
+3909 ?        00:00:00 bash
+3940 ?        00:00:00 ps
+```
+
+#### Ограничение ресурсов в запущенном `chroot` окружении через cgroup на Ноде
+
+```bash
+# Добавление cgroup для memory для всех процессов
+echo '+memory' > /sys/fs/cgroup/memory/cgroup.subtree_control
+
+# Создание cgroup для mk_new_test_pod
+mkdir -vp /sys/fs/cgroup/memory/mk_new_test_pod
+
+# Ограничение ресурсов в 10 байт для вызова ошибки при вызове команд
+echo 10 > /sys/fs/cgroup/memory/mk_new_test_pod/memory.max
+
+# Гарантирование, что swap не используется
+echo 0 > /sys/fs/cgroup/memory/mk_new_test_pod/memory.swap.max
+
+# Добавление главного PID chroot процесса в cgroup
+echo 3909 > /sys/fs/cgroup/memory/mk_new_test_pod/cgroup.procs
+```
+
+#### Запуск утилит внутри chroot окружения с ограничениями вывода в 10 байт
+
+```bash
+bash-5.2# ls
+```
+
+<details>
+<summary>
+Вывод ошибки при ограничении ресурсов в запущенном `chroot` окружении через cgroup на Ноде
+</summary>
+
+```log
+bash-5.2# ls
+./mk_new_test_pod.sh: line 18:  3909 Killed  chroot /home/namespace/box /bin/bash
+
+root@kind-control-plane:/# 
+```
+
+</details>
+
+#### Системный лог о завершении процесса с chroot окружением
+
+```bash
+dmesg
+```
+
+<details>
+<summary>
+Вывод при ограничении ресурсов в запущенном `chroot` окружении через cgroup на Ноде
+</summary>
+
+```log
+root@kind-control-plane:/# dmesg
+
+[ 5995.789196] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=memory,mems_allowed=0,oom_memcg=/system.slice/docker-cd506faa6b6569b0d59b448d856d0dc3fa934ce4d9b9e3e95f0d81a139cd311e.scope/memory/mk_new_test_pod,task_memcg=/system.slice/docker-cd506faa6b6569b0d59b448d856d0dc3fa934ce4d9b9e3e95f0d81a139cd311e.scope/memory/mk_new_test_pod,task=bash,pid=18405,uid=0
+
+[ 5995.789235] Memory cgroup out of memory: Killed process 18405 (bash) total-vm:4196kB, anon-rss:432kB, file-rss:3248kB, shmem-rss:0kB, UID:0 pgtables:56kB oom_score_adj:0
 ```
 
 </details>
