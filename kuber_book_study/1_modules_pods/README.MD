@@ -882,8 +882,50 @@ exit
 root@kind-control-plane:/# 
 ```
 
+</details>
+
+#### пересоздание созданного ранее busybox
+
+```bash
+kubectl get pods core-k8s
+
+kubectl delete -f ./busybox.yaml
+
+kubectl create -f ./busybox.yaml
+
+kubectl exec core-k8s -- ip a 
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+NAME       READY   STATUS    RESTARTS   AGE
+core-k8s   1/1     Running   0          4m24s
+
+pod "core-k8s" deleted from default namespace
+
+pod/core-k8s created
+
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: eth0@if9: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue qlen 1000
+    link/ether e6:1a:bb:8e:86:3a brd ff:ff:ff:ff:ff:ff
+    inet 10.244.0.8/24 brd 10.244.0.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::e41a:bbff:fe8e:863a/64 scope link 
+       valid_lft forever preferred_lft forever
+```
 
 </details>
+
+
 
 ```bash
 # Просмотр текущих удаленных репозиториев
