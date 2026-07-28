@@ -4,7 +4,6 @@ mkdir -vp /home/namespace/box/{bin,lib,lib64,proc}
 
 cp -v /bin/{ls,bash} /home/namespace/box/bin
 cp -v /usr/bin/{kill,ps,ip} /home/namespace/box/bin
-cp -vr /usr/sbin/ip /home/namespace/box/bin
 cp -vr /usr/bin/curl /home/namespace/box/bin
 
 cp -r /lib/* /home/namespace/box/lib
