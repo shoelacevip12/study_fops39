@@ -18,6 +18,7 @@ kubectl get pods --all-namespaces
 <summary>
 Вывод о готовности учебного кластера
 </summary>
+
 ```log
 NAMESPACE            NAME                                         READY   STATUS    RESTARTS      AGE
 default              core-k8s                                     1/1     Running   2 (68s ago)   2d23h
@@ -31,6 +32,7 @@ kube-system          kube-proxy-2j6zm                             1/1     Runnin
 kube-system          kube-scheduler-kind-control-plane            1/1     Running   2 (68s ago)   5d1h
 local-path-storage   local-path-provisioner-855c7b7774-r2vjt      1/1     Running   4 (33s ago)   5d1h
 ```
+
 </details>
 
 ### Удаление пода
@@ -126,6 +128,7 @@ kubectl get services -o wide -A
 <summary>
 Вывод о создании учебного сервиса типа NodePort
 </summary>
+
 ```log
 NAMESPACE     NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                                    AGE    SELECTOR
 default       kubernetes   ClusterIP   10.96.0.1      <none>        443/TCP                                    5d2h   <none>
@@ -165,7 +168,7 @@ git log --oneline
 
 git add . .. ../.. \
 && git status \
-&& git commit -am 'some_word_add_module_1' \
+&& git commit -am 'some_word_add_module_2' \
 && git push \
 --set-upstream \
 study_fops39 \
