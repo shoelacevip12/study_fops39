@@ -18,7 +18,6 @@ kubectl get pods --all-namespaces
 <summary>
 Вывод о готовности учебного кластера
 </summary>
-**Лог: список подов кластера**
 ```log
 NAMESPACE            NAME                                         READY   STATUS    RESTARTS      AGE
 default              core-k8s                                     1/1     Running   2 (68s ago)   2d23h
@@ -44,15 +43,12 @@ kubectl delete -f ../1_modules_pods/busybox.yaml
 <summary>
 Вывод о удалении учебного кластера
 </summary>
-**Лог: подтверждение удаления пода**
 ```log
 pod "core-k8s" deleted from default namespace
 ```
 </details>
 
-### Создание учебного сервиса типа NodePort из развернутого конфигурации сервиса `CoreDNS`
-
-#### Получение конфигурации сервиса CoreDNS
+### Получение учебной конфигурации сервиса типа NodePort из развернутого конфигурации сервиса `CoreDNS`
 
 ```bash
 kubectl get svc -o yaml kube-dns -n kube-system
@@ -62,7 +58,6 @@ kubectl get svc -o yaml kube-dns -n kube-system
 <summary>
 Конфиг учебного сервиса типа NodePort
 </summary>
-**Команда: создание манифеста NodePort сервиса**
 ```bash
 cat > my-nodeport.yaml <<'EOF'
 apiVersion: v1
@@ -105,9 +100,7 @@ EOF
 
 </details>
 
-#### Создание учебного сервиса типа NodePort
-
-##### Применение манифеста
+#### Применение манифеста
 
 ```bash
 kubectl create -f my-nodeport.yaml
@@ -125,8 +118,6 @@ service/kube-dns-2 created
 
 ### Проверка созданного учебного сервиса типа NodePort
 
-#### Просмотр списка сервисов
-
 ```bash
 kubectl get services -o wide -A
 ```
@@ -135,7 +126,6 @@ kubectl get services -o wide -A
 <summary>
 Вывод о создании учебного сервиса типа NodePort
 </summary>
-**Лог: список сервисов кластера**
 ```log
 NAMESPACE     NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                                    AGE    SELECTOR
 default       kubernetes   ClusterIP   10.96.0.1      <none>        443/TCP                                    5d2h   <none>
@@ -144,3 +134,48 @@ kube-system   kube-dns-2   NodePort    10.96.71.107   <none>        53:30435/UDP
 ```
 
 </details>
+
+```bash
+# Просмотр текущих удаленных репозиториев
+git remote -v
+
+# Проверка текущего локального состояния репозитория
+git status
+
+git rm -r --cached \
+../../
+
+git remote -v
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+git diff \
+&& git diff --staged
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+git add . .. ../.. \
+&& git status \
+&& git commit -am 'some_word_add_module_1' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+```
