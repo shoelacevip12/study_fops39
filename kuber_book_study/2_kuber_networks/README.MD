@@ -45,6 +45,7 @@ kubectl delete -f ../1_modules_pods/busybox.yaml
 <summary>
 Вывод о удалении учебного кластера
 </summary>
+
 ```log
 pod "core-k8s" deleted from default namespace
 ```
@@ -60,6 +61,7 @@ kubectl get svc -o yaml kube-dns -n kube-system
 <summary>
 Конфиг учебного сервиса типа NodePort
 </summary>
+
 ```bash
 cat > my-nodeport.yaml <<'EOF'
 apiVersion: v1
@@ -113,6 +115,7 @@ kubectl create -f my-nodeport.yaml
 Вывод о создании учебного сервиса типа NodePort
 </summary>
 **Лог: результат создания сервиса**
+
 ```log
 service/kube-dns-2 created
 ```
