@@ -104,7 +104,7 @@ EOF
 
 </details>
 
-#### Применение манифеста
+#### Применение манифеста при создании
 
 ```bash
 kubectl create -f my-nodeport.yaml
@@ -119,6 +119,7 @@ kubectl create -f my-nodeport.yaml
 ```log
 service/kube-dns-2 created
 ```
+
 </details>
 
 ### Проверка созданного учебного сервиса типа NodePort
@@ -374,3 +375,253 @@ master \
 study-fops39_sc \
 master
 ```
+
+## О CNI (Container Network Interface)
+
+### пересоздание кластера
+
+```bash
+kind delete cluster \
+--name="$(kind get clusters | head -n1)"
+```
+
+<details>
+<summary>
+Вывод об удалении кластера
+</summary>
+
+```log
+Deleting cluster "kind" ...
+Deleted nodes: ["kind-control-plane"]
+```
+
+</details>
+
+#### Создание конфига отключения CNI поумолчанию
+
+<details>
+<summary>
+Создание Конфига отключения CNI поумолчанию
+</summary>
+
+```bash
+cat > kind-Calico-conf.yaml <<'EOF'
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+  podSubnet: 10.111.0.0/16
+nodes:
+  - role: control-plane
+  - role: worker
+EOF
+```
+
+</details>
+
+#### Создание кластера с отключенным CNI поумолчанию
+
+```bash
+kind create cluster \
+--name=calico \
+--config=./kind-Calico-conf.yaml
+```
+
+<details>
+<summary>
+Вывод создания кластера с отключенным CNI поумолчанию
+</summary>
+
+```log
+Creating cluster "calico" ...
+ ✓ Ensuring node image (kindest/node:v1.36.1) 🖼
+ ✓ Preparing nodes 📦 📦  
+ ✓ Writing configuration 📜 
+ ✓ Starting control-plane 🕹️ 
+ ✓ Installing StorageClass 💾 
+ ✓ Joining worker nodes 🚜 
+Set kubectl context to "kind-calico"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-calico
+
+Thanks for using kind! 😊
+```
+
+</details>
+
+### Проверка состояния кластера
+
+```bash
+kubectl get nodes -o wide -A
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+NAME                   STATUS     ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                       KERNEL-VERSION             CONTAINER-RUNTIME
+calico-control-plane   NotReady   control-plane   71s   v1.36.1   172.18.0.3    <none>        Debian GNU/Linux 13 (trixie)   7.1.5-zen1-2-zen (amd64)   containerd://2.3.1
+calico-worker          NotReady   <none>          62s   v1.36.1   172.18.0.2    <none>        Debian GNU/Linux 13 (trixie)   7.1.5-zen1-2-zen (amd64)   containerd://2.3.1
+```
+
+</details>
+
+```bash
+kubectl get pods --all-namespaces
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+NAMESPACE            NAME                                           READY   STATUS    RESTARTS   AGE
+kube-system          coredns-589f44dc88-pnsf5                       0/1     Pending   0          87s
+kube-system          coredns-589f44dc88-t5qkq                       0/1     Pending   0          87s
+kube-system          etcd-calico-control-plane                      1/1     Running   0          95s
+kube-system          kube-apiserver-calico-control-plane            1/1     Running   0          95s
+kube-system          kube-controller-manager-calico-control-plane   1/1     Running   0          95s
+kube-system          kube-proxy-bpxn6                               1/1     Running   0          87s
+kube-system          kube-proxy-h2t87                               1/1     Running   0          82s
+kube-system          kube-scheduler-calico-control-plane            1/1     Running   0          95s
+local-path-storage   local-path-provisioner-855c7b7774-v2rrl        0/1     Pending   0          87s
+```
+
+</details>
+
+```bash
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml -O
+```
+
+```bash
+kubectl apply -f calico.yaml
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+poddisruptionbudget.policy/calico-kube-controllers created
+serviceaccount/calico-kube-controllers created
+serviceaccount/calico-node created
+serviceaccount/calico-cni-plugin created
+configmap/calico-config created
+customresourcedefinition.apiextensions.k8s.io/bgpconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgpfilters.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgppeers.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/blockaffinities.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/caliconodestatuses.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/clusterinformations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/felixconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/hostendpoints.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamblocks.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamconfigs.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamhandles.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.projectcalico.org created
+Warning: unrecognized format "cidr"
+customresourcedefinition.apiextensions.k8s.io/ipreservations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/kubecontrollersconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/stagedglobalnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/stagedkubernetesnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/stagednetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/tiers.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/clusternetworkpolicies.policy.networking.k8s.io created
+clusterrole.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrole.rbac.authorization.k8s.io/calico-node created
+clusterrole.rbac.authorization.k8s.io/calico-cni-plugin created
+clusterrole.rbac.authorization.k8s.io/calico-tier-getter created
+clusterrolebinding.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrolebinding.rbac.authorization.k8s.io/calico-node created
+clusterrolebinding.rbac.authorization.k8s.io/calico-cni-plugin created
+clusterrolebinding.rbac.authorization.k8s.io/calico-tier-getter created
+daemonset.apps/calico-node created
+deployment.apps/calico-kube-controllers created
+```
+
+</details>
+
+
+```bash
+kubectl get pods \
+-n kube-system \
+-l k8s-app=calico-node \
+-o wide
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+NAME                READY   STATUS    RESTARTS   AGE    IP           NODE                   NOMINATED NODE   READINESS GATES
+calico-node-2zwk7   1/1     Running   0          119s   172.18.0.3   calico-control-plane   <none>           <none>
+calico-node-8vs52   1/1     Running   0          119s   172.18.0.2   calico-worker          <none>           <none>
+```
+
+</details>
+
+```bash
+kubectl get pods \
+-A -o wide
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+NAMESPACE            NAME                                           READY   STATUS    RESTARTS   AGE     IP             NODE                   NOMINATED NODE   READINESS GATES
+kube-system          calico-kube-controllers-58f68d56d9-qhfsm       1/1     Running   0          3m8s    10.111.9.130   calico-worker          <none>           <none>
+kube-system          calico-node-2zwk7                              1/1     Running   0          3m8s    172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          calico-node-8vs52                              1/1     Running   0          3m8s    172.18.0.2     calico-worker          <none>           <none>
+kube-system          coredns-589f44dc88-hlprf                       1/1     Running   0          3m30s   10.111.9.131   calico-worker          <none>           <none>
+kube-system          coredns-589f44dc88-zfzlk                       1/1     Running   0          3m30s   10.111.9.129   calico-worker          <none>           <none>
+kube-system          etcd-calico-control-plane                      1/1     Running   0          3m37s   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          kube-apiserver-calico-control-plane            1/1     Running   0          3m37s   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          kube-controller-manager-calico-control-plane   1/1     Running   0          3m37s   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          kube-proxy-gcztz                               1/1     Running   0          3m30s   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          kube-proxy-nvv24                               1/1     Running   0          3m28s   172.18.0.2     calico-worker          <none>           <none>
+kube-system          kube-scheduler-calico-control-plane            1/1     Running   0          3m37s   172.18.0.3     calico-control-plane   <none>           <none>
+local-path-storage   local-path-provisioner-855c7b7774-d9x77        1/1     Running   0          3m30s   10.111.9.132   calico-worker          <none>           <none>
+```
+
+</details>
+
+```bash
+docker exec -it calico-control-plane bash
+```
+
+```bash
+ip -br a
+
+ip route
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+tunl0@NONE       UNKNOWN        10.111.71.0/32 
+eth0@if29        UP             172.18.0.3/16 fc00:f853:ccd:e793::3/64 fe80::3888:cff:fee8:4252/64 
+default via 172.18.0.1 dev eth0 
+10.111.9.128/26 via 172.18.0.2 dev tunl0 proto bird metric 1024 onlink 
+blackhole 10.111.71.0/26 proto bird 
+172.18.0.0/16 dev eth0 proto kernel scope link src 172.18.0.3
+```
+
+</details>
