@@ -913,16 +913,133 @@ validatingwebhookconfiguration.admissionregistration.k8s.io/crdvalidator.antrea.
 </details>
 
 
+### Команда проверки всех подов кластера
 
+```bash
+kubectl get pods \
+-A -o wide
+```
 
+<details>
+<summary>
+Вывод всех подов кластера после установки Antrea
+</summary>
 
+```log
+NAMESPACE            NAME                                           READY   STATUS    RESTARTS   AGE   IP           NODE                   NOMINATED NODE   READINESS GATES
+kube-system          antrea-agent-vptsw                             2/2     Running   0          10m   172.18.0.3   antrea-worker          <none>           <none>
+kube-system          antrea-agent-xbvrb                             2/2     Running   0          10m   172.18.0.2   antrea-control-plane   <none>           <none>
+kube-system          antrea-controller-775fcbdf8f-wbsgr             1/1     Running   0          10m   172.18.0.3   antrea-worker          <none>           <none>
+kube-system          coredns-589f44dc88-5jgwt                       1/1     Running   0          15m   10.222.1.2   antrea-worker          <none>           <none>
+kube-system          coredns-589f44dc88-mxst8                       1/1     Running   0          15m   10.222.1.4   antrea-worker          <none>           <none>
+kube-system          etcd-antrea-control-plane                      1/1     Running   0          15m   172.18.0.2   antrea-control-plane   <none>           <none>
+kube-system          kube-apiserver-antrea-control-plane            1/1     Running   0          15m   172.18.0.2   antrea-control-plane   <none>           <none>
+kube-system          kube-controller-manager-antrea-control-plane   1/1     Running   0          15m   172.18.0.2   antrea-control-plane   <none>           <none>
+kube-system          kube-proxy-7v5x5                               1/1     Running   0          15m   172.18.0.3   antrea-worker          <none>           <none>
+kube-system          kube-proxy-lk685                               1/1     Running   0          15m   172.18.0.2   antrea-control-plane   <none>           <none>
+kube-system          kube-scheduler-antrea-control-plane            1/1     Running   0          15m   172.18.0.2   antrea-control-plane   <none>           <none>
+local-path-storage   local-path-provisioner-855c7b7774-x2vdp        1/1     Running   0          15m   10.222.1.3   antrea-worker          <none>           <none>
+```
 
+</details>
 
+### Вход в контейнер control-plane
 
+```bash
+docker exec -it antrea-control-plane bash
+```
 
+#### Проверки сетевых интерфейсов и маршрутизации
 
+```bash
+ip -br a
 
+ip route
+```
 
+<details>
+<summary>
+Вывод сетевых интерфейсов и маршрутизации Antrea
+</summary>
+
+```log
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+tunl0@NONE       DOWN           
+eth0@if32        UP             172.18.0.2/16 fc00:f853:ccd:e793::2/64 fe80::6c55:1dff:fee6:15ef/64 
+ovs-system       DOWN           
+genev_sys_6081   UNKNOWN        fe80::4816:8fff:fe9f:82e3/64 
+antrea-gw0       UNKNOWN        10.222.0.1/24 fe80::80b7:41ff:fea7:6df4/64 
+antrea-egress0   DOWN           
+default via 172.18.0.1 dev eth0 
+10.222.0.0/24 dev antrea-gw0 scope link src 10.222.0.1 
+10.222.1.0/24 via 10.222.1.1 dev antrea-gw0 onlink 
+172.18.0.0/16 dev eth0 proto kernel scope link src 172.18.0.2
+```
+
+</details>
+
+#### Команда установки tcpdump на ноде control-plane
+
+```bash
+apt-get update -y \
+; apt-get install -y tcpdump
+```
+
+<details>
+<summary>
+Вывод установки tcpdump в control-plane внутри ноды
+</summary>
+
+```log
+root@calico-control-plane:/# apt-get update -y \
+; apt-get install -y tcpdump
+Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+...
+The following additional packages will be installed:
+  dbus dbus-bin dbus-daemon dbus-session-bus-common dbus-system-bus-common libdbus-1-3 libexpat1 libpcap0.8t64
+Suggested packages:
+  default-dbus-session-bus | dbus-session-bus apparmor
+The following NEW packages will be installed:
+  dbus dbus-bin dbus-daemon dbus-session-bus-common dbus-system-bus-common libdbus-1-3 libexpat1 libpcap0.8t64 tcpdump
+0 upgraded, 9 newly installed, 0 to remove and 9 not upgraded.
+Need to get 1356 kB of archives.
+...
+```
+
+</details>
+
+#### Команда захвата трафика tcpdump
+
+```bash
+tcpdump -s 0 -i eth0 -v \
+| grep 'antrea-'
+
+exit
+```
+
+<details>
+<summary>
+Вывод захвата трафика tcpdump между нодами antrea
+</summary>
+
+```log
+root@antrea-control-plane:/# tcpdump -s 0 -i eth0 -v \
+| grep 'antrea-'
+tcpdump: listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+    antrea-control-plane.6443 > antrea-worker.kind.6146: Flags [P.], cksum 0x58f1 (incorrect -> 0x66bc), seq 4085438639:4085438800, ack 2422597425, win 335, options [nop,nop,TS val 2909259268 ecr 1566013159], length 161
+    antrea-worker.kind.6146 > antrea-control-plane.6443: Flags [.], cksum 0x5850 (incorrect -> 0x4f65), ack 161, win 878, options [nop,nop,TS val 1566016868 ecr 2909259268], length 0
+    antrea-control-plane.6443 > antrea-worker.kind.6146: Flags [P.], cksum 0x58ef (incorrect -> 0x59ce), seq 161:320, ack 1, win 335, options [nop,nop,TS val 2909259591 ecr 1566016868], length 159
+    antrea-worker.kind.6146 > antrea-control-plane.6443: Flags [.], cksum 0x5850 (incorrect -> 0x4c40), ack 320, win 878, options [nop,nop,TS val 1566017191 ecr 2909259591], length 0
+    antrea-control-plane.25311 > antrea-worker.kind.10349: Flags [P.], cksum 0x5877 (incorrect -> 0xe9c9), seq 487765098:487765137, ack 2396261546, win 1227, options [nop,nop,TS val 3960317689 ecr 4160783191], length 39
+    antrea-control-plane.25311 > antrea-worker.kind.10349: Flags [P.], cksum 0x5877 (incorrect -> 0x3038), seq 39:78, ack 1, win 1227, options [nop,nop,TS val 3960317689 ecr 4160783191], length 39
+    antrea-control-plane.25311 > antrea-worker.kind.10349: Flags [P.], cksum 0x5877 (incorrect -> 0x4f7a), seq 78:117, ack 1, win 1227, options [nop,nop,TS val 3960317689 ecr 4160783191], length 39
+    antrea-control-plane.25311 > antrea-worker.kind.10349: Flags [P.], cksum 0x5877 (incorrect -> 0x04bf), seq 117:156, ack 1, win 1227, options [nop,nop,TS val 3960317689 ecr 4160783191], length 39
+    antrea-control-plane.25311 > antrea-worker.kind.10349: Flags [P.], cksum 0x5877 (incorrect -> 0x5581), seq 156:195, ack 1, win 1227, options [nop,nop,TS val 3960317690 ecr 4160783191], length 39
+    antrea-worker.kind.10349 > antrea-control-plane.25311: Flags [.], cksum 0x5850 (incorrect -> 0xacc7), ack 156, win 78, options [nop,nop,TS val 4160810385 ecr 3960317689], length 0
+...
+```
+
+</details>
 
 ```bash
 # Просмотр текущих удаленных репозиториев
