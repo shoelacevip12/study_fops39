@@ -2,6 +2,8 @@
 
 ## Использование CNI calico
 
+### Команда: клонирование репозитория k8sprototypes
+
 ```bash
 git clone https://github.com/jayunit100/k8sprototypes.git
 
@@ -10,7 +12,7 @@ find . -name ".git" -exec rm -vrf {} \;
 
 <details>
 <summary>
-Вывод команды 
+Вывод команды
 </summary>
 
 ```log
@@ -71,6 +73,8 @@ find: «./k8sprototypes/.git»: Нет такого файла или катал
 ```
 
 </details>
+
+### Команда: создание кластера Calico через kind-local-up.sh
 
 ```bash
 cd ./k8sprototypes/kind
@@ -156,6 +160,7 @@ daemonset.apps/calico-node env updated
 
 </details>
 
+### Команда: проверка подов кластера
 
 ```bash
 kubectl get pods \
@@ -184,8 +189,10 @@ kube-system          kube-proxy-z7rlp                               1/1     Runn
 kube-system          kube-scheduler-calico-control-plane            1/1     Running   0          2m13s   172.18.0.3      calico-control-plane   <none>           <none>
 local-path-storage   local-path-provisioner-855c7b7774-zbz9w        1/1     Running   0          2m6s    192.168.9.130   calico-worker          <none>           <none>
 ```
+
 </details>
 
+### Команда: загрузка и установка sonobuoy
 
 ```bash
 wget https://github.com/vmware-tanzu/sonobuoy/releases/download/v0.57.5/sonobuoy_0.57.5_linux_amd64.tar.gz
@@ -234,6 +241,7 @@ API Version check skipped due to missing `--kubeconfig` or other error
 
 </details>
 
+### Команда: запуск conformance тестов
 
 ```bash
 sonobuoy run --wait
@@ -273,6 +281,7 @@ INFO[0000] create request issued                         name=sonobuoy-aggregato
 
 </details>
 
+### Команда: получение результатов conformance тестов
 
 ```bash
 export results="$(sonobuoy retrieve)"
@@ -333,10 +342,9 @@ Warnings:
 
 </details>
 
-
-
-
 ## Использование CNI Antrea
+
+### Команда: клонирование репозитория Antrea
 
 ```bash
 git clone https://github.com/antrea-io/antrea.git
@@ -407,6 +415,8 @@ find: «./antrea/.git»: Нет такого файла или каталога
 ```
 
 </details>
+
+### Команда: развертывание кластера с CNI Antrea
 
 ```bash
 cd ./antrea/ci/kind
@@ -503,6 +513,8 @@ validatingwebhookconfiguration.admissionregistration.k8s.io/crdvalidator.antrea.
 
 </details>
 
+### Команда: получение списка всех подов кластера
+
 ```bash
 kubectl get pods -A -o wide
 ```
@@ -532,9 +544,13 @@ local-path-storage   local-path-provisioner-855c7b7774-9crt9        1/1     Runn
 
 </details>
 
+### Команда: запуск quick conformance тестов
+
 ```bash
 sonobuoy run --mode quick
 ```
+
+### Команда: проверка подов в namespace sonobuoy
 
 ```bash
 kubectl get pods -n sonobuoy -o wide
@@ -568,7 +584,6 @@ sonobuoy   1/1     Running   0          2m18s   10.244.1.2   antrea-worker   <no
 ```
 
 </details>
-
 
 ```bash
 export results="$(sonobuoy retrieve)"
@@ -628,14 +643,20 @@ Warnings:
 
 </details>
 
+### Команда: вход в контейнер antrea-worker2
+
 ```bash
 docker exec -it antrea-worker2 bash
 ```
+
+### Команда: установка net-tools в контейнере antrea-worker2
 
 ```bash
 apt-get update \
 ; apt-get install -y net-tools
 ```
+
+### Команда: просмотр сетевого окружения на antrea-worker2
 
 ```bash
 ip -br a
@@ -687,6 +708,8 @@ antrea-control-plane.ki  ether   fe:dc:a0:5c:c0:f7   C                     eth0
 
 </details>
 
+### Команда: масштабирование CoreDNS и проверка подов
+
 ```bash
 root@antrea-worker2:/# exit
 
@@ -707,7 +730,7 @@ docker exec -it antrea-control-plane bash
 
 <details>
 <summary>
-
+Вывод проверки подов и масштабирования CoreDNS
 </summary>
 
 ```log
@@ -764,6 +787,8 @@ kube-scheduler-antrea-control-plane            1/1     Running   0          21m 
 ```
 
 </details>
+
+### Команда: установка net-tools в контейнере control-plane
 
 ```bash
 apt-get update \
@@ -844,6 +869,7 @@ antrea-worker2.kind      ether   16:cf:a8:e5:53:f0   C                     eth0
 
 </details>
 
+### Команда: просмотр статистики сетевых интерфейсов
 
 ```bash
 ip -s a
@@ -997,6 +1023,8 @@ ip -s a
 
 </details>
 
+### Команда: просмотр таблицы маршрутизации
+
 ```bash
 route -n
 ```
@@ -1017,6 +1045,8 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 ```
 
 </details>
+
+### Команда: получение имени пода antrea-agent
 
 ```bash
 kubectl get pods -n kube-system \
@@ -1152,9 +1182,13 @@ type                : ""
 
 </details>
 
+### Команда: вход в контейнер control-plane
+
 ```bash
 docker exec -it antrea-control-plane bash
 ```
+
+### Команда: установка tcpdump в контейнере control-plane
 
 ```bash
 apt-get update \
@@ -1168,6 +1202,8 @@ ip -br a | grep core | tail -1
 ```log
 coredns--91f0fb@if3 UP             fe80::3094:1fff:fe64:e93d/64 
 ```
+
+### Команда: захват трафика tcpdump
 
 ```bash
 tcpdump -i coredns--91f0fb -n
@@ -1212,6 +1248,7 @@ listening on coredns--91f0fb, link-type EN10MB (Ethernet), snapshot length 26214
 
 </details>
 
+### Команда: захват трафика tcpdump с фильтром по хосту
 
 ```bash
 tcpdump host 10.244.0.11 -i coredns--91f0fb
@@ -1255,13 +1292,15 @@ listening on coredns--91f0fb, link-type EN10MB (Ethernet), snapshot length 26214
 
 </details>
 
+### Команда: просмотр правил iptables
+
 ```bash
 iptables-save
 ```
 
 <details>
 <summary>
-
+Вывод правил iptables с CNI Antrea
 </summary>
 
 ```log
@@ -1524,7 +1563,7 @@ iptables-save \
 
 <details>
 <summary>
-
+Вывод фильтрации правил iptables по SEP-Q
 </summary>
 
 ```log
@@ -1535,7 +1574,6 @@ iptables-save \
 ```
 
 </details>
-
 
 <details>
 <summary>
@@ -1557,7 +1595,6 @@ EOF
 ```
 
 </details>
-
 
 <details>
 <summary>
@@ -1585,7 +1622,6 @@ EOF
 ```
 
 </details>
-
 
 <details>
 <summary>
@@ -1615,6 +1651,8 @@ EOF
 
 </details>
 
+### Команда: применение манифеста nginx
+
 ```bash
 kubectl apply -f nginx-pod.yaml
 ```
@@ -1629,6 +1667,8 @@ daemonset.apps/nginx-ds created
 ```
 
 </details>
+
+### Команда: просмотр созданных pods
 
 ```bash
 kubectl get pods -n default -o wide
@@ -1647,6 +1687,8 @@ nginx-ds-pddvd   1/1     Running   0          2m9s   10.244.1.4   antrea-worker 
 
 </details>
 
+### Команда: сохранение правил iptables до применения политик
+
 ```bash
 docker exec -it antrea-control-plane bash
 
@@ -1654,6 +1696,8 @@ root@antrea-control-plane:/# iptables-save > a1
 
 exit
 ```
+
+### Команда: применение политики блокировки доступа
 
 ```bash
 kubectl apply -f web-deny_all.yaml
@@ -1663,16 +1707,22 @@ kubectl apply -f web-deny_all.yaml
 networkpolicy.networking.k8s.io/web-deny-all created
 ```
 
+### Команда: сохранение правил iptables после применения политики
+
 ```bash
 docker exec -it antrea-control-plane bash
 
 root@antrea-control-plane:/# iptables-save > a2
 ```
 
+### Команда: установка git в контейнере control-plane
+
 ```bash
 apt-get update \
 ; apt-get install -y git
 ```
+
+### Команда: просмотр изменений в iptables
 
 ```bash
 git diff a1 a2
@@ -1763,6 +1813,8 @@ index 1f75a6e..a9dba08 100644
 
 </details>
 
+### Команда: смена политик и проверка
+
 ```bash
 root@antrea-control-plane:/# exit
 
@@ -1783,6 +1835,8 @@ networkpolicy.networking.k8s.io/web created
 ```
 
 </details>
+
+### Команда: сравнение трех снимков iptables
 
 ```bash
 docker exec -it antrea-control-plane bash
@@ -1900,10 +1954,12 @@ diff3 a{1..3}
 
 </details>
 
+### Команда: удаление политик разрешения доступа
+
 ```bash
 root@antrea-control-plane:/# exit
 
-kubectl delete -f web-web2-80-alllow.yaml 
+kubectl delete -f web-web2-80-alllow.yaml
 ```
 
 <details>
@@ -1917,6 +1973,7 @@ networkpolicy.networking.k8s.io "web" deleted from default namespace
 
 </details>
 
+### Команда: получение имени пода antrea-agent
 
 ```bash
 kubectl get pods -n kube-system \
@@ -2241,6 +2298,8 @@ command terminated with exit code 1
 ```
 
 </details>
+
+### Команда: смена политик и сравнение OVS flows
 
 ```bash
 kubectl delete -f web-deny_all.yaml
@@ -2710,11 +2769,21 @@ kubectl exec antrea-agent-m7w9b -n kube-system -- diff3 a1 a2 a3
 
 </details>
 
+### Команда: удаление политик разрешения доступа
+
+```bash
+kubectl delete -f web-web2-80-alllow.yaml
+```
+
+### Команда: просмотр удаленных репозиториев
+
 ```bash
 git remote -v
 ```
+
 </details>
 
+### Команда: отправка изменений в удаленные репозитории
 
 ```bash
 # Просмотр текущих удаленных репозиториев
@@ -2760,4 +2829,3 @@ master \
 study-fops39_sc \
 master
 ```
-
