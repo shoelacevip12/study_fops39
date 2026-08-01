@@ -28,6 +28,7 @@ terraform.tfstate.backup
 cloud-init.yml
 .terraform.*
 personal.auto.tfvars
+*_sonobuoy_*.tar.gz
 
 # Исключения
 !9_*/cloud-init.yml

@@ -264,21 +264,74 @@ INFO[0000] create request issued                         name=sonobuoy-aggregato
 17:58:44 Sonobuoy is still running. Runs can take 60 minutes or more depending on cluster and plugin configuration.
 ...
 ...
-17:59:44             e2e                 global    running            Passed:  0, Failed:  0, Remaining:444
-17:59:44    systemd-logs   calico-control-plane   complete                                                 
-17:59:44    systemd-logs          calico-worker   complete                                                 
-17:59:44    systemd-logs         calico-worker2   complete
-...
-...
-
+19:51:04             e2e                 global   complete   passed   Passed:  0, Failed:  0, Remaining:444
+19:51:04    systemd-logs   calico-control-plane   complete   passed                                        
+19:51:04    systemd-logs          calico-worker   complete   passed                                        
+19:51:04    systemd-logs         calico-worker2   complete   passed                                        
+19:51:04 Sonobuoy has completed. Use `sonobuoy retrieve` to get results.
 ```
 
 </details>
 
 
+```bash
+export results="$(sonobuoy retrieve)"
 
+sonobuoy results $results
+```
 
+<details>
+<summary>
+Вывод результатов
+</summary>
 
+```log
+sonobuoy results $results
+Plugin: e2e
+Status: passed
+Total: 7586
+Passed: 451
+Failed: 0
+Skipped: 7135
+
+Plugin: systemd-logs
+Status: passed
+Total: 3
+Passed: 3
+Failed: 0
+Skipped: 0
+
+Run Details:
+API Server version: v1.36.1
+Node health: 3/3 (100%)
+Pods health: 19/19 (100%)
+Errors detected in files:
+Errors:
+1210 podlogs/kube-system/kube-controller-manager-calico-control-plane/logs/kube-controller-manager.txt
+1157 podlogs/kube-system/calico-node-czddm/logs/calico-node.txt
+ 908 podlogs/kube-system/calico-node-pfp4g/logs/calico-node.txt
+ 446 podlogs/kube-system/kube-apiserver-calico-control-plane/logs/kube-apiserver.txt
+  51 podlogs/kube-system/kube-scheduler-calico-control-plane/logs/kube-scheduler.txt
+   9 podlogs/kube-system/kube-proxy-z7rlp/logs/kube-proxy.txt
+   9 podlogs/kube-system/kube-proxy-j6sc6/logs/kube-proxy.txt
+   9 podlogs/kube-system/kube-proxy-szgn7/logs/kube-proxy.txt
+   3 podlogs/kube-system/calico-node-5ljx2/logs/calico-node.txt
+   2 podlogs/kube-system/calico-kube-controllers-6ddb98b4d6-k8xvn/logs/calico-kube-controllers.txt
+   1 podlogs/sonobuoy/sonobuoy-e2e-job-21ca370429bc42b0/logs/e2e.txt
+Warnings:
+1499 podlogs/kube-system/calico-node-5ljx2/logs/calico-node.txt
+ 544 podlogs/kube-system/calico-node-pfp4g/logs/calico-node.txt
+ 538 podlogs/kube-system/calico-node-czddm/logs/calico-node.txt
+ 338 podlogs/kube-system/kube-apiserver-calico-control-plane/logs/kube-apiserver.txt
+ 305 podlogs/kube-system/etcd-calico-control-plane/logs/etcd.txt
+  22 podlogs/kube-system/kube-controller-manager-calico-control-plane/logs/kube-controller-manager.txt
+   7 podlogs/sonobuoy/sonobuoy/logs/kube-sonobuoy.txt
+   4 podlogs/kube-system/kube-scheduler-calico-control-plane/logs/kube-scheduler.txt
+   1 podlogs/sonobuoy/sonobuoy-e2e-job-21ca370429bc42b0/logs/e2e.txt
+   1 podlogs/kube-system/calico-kube-controllers-6ddb98b4d6-k8xvn/logs/calico-kube-controllers.txt
+```
+
+</details>
 
 
 
@@ -354,6 +407,1136 @@ find: «./antrea/.git»: Нет такого файла или каталога
 ```
 
 </details>
+
+```bash
+cd ./antrea/ci/kind
+
+./kind-setup.sh create antrea
+
+kubectl apply -f ../../build/yamls/antrea.yml
+
+cd -
+```
+
+<details>
+<summary>
+Вывод развертывания на CNI Antrea
+</summary>
+
+```log
+[shoel@shoellin kind]$ ./kind-setup.sh create antrea
+Creating docker network antrea with args: -d bridge -o com.docker.network.bridge.enable_ip_masquerade=true -o com.docker.network.driver.mtu=1500 -o com.docker.network.bridge.gateway_mode_ipv4=nat-unprotected
+fbdbb6f31989ccd725e6e45d6c276644b3d1a455af7f3350e20b9668141a15e4
+Creating cluster "antrea" ...
+ ✓ Ensuring node image (kindest/node:v1.36.1) 🖼
+ ✓ Preparing nodes 📦 📦 📦  
+ ✓ Writing configuration 📜 
+ ✓ Starting control-plane 🕹️ 
+ ✓ Installing StorageClass 💾 
+ ✓ Joining worker nodes 🚜 
+Set kubectl context to "kind-antrea"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-antrea
+
+Not sure what to do next? 😅  Check out https://kind.sigs.k8s.io/docs/user/quick-start/
+deployment.apps/coredns patched
+Configuring networks
+removing worker nodes antrea-worker2 antrea-worker from networks antrea antrea
+template parsing error: template: :1:35: executing "" at <"antrea">: nil data; no entry for key "IPAddress"
+template parsing error: template: :1:35: executing "" at <"antrea">: nil data; no entry for key "GlobalIPv6Address"
+connected worker antrea-worker2 to network antrea
+RTNETLINK answers: File exists
+
+[shoel@shoellin kind]$ kubectl apply -f ../../antrea/build/yamls/antrea.yml
+customresourcedefinition.apiextensions.k8s.io/antreaagentinfos.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/antreacontrollerinfos.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/antreanodeconfigs.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/bgppolicies.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/clustergroups.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/clusternetworkpolicies.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/egresses.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/externalentities.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/externalippools.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/externalnodes.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/flowexporterdestinations.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/groups.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/networkpolicies.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/nodelatencymonitors.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/packetcaptures.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/supportbundlecollections.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/tiers.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/traceflows.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/trafficcontrols.crd.antrea.io created
+serviceaccount/antrea-agent created
+serviceaccount/antctl created
+serviceaccount/antrea-controller created
+secret/antrea-agent-service-account-token created
+secret/antctl-service-account-token created
+configmap/antrea-config created
+clusterrole.rbac.authorization.k8s.io/antrea-agent created
+clusterrole.rbac.authorization.k8s.io/antctl created
+clusterrole.rbac.authorization.k8s.io/antrea-cluster-identity-reader created
+clusterrole.rbac.authorization.k8s.io/antrea-controller created
+clusterrole.rbac.authorization.k8s.io/aggregate-antrea-policies-edit created
+clusterrole.rbac.authorization.k8s.io/aggregate-antrea-policies-view created
+clusterrole.rbac.authorization.k8s.io/aggregate-traceflows-edit created
+clusterrole.rbac.authorization.k8s.io/aggregate-traceflows-view created
+clusterrole.rbac.authorization.k8s.io/aggregate-antrea-clustergroups-edit created
+clusterrole.rbac.authorization.k8s.io/aggregate-antrea-clustergroups-view created
+clusterrolebinding.rbac.authorization.k8s.io/antrea-agent created
+clusterrolebinding.rbac.authorization.k8s.io/antctl created
+clusterrolebinding.rbac.authorization.k8s.io/antrea-controller created
+service/antrea created
+daemonset.apps/antrea-agent created
+deployment.apps/antrea-controller created
+apiservice.apiregistration.k8s.io/v1beta2.controlplane.antrea.io created
+apiservice.apiregistration.k8s.io/v1beta1.system.antrea.io created
+apiservice.apiregistration.k8s.io/v1alpha1.stats.antrea.io created
+mutatingwebhookconfiguration.admissionregistration.k8s.io/crdmutator.antrea.io created
+validatingwebhookconfiguration.admissionregistration.k8s.io/crdvalidator.antrea.io created
+
+[shoel@shoellin kind]$ cd -
+/home/shoel/nfs_git/gited/kuber_book_study/3_network_uses
+```
+
+</details>
+
+```bash
+kubectl get pods -A -o wide
+```
+
+<details>
+<summary>
+Получение списка всех модулей Pod в кластере
+</summary>
+
+```log
+NAMESPACE            NAME                                           READY   STATUS    RESTARTS   AGE    IP           NODE                   NOMINATED NODE   READINESS GATES
+kube-system          antrea-agent-fv7nb                             2/2     Running   0          105s   172.18.0.2   antrea-worker2         <none>           <none>
+kube-system          antrea-agent-j2594                             2/2     Running   0          105s   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-system          antrea-agent-m7w9b                             2/2     Running   0          105s   172.18.0.4   antrea-worker          <none>           <none>
+kube-system          antrea-controller-775fcbdf8f-kv5tm             1/1     Running   0          105s   172.18.0.2   antrea-worker2         <none>           <none>
+kube-system          coredns-8495bdd5c6-d2gvl                       1/1     Running   0          119s   10.244.0.3   antrea-control-plane   <none>           <none>
+kube-system          coredns-8495bdd5c6-g6zkb                       1/1     Running   0          119s   10.244.0.2   antrea-control-plane   <none>           <none>
+kube-system          etcd-antrea-control-plane                      1/1     Running   0          2m9s   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-system          kube-apiserver-antrea-control-plane            1/1     Running   0          2m8s   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-system          kube-controller-manager-antrea-control-plane   1/1     Running   0          2m8s   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-system          kube-proxy-cj8v8                               1/1     Running   0          119s   172.18.0.2   antrea-worker2         <none>           <none>
+kube-system          kube-proxy-pbbbk                               1/1     Running   0          2m2s   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-system          kube-proxy-zk42c                               1/1     Running   0          119s   172.18.0.4   antrea-worker          <none>           <none>
+kube-system          kube-scheduler-antrea-control-plane            1/1     Running   0          2m9s   172.18.0.3   antrea-control-plane   <none>           <none>
+local-path-storage   local-path-provisioner-855c7b7774-9crt9        1/1     Running   0          2m2s   10.244.2.3   antrea-worker2         <none>           <none>
+```
+
+</details>
+
+```bash
+sonobuoy run --mode quick
+```
+
+```bash
+kubectl get pods -n sonobuoy -o wide
+```
+
+<details>
+<summary>
+Вывод команды спика подов в namespace sonobuoy
+</summary>
+
+```log
+NAME                                                      READY   STATUS              RESTARTS   AGE   IP           NODE                   NOMINATED NODE   READINESS GATES
+sonobuoy                                                  1/1     Running             0          35s   10.244.1.2   antrea-worker          <none>           <none>
+sonobuoy-e2e-job-6c28295b24014d43                         0/2     ContainerCreating   0          28s   <none>       antrea-worker          <none>           <none>
+sonobuoy-systemd-logs-daemon-set-2d909ee39aca430b-qdps9   0/2     ContainerCreating   0          28s   172.18.0.4   antrea-worker          <none>           <none>
+sonobuoy-systemd-logs-daemon-set-2d909ee39aca430b-skbzl   0/2     ContainerCreating   0          28s   172.18.0.3   antrea-control-plane   <none>           <none>
+sonobuoy-systemd-logs-daemon-set-2d909ee39aca430b-x8bwd   0/2     ContainerCreating   0          28s   172.18.0.2   antrea-worker2         <none>           <none>
+```
+
+```log
+NAME                                                      READY   STATUS        RESTARTS   AGE    IP           NODE                   NOMINATED NODE   READINESS GATES
+sonobuoy                                                  1/1     Running       0          2m1s   10.244.1.2   antrea-worker          <none>           <none>
+sonobuoy-systemd-logs-daemon-set-2d909ee39aca430b-qdps9   2/2     Terminating   0          114s   172.18.0.4   antrea-worker          <none>           <none>
+sonobuoy-systemd-logs-daemon-set-2d909ee39aca430b-skbzl   2/2     Terminating   0          114s   172.18.0.3   antrea-control-plane   <none>           <none>
+sonobuoy-systemd-logs-daemon-set-2d909ee39aca430b-x8bwd   2/2     Terminating   0          114s   172.18.0.2   antrea-worker2         <none>           <none>
+```
+
+```log
+NAME       READY   STATUS    RESTARTS   AGE     IP           NODE            NOMINATED NODE   READINESS GATES
+sonobuoy   1/1     Running   0          2m18s   10.244.1.2   antrea-worker   <none>           <none>
+```
+
+</details>
+
+
+```bash
+export results="$(sonobuoy retrieve)"
+
+sonobuoy results $results
+```
+
+<details>
+<summary>
+Вывод результатов
+</summary>
+
+```log
+sonobuoy results $results
+Plugin: e2e
+Status: passed
+Total: 7586
+Passed: 8
+Failed: 0
+Skipped: 7578
+
+Plugin: systemd-logs
+Status: passed
+Total: 3
+Passed: 3
+Failed: 0
+Skipped: 0
+
+Run Details:
+API Server version: v1.36.1
+Node health: 3/3 (100%)
+Pods health: 19/19 (100%)
+Errors detected in files:
+Errors:
+152 podlogs/kube-system/kube-apiserver-antrea-control-plane/logs/kube-apiserver.txt
+ 22 podlogs/kube-system/antrea-agent-m7w9b/logs/antrea-agent.txt
+ 22 podlogs/kube-system/antrea-agent-fv7nb/logs/antrea-agent.txt
+ 21 podlogs/kube-system/kube-scheduler-antrea-control-plane/logs/kube-scheduler.txt
+ 21 podlogs/kube-system/antrea-agent-j2594/logs/antrea-agent.txt
+ 14 podlogs/kube-system/kube-controller-manager-antrea-control-plane/logs/kube-controller-manager.txt
+  4 podlogs/kube-system/antrea-controller-775fcbdf8f-kv5tm/logs/antrea-controller.txt
+  1 podlogs/kube-system/kube-proxy-cj8v8/logs/kube-proxy.txt
+  1 podlogs/kube-system/kube-proxy-zk42c/logs/kube-proxy.txt
+  1 podlogs/kube-system/kube-proxy-pbbbk/logs/kube-proxy.txt
+  1 podlogs/sonobuoy/sonobuoy-e2e-job-6c28295b24014d43/logs/e2e.txt
+Warnings:
+149 podlogs/kube-system/kube-apiserver-antrea-control-plane/logs/kube-apiserver.txt
+ 85 podlogs/kube-system/etcd-antrea-control-plane/logs/etcd.txt
+ 11 podlogs/kube-system/kube-controller-manager-antrea-control-plane/logs/kube-controller-manager.txt
+  7 podlogs/sonobuoy/sonobuoy/logs/kube-sonobuoy.txt
+  3 podlogs/kube-system/kube-scheduler-antrea-control-plane/logs/kube-scheduler.txt
+  2 podlogs/kube-system/antrea-agent-j2594/logs/antrea-agent.txt
+  2 podlogs/kube-system/antrea-agent-m7w9b/logs/antrea-agent.txt
+  2 podlogs/kube-system/antrea-agent-fv7nb/logs/antrea-agent.txt
+  1 podlogs/sonobuoy/sonobuoy-e2e-job-6c28295b24014d43/logs/e2e.txt
+```
+
+</details>
+
+```bash
+docker exec -it antrea-worker2 bash
+```
+
+```bash
+apt-get update \
+; apt-get install -y net-tools
+```
+
+```bash
+ip -br a
+
+ip route
+
+arp
+
+arp -na
+```
+
+<details>
+<summary>
+Просмотр сетевого окружения на одно из nod Antrea
+</summary>
+
+```log
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+tunl0@NONE       DOWN           
+eth0@if88        UP             172.18.0.2/16 fc00:f853:ccd:e793::2/64 fe80::14cf:a8ff:fee5:53f0/64 
+eth1@if91        DOWN           172.21.0.2/16 
+ovs-system       DOWN           
+genev_sys_6081   UNKNOWN        fe80::78ff:79ff:fe7c:cb18/64 
+antrea-gw0       UNKNOWN        10.244.2.1/24 fe80::42:efff:fe6e:a64d/64 
+antrea-egress0   DOWN           
+local-pa-b7d8e5@if3 UP             fe80::849c:7ff:fef4:a80d/64
+
+default via 172.18.0.1 dev eth0 
+10.244.0.0/24 via 10.244.0.1 dev antrea-gw0 onlink 
+10.244.1.0/24 via 10.244.1.1 dev antrea-gw0 onlink 
+10.244.2.0/24 dev antrea-gw0 scope link src 10.244.2.1 
+172.18.0.0/16 dev eth0 proto kernel scope link src 172.18.0.2
+
+Address                  HWtype  HWaddress           Flags Mask            Iface
+10.244.1.1               ether   aa:bb:cc:dd:ee:ff   C                     antrea-gw0
+10.244.2.3               ether   32:26:66:f8:d3:59   C                     antrea-gw0
+antrea-worker.kind       ether   ee:c0:52:3f:06:6b   C                     eth0
+10.244.2.2               ether   0e:ec:44:17:0d:4f   C                     antrea-gw0
+shoellin                 ether   f6:10:7c:88:65:c3   C                     eth0
+antrea-control-plane.ki  ether   fe:dc:a0:5c:c0:f7   C                     eth0
+
+? (10.244.1.1) at aa:bb:cc:dd:ee:ff [ether] on antrea-gw0
+? (10.244.2.3) at 32:26:66:f8:d3:59 [ether] on antrea-gw0
+? (172.18.0.4) at ee:c0:52:3f:06:6b [ether] on eth0
+? (10.244.2.2) at 0e:ec:44:17:0d:4f [ether] on antrea-gw0
+? (172.18.0.1) at f6:10:7c:88:65:c3 [ether] on eth0
+? (172.18.0.3) at fe:dc:a0:5c:c0:f7 [ether] on eth0
+```
+
+</details>
+
+```bash
+root@antrea-worker2:/# exit
+
+kubectl get pods -n kube-system -o wide \
+; kubectl get pods -n kube-system \
+| wc -l
+
+kubectl scale deployment coredns \
+-n kube-system \
+--replicas=10
+
+kubectl get pods -n kube-system -o wide \
+; kubectl get pods -n kube-system \
+| wc -l
+
+docker exec -it antrea-control-plane bash
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+NAME                                           READY   STATUS    RESTARTS   AGE   IP           NODE                   NOMINATED NODE   READINESS GATES
+antrea-agent-fv7nb                             2/2     Running   0          20m   172.18.0.2   antrea-worker2         <none>           <none>
+antrea-agent-j2594                             2/2     Running   0          20m   172.18.0.3   antrea-control-plane   <none>           <none>
+antrea-agent-m7w9b                             2/2     Running   0          20m   172.18.0.4   antrea-worker          <none>           <none>
+antrea-controller-775fcbdf8f-kv5tm             1/1     Running   0          20m   172.18.0.2   antrea-worker2         <none>           <none>
+coredns-8495bdd5c6-d2gvl                       1/1     Running   0          20m   10.244.0.3   antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-g6zkb                       1/1     Running   0          20m   10.244.0.2   antrea-control-plane   <none>           <none>
+etcd-antrea-control-plane                      1/1     Running   0          20m   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-apiserver-antrea-control-plane            1/1     Running   0          20m   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-controller-manager-antrea-control-plane   1/1     Running   0          20m   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-proxy-cj8v8                               1/1     Running   0          20m   172.18.0.2   antrea-worker2         <none>           <none>
+kube-proxy-pbbbk                               1/1     Running   0          20m   172.18.0.3   antrea-control-plane   <none>           <none>
+kube-proxy-zk42c                               1/1     Running   0          20m   172.18.0.4   antrea-worker          <none>           <none>
+kube-scheduler-antrea-control-plane            1/1     Running   0          20m   172.18.0.3   antrea-control-plane   <none>           <none>
+```
+
+```log
+14
+```
+
+```log
+deployment.apps/coredns scaled
+```
+
+```log
+NAME                                           READY   STATUS    RESTARTS   AGE   IP            NODE                   NOMINATED NODE   READINESS GATES
+antrea-agent-fv7nb                             2/2     Running   0          21m   172.18.0.2    antrea-worker2         <none>           <none>
+antrea-agent-j2594                             2/2     Running   0          21m   172.18.0.3    antrea-control-plane   <none>           <none>
+antrea-agent-m7w9b                             2/2     Running   0          21m   172.18.0.4    antrea-worker          <none>           <none>
+antrea-controller-775fcbdf8f-kv5tm             1/1     Running   0          21m   172.18.0.2    antrea-worker2         <none>           <none>
+coredns-8495bdd5c6-5jnrj                       1/1     Running   0          23s   10.244.0.10   antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-8h2rd                       1/1     Running   0          23s   10.244.0.7    antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-bw9kd                       1/1     Running   0          23s   10.244.0.4    antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-d2gvl                       1/1     Running   0          21m   10.244.0.3    antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-g6zkb                       1/1     Running   0          21m   10.244.0.2    antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-htggh                       1/1     Running   0          23s   10.244.0.6    antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-sksdh                       1/1     Running   0          23s   10.244.0.11   antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-wxg4z                       1/1     Running   0          23s   10.244.0.5    antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-xq6hk                       1/1     Running   0          23s   10.244.0.8    antrea-control-plane   <none>           <none>
+coredns-8495bdd5c6-zrbdm                       1/1     Running   0          23s   10.244.0.9    antrea-control-plane   <none>           <none>
+etcd-antrea-control-plane                      1/1     Running   0          21m   172.18.0.3    antrea-control-plane   <none>           <none>
+kube-apiserver-antrea-control-plane            1/1     Running   0          21m   172.18.0.3    antrea-control-plane   <none>           <none>
+kube-controller-manager-antrea-control-plane   1/1     Running   0          21m   172.18.0.3    antrea-control-plane   <none>           <none>
+kube-proxy-cj8v8                               1/1     Running   0          21m   172.18.0.2    antrea-worker2         <none>           <none>
+kube-proxy-pbbbk                               1/1     Running   0          21m   172.18.0.3    antrea-control-plane   <none>           <none>
+kube-proxy-zk42c                               1/1     Running   0          21m   172.18.0.4    antrea-worker          <none>           <none>
+kube-scheduler-antrea-control-plane            1/1     Running   0          21m   172.18.0.3    antrea-control-plane   <none>           <none>
+
+```log
+22
+```
+
+</details>
+
+```bash
+apt-get update \
+; apt-get install -y net-tools
+```
+
+```bash
+ip -br a
+
+ip route
+
+arp
+
+arp -na
+```
+
+<details>
+<summary>
+Просмотр сетевого окружения на одно из nodы control-plane с CNI Antrea
+</summary>
+
+```log
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+tunl0@NONE       DOWN           
+eth0@if89        UP             172.18.0.3/16 fc00:f853:ccd:e793::3/64 fe80::fcdc:a0ff:fe5c:c0f7/64 
+ovs-system       DOWN           
+genev_sys_6081   UNKNOWN        fe80::fce5:c6ff:fe3c:4a4c/64 
+antrea-gw0       UNKNOWN        10.244.0.1/24 fe80::60b4:1bff:feee:a8e5/64 
+antrea-egress0   DOWN           
+coredns--90ea33@if3 UP             fe80::6041:46ff:fed8:3bcd/64 
+coredns--3e4ff4@if3 UP             fe80::cced:49ff:fe9b:f15d/64 
+coredns--a5ecd0@if3 UP             fe80::dc04:f2ff:fee6:fb50/64 
+coredns--8455fe@if3 UP             fe80::2852:e6ff:febc:8273/64 
+coredns--98f03c@if3 UP             fe80::240f:ceff:fe7e:7401/64 
+coredns--c2cf2e@if3 UP             fe80::c8a1:fbff:feac:650a/64 
+coredns--06ffe8@if3 UP             fe80::44ea:b4ff:feca:4674/64 
+coredns--94dfbf@if3 UP             fe80::90c7:3aff:fe7d:bc12/64 
+coredns--f8ef8b@if3 UP             fe80::a873:f4ff:fe40:d0a0/64 
+coredns--91f0fb@if3 UP             fe80::3094:1fff:fe64:e93d/64
+
+default via 172.18.0.1 dev eth0 
+10.244.0.0/24 dev antrea-gw0 scope link src 10.244.0.1 
+10.244.1.0/24 via 10.244.1.1 dev antrea-gw0 onlink 
+10.244.2.0/24 via 10.244.2.1 dev antrea-gw0 onlink 
+172.18.0.0/16 dev eth0 proto kernel scope link src 172.18.0.3
+
+Address                  HWtype  HWaddress           Flags Mask            Iface
+10.244.0.8               ether   52:6f:95:3f:05:94   C                     antrea-gw0
+10.244.0.10              ether   e2:58:bb:26:0a:3d   C                     antrea-gw0
+10.244.0.5               ether   46:61:f2:7a:db:18   C                     antrea-gw0
+10.244.0.7               ether   32:c4:8f:9b:c7:6a   C                     antrea-gw0
+shoellin                 ether   f6:10:7c:88:65:c3   C                     eth0
+10.244.0.3               ether   02:09:af:02:8a:a1   C                     antrea-gw0
+10.244.0.9               ether   66:5b:ee:60:53:00   C                     antrea-gw0
+10.244.1.1               ether   aa:bb:cc:dd:ee:ff   C                     antrea-gw0
+10.244.0.11              ether   3a:df:da:e1:23:e0   C                     antrea-gw0
+antrea-worker.kind       ether   ee:c0:52:3f:06:6b   C                     eth0
+10.244.0.4               ether   ca:9f:fa:52:d6:3c   C                     antrea-gw0
+10.244.0.6               ether   8e:88:ca:03:6b:5b   C                     antrea-gw0
+antrea-worker2.kind      ether   16:cf:a8:e5:53:f0   C                     eth0
+10.244.0.2               ether   f2:6d:c1:d3:d3:76   C                     antrea-gw0
+
+? (10.244.0.8) at 52:6f:95:3f:05:94 [ether] on antrea-gw0
+? (10.244.0.10) at e2:58:bb:26:0a:3d [ether] on antrea-gw0
+? (10.244.0.5) at 46:61:f2:7a:db:18 [ether] on antrea-gw0
+? (10.244.0.7) at 32:c4:8f:9b:c7:6a [ether] on antrea-gw0
+? (172.18.0.1) at f6:10:7c:88:65:c3 [ether] on eth0
+? (10.244.0.3) at 02:09:af:02:8a:a1 [ether] on antrea-gw0
+? (10.244.0.9) at 66:5b:ee:60:53:00 [ether] on antrea-gw0
+? (10.244.1.1) at aa:bb:cc:dd:ee:ff [ether] on antrea-gw0
+? (10.244.0.11) at 3a:df:da:e1:23:e0 [ether] on antrea-gw0
+? (172.18.0.4) at ee:c0:52:3f:06:6b [ether] on eth0
+? (10.244.0.4) at ca:9f:fa:52:d6:3c [ether] on antrea-gw0
+? (10.244.0.6) at 8e:88:ca:03:6b:5b [ether] on antrea-gw0
+? (172.18.0.2) at 16:cf:a8:e5:53:f0 [ether] on eth0
+? (10.244.0.2) at f2:6d:c1:d3:d3:76 [ether] on antrea-gw0
+```
+
+</details>
+
+
+```bash
+ip -s a
+```
+
+<details>
+<summary>
+Вывод статистики для всех сетевых интерфейсов
+</summary>
+
+```log
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host proto kernel_lo 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+     110340030  435234      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+     110340030  435234      0       0       0       0 
+2: tunl0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1000
+    link/ipip 0.0.0.0 brd 0.0.0.0
+    RX:  bytes packets errors dropped  missed   mcast           
+             0       0      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+             0       0      0       0       0       0 
+3: eth0@if89: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
+    link/ether fe:dc:a0:5c:c0:f7 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 172.18.0.3/16 brd 172.18.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fc00:f853:ccd:e793::3/64 scope global nodad 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::fcdc:a0ff:fe5c:c0f7/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+     331352904  237548      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+      27633524  142645      0       0       0       0 
+4: ovs-system: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether c6:bb:f3:40:38:f6 brd ff:ff:ff:ff:ff:ff
+    RX:  bytes packets errors dropped  missed   mcast           
+             0       0      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+             0       0      0       0       0       0 
+5: genev_sys_6081: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 65000 qdisc noqueue master ovs-system state UNKNOWN group default qlen 1000
+    link/ether fe:e5:c6:3c:4a:4c brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::fce5:c6ff:fe3c:4a4c/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+          3961      25      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+        870405      38      0      14       0       0 
+6: antrea-gw0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/ether 62:b4:1b:ee:a8:e5 brd ff:ff:ff:ff:ff:ff
+    inet 10.244.0.1/24 brd 10.244.0.255 scope global antrea-gw0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::60b4:1bff:feee:a8e5/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+        714272    8302      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+       2189600    9368      0       0       0       0 
+7: antrea-egress0: <BROADCAST,NOARP> mtu 1500 qdisc noop state DOWN group default 
+    link/ether f2:7c:fe:c4:be:f0 brd ff:ff:ff:ff:ff:ff
+    RX:  bytes packets errors dropped  missed   mcast           
+             0       0      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+             0       0      0       0       0       0 
+8: coredns--90ea33@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether 62:41:46:d8:3b:cd brd ff:ff:ff:ff:ff:ff link-netns cni-00c7899e-257c-99b9-6194-6e1390529fb4
+    inet6 fe80::6041:46ff:fed8:3bcd/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+        182279    1893      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+        262395    2197      0       0       0       0 
+9: coredns--3e4ff4@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether ce:ed:49:9b:f1:5d brd ff:ff:ff:ff:ff:ff link-netns cni-9f6d5013-8bee-260c-a0a4-e84618a1ad18
+    inet6 fe80::cced:49ff:fe9b:f15d/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+        183516    1910      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+        263835    2205      0       0       0       0 
+10: coredns--a5ecd0@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether de:04:f2:e6:fb:50 brd ff:ff:ff:ff:ff:ff link-netns cni-70e52773-c3c5-29d0-1539-a33530b2ae04
+    inet6 fe80::dc04:f2ff:fee6:fb50/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+         58878     577      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+        109263     662      0       0       0       0 
+11: coredns--8455fe@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether 2a:52:e6:bc:82:73 brd ff:ff:ff:ff:ff:ff link-netns cni-3854b2f7-aea1-3462-cbd1-d5498cd79475
+    inet6 fe80::2852:e6ff:febc:8273/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+         60019     590      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+        106604     661      0       0       0       0 
+12: coredns--98f03c@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether 26:0f:ce:7e:74:01 brd ff:ff:ff:ff:ff:ff link-netns cni-abf1f509-0b8f-a026-6495-580fe7660f1f
+    inet6 fe80::240f:ceff:fe7e:7401/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+         58799     576      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+        105748     653      0       0       0       0 
+13: coredns--c2cf2e@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether ca:a1:fb:ac:65:0a brd ff:ff:ff:ff:ff:ff link-netns cni-fdd2f546-f280-d391-96ee-1928714ceea7
+    inet6 fe80::c8a1:fbff:feac:650a/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+         59614     584      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+        103363     657      0       0       0       0 
+14: coredns--06ffe8@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether 46:ea:b4:ca:46:74 brd ff:ff:ff:ff:ff:ff link-netns cni-27f2a823-4e56-18cf-b2ff-9be10bcddda6
+    inet6 fe80::44ea:b4ff:feca:4674/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+         58968     577      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+        102571     647      0       0       0       0 
+15: coredns--94dfbf@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether 92:c7:3a:7d:bc:12 brd ff:ff:ff:ff:ff:ff link-netns cni-981b8d5b-326d-de64-0c5e-ba612aca804b
+    inet6 fe80::90c7:3aff:fe7d:bc12/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+         57623     562      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+         92641     644      0       0       0       0 
+16: coredns--f8ef8b@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether aa:73:f4:40:d0:a0 brd ff:ff:ff:ff:ff:ff link-netns cni-993bd1a7-310f-7aca-88a9-b4125d3d80c5
+    inet6 fe80::a873:f4ff:fe40:d0a0/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+         58273     568      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+         93214     645      0       0       0       0 
+17: coredns--91f0fb@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master ovs-system state UP group default 
+    link/ether 32:94:1f:64:e9:3d brd ff:ff:ff:ff:ff:ff link-netns cni-80a67889-bebe-f0b0-af03-f9e46b3a83bf
+    inet6 fe80::3094:1fff:fe64:e93d/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+    RX:  bytes packets errors dropped  missed   mcast           
+         57958     565      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+         92643     638      0       0       0       0
+```
+
+</details>
+
+```bash
+route -n
+```
+
+<details>
+<summary>
+Вывод маршрутов со стороны ноды contol-plane с CNI antrea
+</summary>
+
+```log
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+0.0.0.0         172.18.0.1      0.0.0.0         UG    0      0        0 eth0
+10.244.0.0      0.0.0.0         255.255.255.0   U     0      0        0 antrea-gw0
+10.244.1.0      10.244.1.1      255.255.255.0   UG    0      0        0 antrea-gw0
+10.244.2.0      10.244.2.1      255.255.255.0   UG    0      0        0 antrea-gw0
+172.18.0.0      0.0.0.0         255.255.0.0     U     0      0        0 eth0
+```
+
+</details>
+
+```bash
+kubectl get pods -n kube-system \
+| grep agent \
+| tail -1
+```
+
+```log
+antrea-agent-m7w9b                             2/2     Running   0          46m
+```
+
+```bash
+kubectl exec antrea-agent-m7w9b -n kube-system -- ovs-vsctl list interface
+```
+
+<details>
+<summary>
+Вывод информации об интерфейсах IPVS(OVS) antrea
+</summary>
+
+```log
+_uuid               : 68437fa1-474e-4a31-8955-9c8ab440aea6
+admin_state         : up
+bfd                 : {}
+bfd_status          : {}
+cfm_fault           : []
+cfm_fault_status    : []
+cfm_flap_count      : []
+cfm_health          : []
+cfm_mpid            : []
+cfm_remote_mpids    : []
+cfm_remote_opstate  : []
+duplex              : []
+error               : []
+external_ids        : {}
+ifindex             : 6
+ingress_policing_burst: 0
+ingress_policing_kpkts_burst: 0
+ingress_policing_kpkts_rate: 0
+ingress_policing_rate: 0
+lacp_current        : []
+link_resets         : 1
+link_speed          : []
+link_state          : up
+lldp                : {}
+mac                 : "02:60:ef:e6:1d:57"
+mac_in_use          : "02:60:ef:e6:1d:57"
+mtu                 : 1450
+mtu_request         : 1450
+name                : antrea-gw0
+ofport              : 32769
+ofport_request      : 32769
+options             : {}
+other_config        : {}
+statistics          : {collisions=0, rx_bytes=183114, rx_crc_err=0, rx_dropped=0, rx_errors=0, rx_frame_err=0, rx_missed_errors=0, rx_multicast_packets=0, rx_over_err=0, rx_packets=1588, tx_bytes=2999124, tx_dropped=0, tx_errors=0, tx_packets=1495, upcall_errors=0, upcall_packets=29}
+status              : {driver_name=openvswitch}
+type                : internal
+
+_uuid               : d328191e-e286-4b3a-ba2f-aa887b426cd4
+admin_state         : up
+bfd                 : {}
+bfd_status          : {}
+cfm_fault           : []
+cfm_fault_status    : []
+cfm_flap_count      : []
+cfm_health          : []
+cfm_mpid            : []
+cfm_remote_mpids    : []
+cfm_remote_opstate  : []
+duplex              : []
+error               : []
+external_ids        : {}
+ifindex             : 5
+ingress_policing_burst: 0
+ingress_policing_kpkts_burst: 0
+ingress_policing_kpkts_rate: 0
+ingress_policing_rate: 0
+lacp_current        : []
+link_resets         : 0
+link_speed          : []
+link_state          : up
+lldp                : {}
+mac                 : []
+mac_in_use          : "ae:f2:60:5e:34:44"
+mtu                 : []
+mtu_request         : []
+name                : antrea-tun0
+ofport              : 32768
+ofport_request      : 32768
+options             : {key=flow, remote_ip=flow}
+other_config        : {}
+statistics          : {rx_bytes=1482139, rx_packets=72, tx_bytes=8479, tx_packets=48}
+status              : {tunnel_egress_iface=eth0, tunnel_egress_iface_carrier=up}
+type                : geneve
+
+_uuid               : c6e9a0f2-3866-451c-94e1-a951268fe18a
+admin_state         : up
+bfd                 : {}
+bfd_status          : {}
+cfm_fault           : []
+cfm_fault_status    : []
+cfm_flap_count      : []
+cfm_health          : []
+cfm_mpid            : []
+cfm_remote_mpids    : []
+cfm_remote_opstate  : []
+duplex              : full
+error               : []
+external_ids        : {}
+ifindex             : 8
+ingress_policing_burst: 0
+ingress_policing_kpkts_burst: 0
+ingress_policing_kpkts_rate: 0
+ingress_policing_rate: 0
+lacp_current        : []
+link_resets         : 0
+link_speed          : 10000000000
+link_state          : up
+lldp                : {}
+mac                 : []
+mac_in_use          : "66:15:82:a1:f3:fd"
+mtu                 : 1450
+mtu_request         : []
+name                : sonobuoy-19e293
+ofport              : 1
+ofport_request      : []
+options             : {}
+other_config        : {}
+statistics          : {collisions=0, rx_bytes=200454, rx_crc_err=0, rx_dropped=0, rx_errors=0, rx_frame_err=0, rx_missed_errors=0, rx_multicast_packets=0, rx_over_err=0, rx_packets=1539, tx_bytes=4339151, tx_dropped=0, tx_errors=0, tx_packets=1470, upcall_errors=0, upcall_packets=55}
+status              : {driver_name=veth, driver_version="1.0", firmware_version=""}
+type                : ""
+```
+
+</details>
+
+```bash
+docker exec -it antrea-control-plane bash
+```
+
+```bash
+apt-get update \
+; apt-get install -y tcpdump
+```
+
+```bash
+ip -br a | grep core | tail -1
+```
+
+```log
+coredns--91f0fb@if3 UP             fe80::3094:1fff:fe64:e93d/64 
+```
+
+```bash
+tcpdump -i coredns--91f0fb -n
+```
+
+<details>
+<summary>
+Вывод tcpdump с control-plane Ноды
+</summary>
+
+```log
+listening on coredns--91f0fb, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+18:07:34.737829 IP 10.244.0.1.49786 > 10.244.0.11.8080: Flags [S], seq 1364560534, win 64860, options [mss 1410,sackOK,TS val 2866724996 ecr 0,nop,wscale 10], length 0
+18:07:34.737863 IP 10.244.0.11.8080 > 10.244.0.1.49786: Flags [S.], seq 265679686, ack 1364560535, win 64308, options [mss 1410,sackOK,TS val 4003716828 ecr 2866724996,nop,wscale 10], length 0
+18:07:34.737910 IP 10.244.0.1.49786 > 10.244.0.11.8080: Flags [.], ack 1, win 64, options [nop,nop,TS val 2866724996 ecr 4003716828], length 0
+18:07:34.738096 IP 10.244.0.1.49786 > 10.244.0.11.8080: Flags [P.], seq 1:110, ack 1, win 64, options [nop,nop,TS val 2866724996 ecr 4003716828], length 109: HTTP: GET /health HTTP/1.1
+18:07:34.738120 IP 10.244.0.11.8080 > 10.244.0.1.49786: Flags [.], ack 110, win 63, options [nop,nop,TS val 4003716829 ecr 2866724996], length 0
+18:07:34.738211 IP 10.244.0.11.8080 > 10.244.0.1.49786: Flags [P.], seq 1:138, ack 110, win 63, options [nop,nop,TS val 4003716829 ecr 2866724996], length 137: HTTP: HTTP/1.1 200 OK
+18:07:34.738272 IP 10.244.0.1.49786 > 10.244.0.11.8080: Flags [.], ack 138, win 64, options [nop,nop,TS val 2866724997 ecr 4003716829], length 0
+18:07:34.738348 IP 10.244.0.11.8080 > 10.244.0.1.49786: Flags [F.], seq 138, ack 110, win 63, options [nop,nop,TS val 4003716829 ecr 2866724997], length 0
+18:07:34.738352 IP 10.244.0.1.49786 > 10.244.0.11.8080: Flags [F.], seq 110, ack 138, win 64, options [nop,nop,TS val 2866724997 ecr 4003716829], length 0
+18:07:34.738403 IP 10.244.0.1.49786 > 10.244.0.11.8080: Flags [.], ack 139, win 64, options [nop,nop,TS val 2866724997 ecr 4003716829], length 0
+18:07:34.738424 IP 10.244.0.11.8080 > 10.244.0.1.49786: Flags [.], ack 111, win 63, options [nop,nop,TS val 4003716829 ecr 2866724997], length 0
+18:07:35.917146 IP 10.96.0.1.443 > 10.244.0.11.48196: Flags [P.], seq 355278999:355279117, ack 450367614, win 77, options [nop,nop,TS val 3264900505 ecr 2514862782], length 118
+18:07:35.917191 IP 10.244.0.11.48196 > 10.96.0.1.443: Flags [.], ack 118, win 94, options [nop,nop,TS val 2514864874 ecr 3264900505], length 0
+18:07:36.492855 IP 10.244.0.1.50462 > 10.244.0.11.8181: Flags [S], seq 3929064436, win 64860, options [mss 1410,sackOK,TS val 2961515256 ecr 0,nop,wscale 10], length 0
+18:07:36.492893 IP 10.244.0.11.8181 > 10.244.0.1.50462: Flags [S.], seq 194830172, ack 3929064437, win 64308, options [mss 1410,sackOK,TS val 2562167197 ecr 2961515256,nop,wscale 10], length 0
+18:07:36.492949 IP 10.244.0.1.50462 > 10.244.0.11.8181: Flags [.], ack 1, win 64, options [nop,nop,TS val 2961515256 ecr 2562167197], length 0
+18:07:36.493228 IP 10.244.0.1.50462 > 10.244.0.11.8181: Flags [P.], seq 1:109, ack 1, win 64, options [nop,nop,TS val 2961515257 ecr 2562167197], length 108
+18:07:36.493272 IP 10.244.0.11.8181 > 10.244.0.1.50462: Flags [.], ack 109, win 63, options [nop,nop,TS val 2562167198 ecr 2961515257], length 0
+18:07:36.493448 IP 10.244.0.11.8181 > 10.244.0.1.50462: Flags [P.], seq 1:138, ack 109, win 63, options [nop,nop,TS val 2562167198 ecr 2961515257], length 137
+18:07:36.493504 IP 10.244.0.1.50462 > 10.244.0.11.8181: Flags [.], ack 138, win 64, options [nop,nop,TS val 2961515257 ecr 2562167198], length 0
+18:07:36.493578 IP 10.244.0.11.8181 > 10.244.0.1.50462: Flags [F.], seq 138, ack 109, win 63, options [nop,nop,TS val 2562167198 ecr 2961515257], length 0
+18:07:36.493606 IP 10.244.0.1.50462 > 10.244.0.11.8181: Flags [F.], seq 109, ack 138, win 64, options [nop,nop,TS val 2961515257 ecr 2562167198], length 0
+18:07:36.493626 IP 10.244.0.11.8181 > 10.244.0.1.50462: Flags [.], ack 110, win 63, options [nop,nop,TS val 2562167198 ecr 2961515257], length 0
+18:07:36.493671 IP 10.244.0.1.50462 > 10.244.0.11.8181: Flags [.], ack 139, win 64, options [nop,nop,TS val 2961515257 ecr 2562167198], length 0
+^C
+24 packets captured
+24 packets received by filter
+0 packets dropped by kernel
+```
+
+</details>
+
+
+```bash
+tcpdump host 10.244.0.11 -i coredns--91f0fb
+```
+
+<details>
+<summary>
+Вывод tcpdump с control-plane Ноды
+</summary>
+
+```log
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on coredns--91f0fb, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+18:10:24.737431 IP 10.244.0.1.45538 > 10.244.0.11.http-alt: Flags [S], seq 4235295302, win 64860, options [mss 1410,sackOK,TS val 3646397330 ecr 0,nop,wscale 10], length 0
+18:10:24.737473 IP 10.244.0.11.http-alt > 10.244.0.1.45538: Flags [S.], seq 3735419364, ack 4235295303, win 64308, options [mss 1410,sackOK,TS val 459308740 ecr 3646397330,nop,wscale 10], length 0
+18:10:24.737524 IP 10.244.0.1.45538 > 10.244.0.11.http-alt: Flags [.], ack 1, win 64, options [nop,nop,TS val 3646397330 ecr 459308740], length 0
+18:10:24.737709 IP 10.244.0.1.45538 > 10.244.0.11.http-alt: Flags [P.], seq 1:110, ack 1, win 64, options [nop,nop,TS val 3646397330 ecr 459308740], length 109: HTTP: GET /health HTTP/1.1
+18:10:24.737733 IP 10.244.0.11.http-alt > 10.244.0.1.45538: Flags [.], ack 110, win 63, options [nop,nop,TS val 459308740 ecr 3646397330], length 0
+18:10:24.737823 IP 10.244.0.11.http-alt > 10.244.0.1.45538: Flags [P.], seq 1:138, ack 110, win 63, options [nop,nop,TS val 459308740 ecr 3646397330], length 137: HTTP: HTTP/1.1 200 OK
+18:10:24.737892 IP 10.244.0.1.45538 > 10.244.0.11.http-alt: Flags [.], ack 138, win 64, options [nop,nop,TS val 3646397330 ecr 459308740], length 0
+18:10:24.737964 IP 10.244.0.11.http-alt > 10.244.0.1.45538: Flags [F.], seq 138, ack 110, win 63, options [nop,nop,TS val 459308740 ecr 3646397330], length 0
+18:10:24.737998 IP 10.244.0.1.45538 > 10.244.0.11.http-alt: Flags [F.], seq 110, ack 138, win 64, options [nop,nop,TS val 3646397330 ecr 459308740], length 0
+18:10:24.738018 IP 10.244.0.11.http-alt > 10.244.0.1.45538: Flags [.], ack 111, win 63, options [nop,nop,TS val 459308740 ecr 3646397330], length 0
+18:10:24.738096 IP 10.244.0.1.45538 > 10.244.0.11.http-alt: Flags [.], ack 139, win 64, options [nop,nop,TS val 3646397330 ecr 459308740], length 0
+18:10:26.492642 IP 10.244.0.1.40912 > 10.244.0.11.8181: Flags [S], seq 995959551, win 64860, options [mss 1410,sackOK,TS val 3429707030 ecr 0,nop,wscale 10], length 0
+18:10:26.492675 IP 10.244.0.11.8181 > 10.244.0.1.40912: Flags [S.], seq 2777625988, ack 995959552, win 64308, options [mss 1410,sackOK,TS val 2921767007 ecr 3429707030,nop,wscale 10], length 0
+18:10:26.492723 IP 10.244.0.1.40912 > 10.244.0.11.8181: Flags [.], ack 1, win 64, options [nop,nop,TS val 3429707030 ecr 2921767007], length 0
+18:10:26.492871 IP 10.244.0.1.40912 > 10.244.0.11.8181: Flags [P.], seq 1:109, ack 1, win 64, options [nop,nop,TS val 3429707030 ecr 2921767007], length 108
+18:10:26.492887 IP 10.244.0.11.8181 > 10.244.0.1.40912: Flags [.], ack 109, win 63, options [nop,nop,TS val 2921767007 ecr 3429707030], length 0
+18:10:26.493113 IP 10.244.0.11.8181 > 10.244.0.1.40912: Flags [P.], seq 1:138, ack 109, win 63, options [nop,nop,TS val 2921767008 ecr 3429707030], length 137
+18:10:26.493178 IP 10.244.0.1.40912 > 10.244.0.11.8181: Flags [.], ack 138, win 64, options [nop,nop,TS val 3429707031 ecr 2921767008], length 0
+18:10:26.493270 IP 10.244.0.11.8181 > 10.244.0.1.40912: Flags [F.], seq 138, ack 109, win 63, options [nop,nop,TS val 2921767008 ecr 3429707031], length 0
+18:10:26.493270 IP 10.244.0.1.40912 > 10.244.0.11.8181: Flags [F.], seq 109, ack 138, win 64, options [nop,nop,TS val 3429707031 ecr 2921767008], length 0
+18:10:26.493325 IP 10.244.0.1.40912 > 10.244.0.11.8181: Flags [.], ack 139, win 64, options [nop,nop,TS val 3429707031 ecr 2921767008], length 0
+18:10:26.493346 IP 10.244.0.11.8181 > 10.244.0.1.40912: Flags [.], ack 110, win 63, options [nop,nop,TS val 2921767008 ecr 3429707031], length 0
+^C
+22 packets captured
+22 packets received by filter
+0 packets dropped by kernel
+```
+
+</details>
+
+```bash
+iptables-save
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+# Generated by iptables-save v1.8.11 (nf_tables) on Sat Aug  1 18:12:47 2026
+*mangle
+:PREROUTING ACCEPT [946566:350891893]
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [889984:175137449]
+:POSTROUTING ACCEPT [0:0]
+:ANTREA-OUTPUT - [0:0]
+:ANTREA-PREROUTING - [0:0]
+:KUBE-IPTABLES-HINT - [0:0]
+:KUBE-KUBELET-CANARY - [0:0]
+:KUBE-PROXY-CANARY - [0:0]
+-A PREROUTING -m comment --comment "Antrea: jump to Antrea prerouting rules" -j ANTREA-PREROUTING
+-A OUTPUT -m comment --comment "Antrea: jump to Antrea output rules" -j ANTREA-OUTPUT
+-A ANTREA-OUTPUT -o antrea-gw0 -m comment --comment "Antrea: mark LOCAL output packets" -m addrtype --src-type LOCAL -j MARK --set-xmark 0x80000000/0x80000000
+COMMIT
+# Completed on Sat Aug  1 18:12:47 2026
+# Generated by iptables-save v1.8.11 (nf_tables) on Sat Aug  1 18:12:47 2026
+*raw
+:PREROUTING ACCEPT [946566:350891893]
+:OUTPUT ACCEPT [890001:175143091]
+:ANTREA-OUTPUT - [0:0]
+:ANTREA-PREROUTING - [0:0]
+-A PREROUTING -m comment --comment "Antrea: jump to Antrea prerouting rules" -j ANTREA-PREROUTING
+-A OUTPUT -m comment --comment "Antrea: jump to Antrea output rules" -j ANTREA-OUTPUT
+-A ANTREA-OUTPUT -p udp -m comment --comment "Antrea: do not track outgoing encapsulation packets" -m udp --dport 6081 -m addrtype --src-type LOCAL -j NOTRACK
+-A ANTREA-PREROUTING -p udp -m comment --comment "Antrea: do not track incoming encapsulation packets" -m udp --dport 6081 -m addrtype --dst-type LOCAL -j NOTRACK
+COMMIT
+# Completed on Sat Aug  1 18:12:47 2026
+# Generated by iptables-save v1.8.11 (nf_tables) on Sat Aug  1 18:12:47 2026
+*filter
+:INPUT ACCEPT [1087662:522298697]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [990672:203077782]
+:ANTREA-FORWARD - [0:0]
+:KUBE-EXTERNAL-SERVICES - [0:0]
+:KUBE-FIREWALL - [0:0]
+:KUBE-FORWARD - [0:0]
+:KUBE-KUBELET-CANARY - [0:0]
+:KUBE-NODEPORTS - [0:0]
+:KUBE-PROXY-CANARY - [0:0]
+:KUBE-PROXY-FIREWALL - [0:0]
+:KUBE-SERVICES - [0:0]
+-A INPUT -m conntrack --ctstate NEW -m comment --comment "kubernetes load balancer firewall" -j KUBE-PROXY-FIREWALL
+-A INPUT -m comment --comment "kubernetes health check service ports" -j KUBE-NODEPORTS
+-A INPUT -m conntrack --ctstate NEW -m comment --comment "kubernetes externally-visible service portals" -j KUBE-EXTERNAL-SERVICES
+-A INPUT -j KUBE-FIREWALL
+-A FORWARD -m conntrack --ctstate NEW -m comment --comment "kubernetes load balancer firewall" -j KUBE-PROXY-FIREWALL
+-A FORWARD -m comment --comment "kubernetes forwarding rules" -j KUBE-FORWARD
+-A FORWARD -m conntrack --ctstate NEW -m comment --comment "kubernetes service portals" -j KUBE-SERVICES
+-A FORWARD -m conntrack --ctstate NEW -m comment --comment "kubernetes externally-visible service portals" -j KUBE-EXTERNAL-SERVICES
+-A FORWARD -m comment --comment "Antrea: jump to Antrea forwarding rules" -j ANTREA-FORWARD
+-A OUTPUT -m conntrack --ctstate NEW -m comment --comment "kubernetes load balancer firewall" -j KUBE-PROXY-FIREWALL
+-A OUTPUT -m conntrack --ctstate NEW -m comment --comment "kubernetes service portals" -j KUBE-SERVICES
+-A OUTPUT -j KUBE-FIREWALL
+-A ANTREA-FORWARD -i antrea-gw0 -m comment --comment "Antrea: accept packets from local Pods" -j ACCEPT
+-A ANTREA-FORWARD -o antrea-gw0 -m comment --comment "Antrea: accept packets to local Pods" -j ACCEPT
+-A KUBE-FIREWALL ! -s 127.0.0.0/8 -d 127.0.0.0/8 -m comment --comment "block incoming localnet connections" -m conntrack ! --ctstate RELATED,ESTABLISHED,DNAT -j DROP
+-A KUBE-FORWARD -m conntrack --ctstate INVALID -m nfacct --nfacct-name  ct_state_invalid_dropped_pkts -j DROP
+-A KUBE-FORWARD -m comment --comment "kubernetes forwarding rules" -m mark --mark 0x4000/0x4000 -j ACCEPT
+-A KUBE-FORWARD -m comment --comment "kubernetes forwarding conntrack rule" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+COMMIT
+# Completed on Sat Aug  1 18:12:47 2026
+# Generated by iptables-save v1.8.11 (nf_tables) on Sat Aug  1 18:12:47 2026
+*nat
+:PREROUTING ACCEPT [371:22692]
+:INPUT ACCEPT [374:23013]
+:OUTPUT ACCEPT [17943:1076580]
+:POSTROUTING ACCEPT [17994:1081486]
+:ANTREA-POSTROUTING - [0:0]
+:DOCKER_OUTPUT - [0:0]
+:DOCKER_POSTROUTING - [0:0]
+:KUBE-KUBELET-CANARY - [0:0]
+:KUBE-MARK-MASQ - [0:0]
+:KUBE-NODEPORTS - [0:0]
+:KUBE-POSTROUTING - [0:0]
+:KUBE-PROXY-CANARY - [0:0]
+:KUBE-SEP-232DQYSHL5HNRYWJ - [0:0]
+:KUBE-SEP-275NWNNANOEIGYHG - [0:0]
+:KUBE-SEP-2Z3537XSN3RJRU3M - [0:0]
+:KUBE-SEP-47Y74YAUKL3G2JYG - [0:0]
+:KUBE-SEP-6E7XQMQ4RAYOWTTM - [0:0]
+:KUBE-SEP-A4UL7OUXQPUR7Y7Q - [0:0]
+:KUBE-SEP-A7YQ4MY4TZII3JTK - [0:0]
+:KUBE-SEP-CEWR77HQLZDHWWAJ - [0:0]
+:KUBE-SEP-CPH3WXMLRJ2BZFXW - [0:0]
+:KUBE-SEP-FVQSBIWR5JTECIVC - [0:0]
+:KUBE-SEP-HJ7EWOW62IX6GL6R - [0:0]
+:KUBE-SEP-IRMT6RY5EEEBXDAY - [0:0]
+:KUBE-SEP-IT2ZTR26TO4XFPTO - [0:0]
+:KUBE-SEP-LASJGFFJP3UOS6RQ - [0:0]
+:KUBE-SEP-LBMQNJ35ID4UIQ2A - [0:0]
+:KUBE-SEP-LPGSDLJ3FDW46N4W - [0:0]
+:KUBE-SEP-N4G2XR5TDX7PQE7P - [0:0]
+:KUBE-SEP-OP4AXEAS4OXHBEQX - [0:0]
+:KUBE-SEP-PUHFDAMRBZWCPADU - [0:0]
+:KUBE-SEP-QKX4QX54UKWK6JIY - [0:0]
+:KUBE-SEP-R7EMXN5TTQQVP4UW - [0:0]
+:KUBE-SEP-RSRPD4CCUGBDDTH6 - [0:0]
+:KUBE-SEP-S7MPVVC7MGYVFSF3 - [0:0]
+:KUBE-SEP-SF3LG62VAE5ALYDV - [0:0]
+:KUBE-SEP-SISP6ORRA37L3ZYK - [0:0]
+:KUBE-SEP-VR6VIIG2A6524KLY - [0:0]
+:KUBE-SEP-WXWGHGKZOCNYRYI7 - [0:0]
+:KUBE-SEP-XNZERJBNXRGRQGMS - [0:0]
+:KUBE-SEP-XRFUWCXKVCLGWYQC - [0:0]
+:KUBE-SEP-YIL6JZP7A3QYXJU2 - [0:0]
+:KUBE-SEP-ZJHOSXJEKQGYJUBC - [0:0]
+:KUBE-SEP-ZP3FB6NMPNCO4VBJ - [0:0]
+:KUBE-SEP-ZXMNUKOKXUTL2MK2 - [0:0]
+:KUBE-SERVICES - [0:0]
+:KUBE-SVC-EOJDDEN7FILLJEVG - [0:0]
+:KUBE-SVC-ERIFXISQEP7F7OF4 - [0:0]
+:KUBE-SVC-JD5MR3NA4I4DYORP - [0:0]
+:KUBE-SVC-NPX46M4PTMTKRN6Y - [0:0]
+:KUBE-SVC-QDWG4LJGNBTOT5ED - [0:0]
+:KUBE-SVC-TCOU7JCQXEZGVUNU - [0:0]
+-A PREROUTING -m comment --comment "kubernetes service portals" -j KUBE-SERVICES
+-A PREROUTING -d 172.18.0.1/32 -j DOCKER_OUTPUT
+-A OUTPUT -m comment --comment "kubernetes service portals" -j KUBE-SERVICES
+-A OUTPUT -d 172.18.0.1/32 -j DOCKER_OUTPUT
+-A POSTROUTING -m comment --comment "kubernetes postrouting rules" -j KUBE-POSTROUTING
+-A POSTROUTING -d 172.18.0.1/32 -j DOCKER_POSTROUTING
+-A POSTROUTING -m comment --comment "Antrea: jump to Antrea postrouting rules" -j ANTREA-POSTROUTING
+-A ANTREA-POSTROUTING -s 10.244.0.0/24 ! -o antrea-gw0 -m comment --comment "Antrea: masquerade Pod to external packets" -m set ! --match-set ANTREA-POD-IP dst -j MASQUERADE
+-A ANTREA-POSTROUTING -o antrea-gw0 -m comment --comment "Antrea: masquerade LOCAL traffic" -m addrtype ! --src-type LOCAL --limit-iface-out -m addrtype --src-type LOCAL -j MASQUERADE --random-fully
+-A DOCKER_OUTPUT -d 172.18.0.1/32 -p tcp -m tcp --dport 53 -j DNAT --to-destination 127.0.0.11:42351
+-A DOCKER_OUTPUT -d 172.18.0.1/32 -p udp -m udp --dport 53 -j DNAT --to-destination 127.0.0.11:46614
+-A DOCKER_POSTROUTING -s 127.0.0.11/32 -p tcp -m tcp --sport 42351 -j SNAT --to-source 172.18.0.1:53
+-A DOCKER_POSTROUTING -s 127.0.0.11/32 -p udp -m udp --sport 46614 -j SNAT --to-source 172.18.0.1:53
+-A KUBE-MARK-MASQ -j MARK --set-xmark 0x4000/0x4000
+-A KUBE-POSTROUTING -m mark ! --mark 0x4000/0x4000 -j RETURN
+-A KUBE-POSTROUTING -j MARK --set-xmark 0x4000/0x0
+-A KUBE-POSTROUTING -m comment --comment "kubernetes service traffic requiring SNAT" -j MASQUERADE --random-fully
+-A KUBE-SEP-232DQYSHL5HNRYWJ -s 10.244.0.7/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-232DQYSHL5HNRYWJ -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.7:53
+-A KUBE-SEP-275NWNNANOEIGYHG -s 10.244.0.6/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-275NWNNANOEIGYHG -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.6:9153
+-A KUBE-SEP-2Z3537XSN3RJRU3M -s 10.244.0.6/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-2Z3537XSN3RJRU3M -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.6:53
+-A KUBE-SEP-47Y74YAUKL3G2JYG -s 172.18.0.2/32 -m comment --comment "kube-system/antrea" -j KUBE-MARK-MASQ
+-A KUBE-SEP-47Y74YAUKL3G2JYG -p tcp -m comment --comment "kube-system/antrea" -m tcp -j DNAT --to-destination 172.18.0.2:10349
+-A KUBE-SEP-6E7XQMQ4RAYOWTTM -s 10.244.0.3/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-6E7XQMQ4RAYOWTTM -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.3:53
+-A KUBE-SEP-A4UL7OUXQPUR7Y7Q -s 10.244.0.7/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-A4UL7OUXQPUR7Y7Q -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.7:53
+-A KUBE-SEP-A7YQ4MY4TZII3JTK -s 10.244.0.11/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-A7YQ4MY4TZII3JTK -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.11:53
+-A KUBE-SEP-CEWR77HQLZDHWWAJ -s 10.244.0.9/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-CEWR77HQLZDHWWAJ -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.9:9153
+-A KUBE-SEP-CPH3WXMLRJ2BZFXW -s 10.244.0.7/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-CPH3WXMLRJ2BZFXW -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.7:9153
+-A KUBE-SEP-FVQSBIWR5JTECIVC -s 10.244.0.5/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-FVQSBIWR5JTECIVC -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.5:9153
+-A KUBE-SEP-HJ7EWOW62IX6GL6R -s 10.244.0.10/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-HJ7EWOW62IX6GL6R -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.10:9153
+-A KUBE-SEP-IRMT6RY5EEEBXDAY -s 10.244.0.6/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-IRMT6RY5EEEBXDAY -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.6:53
+-A KUBE-SEP-IT2ZTR26TO4XFPTO -s 10.244.0.2/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-IT2ZTR26TO4XFPTO -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.2:53
+-A KUBE-SEP-LASJGFFJP3UOS6RQ -s 10.244.0.5/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-LASJGFFJP3UOS6RQ -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.5:53
+-A KUBE-SEP-LBMQNJ35ID4UIQ2A -s 10.244.0.9/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-LBMQNJ35ID4UIQ2A -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.9:53
+-A KUBE-SEP-LPGSDLJ3FDW46N4W -s 10.244.0.5/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-LPGSDLJ3FDW46N4W -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.5:53
+-A KUBE-SEP-N4G2XR5TDX7PQE7P -s 10.244.0.2/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-N4G2XR5TDX7PQE7P -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.2:9153
+-A KUBE-SEP-OP4AXEAS4OXHBEQX -s 10.244.0.10/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-OP4AXEAS4OXHBEQX -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.10:53
+-A KUBE-SEP-PUHFDAMRBZWCPADU -s 10.244.0.4/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-PUHFDAMRBZWCPADU -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.4:9153
+-A KUBE-SEP-QKX4QX54UKWK6JIY -s 172.18.0.3/32 -m comment --comment "default/kubernetes:https" -j KUBE-MARK-MASQ
+-A KUBE-SEP-QKX4QX54UKWK6JIY -p tcp -m comment --comment "default/kubernetes:https" -m tcp -j DNAT --to-destination 172.18.0.3:6443
+-A KUBE-SEP-R7EMXN5TTQQVP4UW -s 10.244.0.10/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-R7EMXN5TTQQVP4UW -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.10:53
+-A KUBE-SEP-RSRPD4CCUGBDDTH6 -s 10.244.1.2/32 -m comment --comment "sonobuoy/sonobuoy-aggregator" -j KUBE-MARK-MASQ
+-A KUBE-SEP-RSRPD4CCUGBDDTH6 -p tcp -m comment --comment "sonobuoy/sonobuoy-aggregator" -m tcp -j DNAT --to-destination 10.244.1.2:8080
+-A KUBE-SEP-S7MPVVC7MGYVFSF3 -s 10.244.0.9/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-S7MPVVC7MGYVFSF3 -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.9:53
+-A KUBE-SEP-SF3LG62VAE5ALYDV -s 10.244.0.4/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-SF3LG62VAE5ALYDV -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.4:53
+-A KUBE-SEP-SISP6ORRA37L3ZYK -s 10.244.0.8/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-SISP6ORRA37L3ZYK -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.8:53
+-A KUBE-SEP-VR6VIIG2A6524KLY -s 10.244.0.11/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-VR6VIIG2A6524KLY -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.11:53
+-A KUBE-SEP-WXWGHGKZOCNYRYI7 -s 10.244.0.4/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-WXWGHGKZOCNYRYI7 -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.4:53
+-A KUBE-SEP-XNZERJBNXRGRQGMS -s 10.244.0.8/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-XNZERJBNXRGRQGMS -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.8:9153
+-A KUBE-SEP-XRFUWCXKVCLGWYQC -s 10.244.0.8/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-XRFUWCXKVCLGWYQC -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.8:53
+-A KUBE-SEP-YIL6JZP7A3QYXJU2 -s 10.244.0.2/32 -m comment --comment "kube-system/kube-dns:dns" -j KUBE-MARK-MASQ
+-A KUBE-SEP-YIL6JZP7A3QYXJU2 -p udp -m comment --comment "kube-system/kube-dns:dns" -m udp -j DNAT --to-destination 10.244.0.2:53
+-A KUBE-SEP-ZJHOSXJEKQGYJUBC -s 10.244.0.11/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-ZJHOSXJEKQGYJUBC -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.11:9153
+-A KUBE-SEP-ZP3FB6NMPNCO4VBJ -s 10.244.0.3/32 -m comment --comment "kube-system/kube-dns:metrics" -j KUBE-MARK-MASQ
+-A KUBE-SEP-ZP3FB6NMPNCO4VBJ -p tcp -m comment --comment "kube-system/kube-dns:metrics" -m tcp -j DNAT --to-destination 10.244.0.3:9153
+-A KUBE-SEP-ZXMNUKOKXUTL2MK2 -s 10.244.0.3/32 -m comment --comment "kube-system/kube-dns:dns-tcp" -j KUBE-MARK-MASQ
+-A KUBE-SEP-ZXMNUKOKXUTL2MK2 -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp" -m tcp -j DNAT --to-destination 10.244.0.3:53
+-A KUBE-SERVICES -d 10.96.225.231/32 -p tcp -m comment --comment "kube-system/antrea cluster IP" -m tcp --dport 443 -j KUBE-SVC-QDWG4LJGNBTOT5ED
+-A KUBE-SERVICES -d 10.96.181.73/32 -p tcp -m comment --comment "sonobuoy/sonobuoy-aggregator cluster IP" -m tcp --dport 8080 -j KUBE-SVC-EOJDDEN7FILLJEVG
+-A KUBE-SERVICES -d 10.96.0.1/32 -p tcp -m comment --comment "default/kubernetes:https cluster IP" -m tcp --dport 443 -j KUBE-SVC-NPX46M4PTMTKRN6Y
+-A KUBE-SERVICES -d 10.96.0.10/32 -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp cluster IP" -m tcp --dport 53 -j KUBE-SVC-ERIFXISQEP7F7OF4
+-A KUBE-SERVICES -d 10.96.0.10/32 -p tcp -m comment --comment "kube-system/kube-dns:metrics cluster IP" -m tcp --dport 9153 -j KUBE-SVC-JD5MR3NA4I4DYORP
+-A KUBE-SERVICES -d 10.96.0.10/32 -p udp -m comment --comment "kube-system/kube-dns:dns cluster IP" -m udp --dport 53 -j KUBE-SVC-TCOU7JCQXEZGVUNU
+-A KUBE-SERVICES -m comment --comment "kubernetes service nodeports; NOTE: this must be the last rule in this chain" -m addrtype --dst-type LOCAL -j KUBE-NODEPORTS
+-A KUBE-SVC-EOJDDEN7FILLJEVG ! -s 10.244.0.0/16 -d 10.96.181.73/32 -p tcp -m comment --comment "sonobuoy/sonobuoy-aggregator cluster IP" -m tcp --dport 8080 -j KUBE-MARK-MASQ
+-A KUBE-SVC-EOJDDEN7FILLJEVG -m comment --comment "sonobuoy/sonobuoy-aggregator -> 10.244.1.2:8080" -j KUBE-SEP-RSRPD4CCUGBDDTH6
+-A KUBE-SVC-ERIFXISQEP7F7OF4 ! -s 10.244.0.0/16 -d 10.96.0.10/32 -p tcp -m comment --comment "kube-system/kube-dns:dns-tcp cluster IP" -m tcp --dport 53 -j KUBE-MARK-MASQ
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.10:53" -m statistic --mode random --probability 0.10000000009 -j KUBE-SEP-OP4AXEAS4OXHBEQX
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.11:53" -m statistic --mode random --probability 0.11111111101 -j KUBE-SEP-A7YQ4MY4TZII3JTK
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.2:53" -m statistic --mode random --probability 0.12500000000 -j KUBE-SEP-IT2ZTR26TO4XFPTO
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.3:53" -m statistic --mode random --probability 0.14285714272 -j KUBE-SEP-ZXMNUKOKXUTL2MK2
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.4:53" -m statistic --mode random --probability 0.16666666651 -j KUBE-SEP-SF3LG62VAE5ALYDV
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.5:53" -m statistic --mode random --probability 0.20000000019 -j KUBE-SEP-LASJGFFJP3UOS6RQ
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.6:53" -m statistic --mode random --probability 0.25000000000 -j KUBE-SEP-2Z3537XSN3RJRU3M
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.7:53" -m statistic --mode random --probability 0.33333333349 -j KUBE-SEP-A4UL7OUXQPUR7Y7Q
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.8:53" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-XRFUWCXKVCLGWYQC
+-A KUBE-SVC-ERIFXISQEP7F7OF4 -m comment --comment "kube-system/kube-dns:dns-tcp -> 10.244.0.9:53" -j KUBE-SEP-S7MPVVC7MGYVFSF3
+-A KUBE-SVC-JD5MR3NA4I4DYORP ! -s 10.244.0.0/16 -d 10.96.0.10/32 -p tcp -m comment --comment "kube-system/kube-dns:metrics cluster IP" -m tcp --dport 9153 -j KUBE-MARK-MASQ
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.10:9153" -m statistic --mode random --probability 0.10000000009 -j KUBE-SEP-HJ7EWOW62IX6GL6R
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.11:9153" -m statistic --mode random --probability 0.11111111101 -j KUBE-SEP-ZJHOSXJEKQGYJUBC
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.2:9153" -m statistic --mode random --probability 0.12500000000 -j KUBE-SEP-N4G2XR5TDX7PQE7P
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.3:9153" -m statistic --mode random --probability 0.14285714272 -j KUBE-SEP-ZP3FB6NMPNCO4VBJ
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.4:9153" -m statistic --mode random --probability 0.16666666651 -j KUBE-SEP-PUHFDAMRBZWCPADU
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.5:9153" -m statistic --mode random --probability 0.20000000019 -j KUBE-SEP-FVQSBIWR5JTECIVC
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.6:9153" -m statistic --mode random --probability 0.25000000000 -j KUBE-SEP-275NWNNANOEIGYHG
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.7:9153" -m statistic --mode random --probability 0.33333333349 -j KUBE-SEP-CPH3WXMLRJ2BZFXW
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.8:9153" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-XNZERJBNXRGRQGMS
+-A KUBE-SVC-JD5MR3NA4I4DYORP -m comment --comment "kube-system/kube-dns:metrics -> 10.244.0.9:9153" -j KUBE-SEP-CEWR77HQLZDHWWAJ
+-A KUBE-SVC-NPX46M4PTMTKRN6Y ! -s 10.244.0.0/16 -d 10.96.0.1/32 -p tcp -m comment --comment "default/kubernetes:https cluster IP" -m tcp --dport 443 -j KUBE-MARK-MASQ
+-A KUBE-SVC-NPX46M4PTMTKRN6Y -m comment --comment "default/kubernetes:https -> 172.18.0.3:6443" -j KUBE-SEP-QKX4QX54UKWK6JIY
+-A KUBE-SVC-QDWG4LJGNBTOT5ED ! -s 10.244.0.0/16 -d 10.96.225.231/32 -p tcp -m comment --comment "kube-system/antrea cluster IP" -m tcp --dport 443 -j KUBE-MARK-MASQ
+-A KUBE-SVC-QDWG4LJGNBTOT5ED -m comment --comment "kube-system/antrea -> 172.18.0.2:10349" -j KUBE-SEP-47Y74YAUKL3G2JYG
+-A KUBE-SVC-TCOU7JCQXEZGVUNU ! -s 10.244.0.0/16 -d 10.96.0.10/32 -p udp -m comment --comment "kube-system/kube-dns:dns cluster IP" -m udp --dport 53 -j KUBE-MARK-MASQ
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.10:53" -m statistic --mode random --probability 0.10000000009 -j KUBE-SEP-R7EMXN5TTQQVP4UW
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.11:53" -m statistic --mode random --probability 0.11111111101 -j KUBE-SEP-VR6VIIG2A6524KLY
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.2:53" -m statistic --mode random --probability 0.12500000000 -j KUBE-SEP-YIL6JZP7A3QYXJU2
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.3:53" -m statistic --mode random --probability 0.14285714272 -j KUBE-SEP-6E7XQMQ4RAYOWTTM
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.4:53" -m statistic --mode random --probability 0.16666666651 -j KUBE-SEP-WXWGHGKZOCNYRYI7
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.5:53" -m statistic --mode random --probability 0.20000000019 -j KUBE-SEP-LPGSDLJ3FDW46N4W
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.6:53" -m statistic --mode random --probability 0.25000000000 -j KUBE-SEP-IRMT6RY5EEEBXDAY
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.7:53" -m statistic --mode random --probability 0.33333333349 -j KUBE-SEP-232DQYSHL5HNRYWJ
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.8:53" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-SISP6ORRA37L3ZYK
+-A KUBE-SVC-TCOU7JCQXEZGVUNU -m comment --comment "kube-system/kube-dns:dns -> 10.244.0.9:53" -j KUBE-SEP-LBMQNJ35ID4UIQ2A
+COMMIT
+# Completed on Sat Aug  1 18:12:47 2026
+```
+
+</details>
+
+```bash
+iptables-save \
+| grep SEP-Q 
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+:KUBE-SEP-QKX4QX54UKWK6JIY - [0:0]
+-A KUBE-SEP-QKX4QX54UKWK6JIY -s 172.18.0.3/32 -m comment --comment "default/kubernetes:https" -j KUBE-MARK-MASQ
+-A KUBE-SEP-QKX4QX54UKWK6JIY -p tcp -m comment --comment "default/kubernetes:https" -m tcp -j DNAT --to-destination 172.18.0.3:6443
+-A KUBE-SVC-NPX46M4PTMTKRN6Y -m comment --comment "default/kubernetes:https -> 172.18.0.3:6443" -j KUBE-SEP-QKX4QX54UKWK6JIY
+```
+
+</details>
+
+
 
 
 ```bash
