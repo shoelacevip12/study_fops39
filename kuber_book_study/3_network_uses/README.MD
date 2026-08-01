@@ -1537,6 +1537,116 @@ iptables-save \
 </details>
 
 
+<details>
+<summary>
+Создание политики для блокировки доступа для модуля web
+</summary>
+
+```bash
+cat > web-deny_all.yaml <<'EOF'
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: web-deny-all
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+  ingress: []
+EOF
+```
+
+</details>
+
+
+<details>
+<summary>
+Создание политики для разрешения доступа к порту 80 из модуля web2
+</summary>
+
+```bash
+cat > web-web2-80-alllow.yaml <<'EOF'
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: web
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+  ingress:
+    - ports:
+      - port: 80
+    - from:
+      - podSelector:
+          matchLabels:
+            app: web2
+EOF
+```
+
+</details>
+
+
+<details>
+<summary>
+Создание создани службы nginx
+</summary>
+
+```bash
+cat > nginx-pod.yaml <<'EOF'
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nginx-ds
+spec:
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+EOF
+```
+
+</details>
+
+```bash
+kubectl apply -f nginx-pod.yaml
+```
+
+<details>
+<summary>
+Применение манифеста службы nginx
+</summary>
+
+```log
+daemonset.apps/nginx-ds created
+```
+
+</details>
+
+
+```bash
+kubectl get pods -n default -o wide
+```
+
+<details>
+<summary>
+Просмотр созданных pods
+</summary>
+
+```log
+NAME             READY   STATUS    RESTARTS   AGE    IP           NODE             NOMINATED NODE   READINESS GATES
+nginx-ds-dc2bj   1/1     Running   0          2m9s   10.244.2.5   antrea-worker2   <none>           <none>
+nginx-ds-pddvd   1/1     Running   0          2m9s   10.244.1.4   antrea-worker    <none>           <none>
+```
+
+</details>
 
 
 ```bash
