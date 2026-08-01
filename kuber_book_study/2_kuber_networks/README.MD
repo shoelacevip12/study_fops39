@@ -912,7 +912,6 @@ validatingwebhookconfiguration.admissionregistration.k8s.io/crdvalidator.antrea.
 
 </details>
 
-
 ### Команда проверки всех подов кластера
 
 ```bash
