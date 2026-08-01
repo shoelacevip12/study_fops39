@@ -49,9 +49,12 @@ kubectl delete -f ../1_modules_pods/busybox.yaml
 ```log
 pod "core-k8s" deleted from default namespace
 ```
+
 </details>
 
 ### Получение учебной конфигурации сервиса типа NodePort из развернутого конфигурации сервиса `CoreDNS`
+
+#### Команда получения конфигурации сервиса CoreDNS
 
 ```bash
 kubectl get svc -o yaml kube-dns -n kube-system
@@ -61,6 +64,8 @@ kubectl get svc -o yaml kube-dns -n kube-system
 <summary>
 Конфиг учебного сервиса типа NodePort
 </summary>
+
+**Команда: создание манифеста NodePort сервиса**
 
 ```bash
 cat > my-nodeport.yaml <<'EOF'
@@ -114,6 +119,7 @@ kubectl create -f my-nodeport.yaml
 <summary>
 Вывод о создании учебного сервиса типа NodePort
 </summary>
+
 **Лог: результат создания сервиса**
 
 ```log
@@ -123,6 +129,8 @@ service/kube-dns-2 created
 </details>
 
 ### Проверка созданного учебного сервиса типа NodePort
+
+#### Команда просмотра списка сервисов
 
 ```bash
 kubectl get services -o wide -A
@@ -330,55 +338,11 @@ COMMIT
 
 </details>
 
-
-```bash
-# Просмотр текущих удаленных репозиториев
-git remote -v
-
-# Проверка текущего локального состояния репозитория
-git status
-
-git rm -r --cached \
-../../
-
-git remote -v
-
-# Добавляем ключи агенту ssh от репозитория gitflic и github
-eval $(ssh-agent) \
-&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
-&& ssh-add ~/.ssh/id_github_2026_ed25519 \
-&& ssh-agent -c
-
-# Добавление всех изменений из текущей и вывод текущего состояния репозитория
-git add . .. ../.. \
-&& git status
-
-git diff \
-&& git diff --staged
-
-# Просмотр истории коммитов в кратком формате
-git log --oneline
-
-git add . .. ../.. \
-&& git status \
-&& git commit -am 'some_word_add_module_2' \
-&& git push \
---set-upstream \
-study_fops39 \
-master \
-&& git push \
---set-upstream \
-study_fops39_gitflic_ru \
-master \
-&& git push \
---set-upstream \
-study-fops39_sc \
-master
-```
-
 ## О CNI (Container Network Interface)
 
-### пересоздание кластера
+### Пересоздание кластера
+
+#### Команда удаления кластера kind
 
 ```bash
 kind delete cluster \
@@ -404,6 +368,8 @@ Deleted nodes: ["kind-control-plane"]
 Создание Конфига отключения CNI поумолчанию
 </summary>
 
+**Команда: создание конфигурационного файла кластера**
+
 ```bash
 cat > kind-Calico-conf.yaml <<'EOF'
 kind: Cluster
@@ -420,6 +386,8 @@ EOF
 </details>
 
 #### Создание кластера с отключенным CNI поумолчанию
+
+##### Команда создания кластера Calico
 
 ```bash
 kind create cluster \
@@ -452,6 +420,8 @@ Thanks for using kind! 😊
 
 ### Проверка состояния кластера
 
+#### Команда проверки узлов кластера
+
 ```bash
 kubectl get nodes -o wide -A
 ```
@@ -468,6 +438,8 @@ calico-worker          NotReady   <none>          62s   v1.36.1   172.18.0.2    
 ```
 
 </details>
+
+#### Команда проверки подов кластера
 
 ```bash
 kubectl get pods --all-namespaces
@@ -493,9 +465,13 @@ local-path-storage   local-path-provisioner-855c7b7774-v2rrl        0/1     Pend
 
 </details>
 
+#### Команда загрузки манифеста Calico
+
 ```bash
 curl https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml -O
 ```
+
+#### Команда применения манифеста Calico
 
 ```bash
 kubectl apply -f calico.yaml
@@ -550,6 +526,7 @@ deployment.apps/calico-kube-controllers created
 
 </details>
 
+#### Команда проверки подов Calico
 
 ```bash
 kubectl get pods \
@@ -570,6 +547,8 @@ calico-node-8vs52   1/1     Running   0          119s   172.18.0.2   calico-work
 ```
 
 </details>
+
+#### Команда проверки всех подов кластера
 
 ```bash
 kubectl get pods \
@@ -599,9 +578,13 @@ local-path-storage   local-path-provisioner-855c7b7774-d9x77        1/1     Runn
 
 </details>
 
+#### Команда входа в контейнер control-plane
+
 ```bash
 docker exec -it calico-control-plane bash
 ```
+
+#### Команды проверки сетевых интерфейсов и маршрутизации
 
 ```bash
 ip -br a
@@ -625,3 +608,159 @@ blackhole 10.111.71.0/26 proto bird
 ```
 
 </details>
+
+#### Команда установки tcpdump
+
+```bash
+apt-get update -y \
+; apt-get install -y tcpdump
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+root@calico-control-plane:/# apt-get update -y \
+; apt-get install -y tcpdump
+Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+...
+The following additional packages will be installed:
+  dbus dbus-bin dbus-daemon dbus-session-bus-common dbus-system-bus-common libdbus-1-3 libexpat1 libpcap0.8t64
+Suggested packages:
+  default-dbus-session-bus | dbus-session-bus apparmor
+The following NEW packages will be installed:
+  dbus dbus-bin dbus-daemon dbus-session-bus-common dbus-system-bus-common libdbus-1-3 libexpat1 libpcap0.8t64 tcpdump
+0 upgraded, 9 newly installed, 0 to remove and 9 not upgraded.
+Need to get 1356 kB of archives.
+...
+```
+
+</details>
+
+#### Команда захвата трафика tcpdump
+
+```bash
+tcpdump -s 0 -i eth0 -v \
+| grep 'calico-'
+
+exit
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+root@calico-control-plane:/# tcpdump -s 0 -i eth0 -v | grep 'calico-'
+tcpdump: listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+    calico-control-plane.6443 > calico-worker.kind.5165: Flags [P.], cksum 0x58c6 (incorrect -> 0x1426), seq 1746809316:1746809434, ack 384028566, win 733, options [nop,nop,TS val 3164722221 ecr 3303567341], length 118
+    calico-worker.kind.5165 > calico-control-plane.6443: Flags [.], cksum 0x5850 (incorrect -> 0x8f4c), ack 118, win 3468, options [nop,nop,TS val 3303570872 ecr 3164722221], length 0
+    calico-control-plane.6443 > calico-worker.kind.32859: Flags [P.], cksum 0x58c6 (incorrect -> 0xf657), seq 2322770359:2322770477, ack 1348218078, win 77, options [nop,nop,TS val 113674557 ecr 499869585], length 118
+    calico-worker.kind.32859 > calico-control-plane.6443: Flags [.], cksum 0x5850 (incorrect -> 0x66aa), ack 118, win 92, options [nop,nop,TS val 499891805 ecr 113674557], length 0
+    calico-control-plane.6443 > calico-worker.kind.60334: Flags [P.], cksum 0x58b2 (incorrect -> 0xfbf9), seq 2000777205:2000777303, ack 1742311495, win 78, options [nop,nop,TS val 2161729684 ecr 2939923977], length 98
+    calico-worker.kind.60334 > calico-control-plane.6443: Flags [.], cksum 0x5850 (incorrect -> 0xdd9e), ack 98, win 511, options [nop,nop,TS val 2939931064 ecr 2161729684], length 0
+    calico-control-plane.6443 > calico-worker.kind.60334: Flags [P.], cksum 0x58fe (incorrect -> 0xef99), seq 98:272, ack 1, win 78, options [nop,nop,TS val 2161729685 ecr 2939931064], length 174
+    calico-worker.kind.60334 > calico-control-plane.6443: Flags [.], cksum 0x5850 (incorrect -> 0xdcee), ack 272, win 511, options [nop,nop,TS val 2939931065 ecr 2161729685], length 0
+...
+```
+
+</details>
+
+#### Команда масштабирования CoreDNS
+
+```bash
+kubectl scale deployment coredns -n kube-system --replicas=6
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+deployment.apps/coredns scaled
+```
+
+</details>
+
+#### Команда проверки подов после масштабирования
+
+```bash
+kubectl get pods \
+-A -o wide
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+NAMESPACE            NAME                                           READY   STATUS    RESTARTS   AGE   IP             NODE                   NOMINATED NODE   READINESS GATES
+kube-system          calico-kube-controllers-58f68d56d9-qhfsm       1/1     Running   0          27m   10.111.9.130   calico-worker          <none>           <none>
+kube-system          calico-node-2zwk7                              1/1     Running   0          27m   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          calico-node-8vs52                              1/1     Running   0          27m   172.18.0.2     calico-worker          <none>           <none>
+kube-system          coredns-589f44dc88-dm8sm                       1/1     Running   0          42s   10.111.71.1    calico-control-plane   <none>           <none>
+kube-system          coredns-589f44dc88-gc5mg                       1/1     Running   0          42s   10.111.71.2    calico-control-plane   <none>           <none>
+kube-system          coredns-589f44dc88-gspm7                       1/1     Running   0          42s   10.111.9.133   calico-worker          <none>           <none>
+kube-system          coredns-589f44dc88-hlprf                       1/1     Running   0          27m   10.111.9.131   calico-worker          <none>           <none>
+kube-system          coredns-589f44dc88-mpfzx                       1/1     Running   0          42s   10.111.71.3    calico-control-plane   <none>           <none>
+kube-system          coredns-589f44dc88-zfzlk                       1/1     Running   0          27m   10.111.9.129   calico-worker          <none>           <none>
+kube-system          etcd-calico-control-plane                      1/1     Running   0          28m   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          kube-apiserver-calico-control-plane            1/1     Running   0          28m   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          kube-controller-manager-calico-control-plane   1/1     Running   0          28m   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          kube-proxy-gcztz                               1/1     Running   0          27m   172.18.0.3     calico-control-plane   <none>           <none>
+kube-system          kube-proxy-nvv24                               1/1     Running   0          27m   172.18.0.2     calico-worker          <none>           <none>
+kube-system          kube-scheduler-calico-control-plane            1/1     Running   0          28m   172.18.0.3     calico-control-plane   <none>           <none>
+local-path-storage   local-path-provisioner-855c7b7774-d9x77        1/1     Running   0          27m   10.111.9.132   calico-worker          <none>           <none>
+```
+
+</details>
+
+```bash
+# Просмотр текущих удаленных репозиториев
+git remote -v
+
+# Проверка текущего локального состояния репозитория
+git status
+
+git rm -r --cached \
+../../
+
+git remote -v
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+git diff \
+&& git diff --staged
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+git add . .. ../.. \
+&& git status \
+&& git commit -am 'some_word_add_module_2' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+```
