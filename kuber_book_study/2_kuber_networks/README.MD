@@ -340,7 +340,7 @@ COMMIT
 
 ## О CNI (Container Network Interface)
 
-### Пересоздание кластера
+### Пересоздание кластера с CNI `Calico`
 
 #### Команда удаления кластера kind
 
@@ -719,6 +719,210 @@ local-path-storage   local-path-provisioner-855c7b7774-d9x77        1/1     Runn
 ```
 
 </details>
+
+---
+
+### CNI на Antrea
+
+#### Команда удаления кластера Calico
+
+```bash
+kind delete cluster \
+--name="$(kind get clusters | head -n1)"
+```
+
+<details>
+<summary>
+Вывод об удалении кластера
+</summary>
+
+```log
+Deleting cluster "calico" ...
+Deleted nodes: ["calico-worker" "calico-control-plane"]
+```
+
+</details>
+
+#### Создание конфига отключения CNI поумолчанию
+
+<details>
+<summary>
+Создание Конфига отключения CNI поумолчанию
+</summary>
+
+**Команда: создание конфигурационного файла кластера**
+
+```bash
+cat > kind-Antrea-conf.yaml <<'EOF'
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+  podSubnet: 10.222.0.0/16
+nodes:
+  - role: control-plane
+  - role: worker
+EOF
+```
+
+</details>
+
+#### Применение конфига отключения CNI поумолчанию
+
+```bash
+kind create cluster \
+--name=antrea \
+--config=./kind-Antrea-conf.yaml
+```
+
+<details>
+<summary>
+Вывод создания кластера с отключенным CNI поумолчанию
+</summary>
+
+```log
+Creating cluster "antrea" ...
+ ✓ Ensuring node image (kindest/node:v1.36.1) 🖼
+ ✓ Preparing nodes 📦 📦  
+ ✓ Writing configuration 📜 
+ ✓ Starting control-plane 🕹️ 
+ ✓ Installing StorageClass 💾 
+ ✓ Joining worker nodes 🚜 
+Set kubectl context to "kind-antrea"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-antrea
+
+Have a nice day! 👋
+```
+
+</details>
+
+### Проверка состояния кластера
+
+```bash
+kubectl get nodes -o wide -A
+```
+
+<details>
+<summary>
+Вывод проверки узлов кластера с отключенным CNI
+</summary>
+
+```log
+NAME                   STATUS     ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                       KERNEL-VERSION             CONTAINER-RUNTIME
+antrea-control-plane   NotReady   control-plane   57s   v1.36.1   172.18.0.2    <none>        Debian GNU/Linux 13 (trixie)   7.1.5-zen1-2-zen (amd64)   containerd://2.3.1
+antrea-worker          NotReady   <none>          46s   v1.36.1   172.18.0.3    <none>        Debian GNU/Linux 13 (trixie)   7.1.5-zen1-2-zen (amd64)   containerd://2.3.1
+```
+
+</details>
+
+#### Команда проверки подов кластера
+
+```bash
+kubectl get pods --all-namespaces
+```
+
+<details>
+<summary>
+Вывод проверки подов кластера с отключенным CNI
+</summary>
+
+```log
+NAMESPACE            NAME                                           READY   STATUS    RESTARTS   AGE
+kube-system          coredns-589f44dc88-5jgwt                       0/1     Pending   0          81s
+kube-system          coredns-589f44dc88-mxst8                       0/1     Pending   0          81s
+kube-system          etcd-antrea-control-plane                      1/1     Running   0          91s
+kube-system          kube-apiserver-antrea-control-plane            1/1     Running   0          90s
+kube-system          kube-controller-manager-antrea-control-plane   1/1     Running   0          89s
+kube-system          kube-proxy-7v5x5                               1/1     Running   0          81s
+kube-system          kube-proxy-lk685                               1/1     Running   0          82s
+kube-system          kube-scheduler-antrea-control-plane            1/1     Running   0          91s
+local-path-storage   local-path-provisioner-855c7b7774-x2vdp        0/1     Pending   0          81s
+```
+
+</details>
+
+#### Команда загрузки манифеста Antrea
+
+```bash
+curl https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/antrea.yml -O
+```
+
+#### Команда применения манифеста antrea
+
+```bash
+kubectl apply -f antrea.yml
+```
+
+<details>
+<summary>
+Вывод применения манифеста antrea
+</summary>
+
+```log
+customresourcedefinition.apiextensions.k8s.io/antreaagentinfos.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/antreacontrollerinfos.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/antreanodeconfigs.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/bgppolicies.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/clustergroups.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/clusternetworkpolicies.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/egresses.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/externalentities.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/externalippools.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/externalnodes.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/flowexporterdestinations.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/groups.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/networkpolicies.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/nodelatencymonitors.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/packetcaptures.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/supportbundlecollections.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/tiers.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/traceflows.crd.antrea.io created
+customresourcedefinition.apiextensions.k8s.io/trafficcontrols.crd.antrea.io created
+serviceaccount/antrea-agent created
+serviceaccount/antctl created
+serviceaccount/antrea-controller created
+secret/antrea-agent-service-account-token created
+secret/antctl-service-account-token created
+configmap/antrea-config created
+clusterrole.rbac.authorization.k8s.io/antrea-agent created
+clusterrole.rbac.authorization.k8s.io/antctl created
+clusterrole.rbac.authorization.k8s.io/antrea-cluster-identity-reader created
+clusterrole.rbac.authorization.k8s.io/antrea-controller created
+clusterrole.rbac.authorization.k8s.io/aggregate-antrea-policies-edit created
+clusterrole.rbac.authorization.k8s.io/aggregate-antrea-policies-view created
+clusterrole.rbac.authorization.k8s.io/aggregate-traceflows-edit created
+clusterrole.rbac.authorization.k8s.io/aggregate-traceflows-view created
+clusterrole.rbac.authorization.k8s.io/aggregate-antrea-clustergroups-edit created
+clusterrole.rbac.authorization.k8s.io/aggregate-antrea-clustergroups-view created
+clusterrolebinding.rbac.authorization.k8s.io/antrea-agent created
+clusterrolebinding.rbac.authorization.k8s.io/antctl created
+clusterrolebinding.rbac.authorization.k8s.io/antrea-controller created
+service/antrea created
+daemonset.apps/antrea-agent created
+deployment.apps/antrea-controller created
+apiservice.apiregistration.k8s.io/v1beta2.controlplane.antrea.io created
+apiservice.apiregistration.k8s.io/v1beta1.system.antrea.io created
+apiservice.apiregistration.k8s.io/v1alpha1.stats.antrea.io created
+mutatingwebhookconfiguration.admissionregistration.k8s.io/crdmutator.antrea.io created
+validatingwebhookconfiguration.admissionregistration.k8s.io/crdvalidator.antrea.io created
+```
+
+</details>
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```bash
 # Просмотр текущих удаленных репозиториев
