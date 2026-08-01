@@ -428,7 +428,7 @@ kubectl get nodes -o wide -A
 
 <details>
 <summary>
-
+Вывод проверки узлов кластера с отключенным CNI
 </summary>
 
 ```log
@@ -447,7 +447,7 @@ kubectl get pods --all-namespaces
 
 <details>
 <summary>
-
+Вывод проверки подов кластера с отключенным CNI
 </summary>
 
 ```log
@@ -479,7 +479,7 @@ kubectl apply -f calico.yaml
 
 <details>
 <summary>
-
+Вывод применения манифеста Calico
 </summary>
 
 ```log
@@ -537,7 +537,7 @@ kubectl get pods \
 
 <details>
 <summary>
-
+Вывод проверки подов Calico после добавления CNI Calico
 </summary>
 
 ```log
@@ -557,7 +557,7 @@ kubectl get pods \
 
 <details>
 <summary>
-
+Вывод всех подов кластера после установки Calico
 </summary>
 
 ```log
@@ -594,16 +594,16 @@ ip route
 
 <details>
 <summary>
-
+Вывод сетевых интерфейсов и маршрутизации Calico
 </summary>
 
 ```log
-lo               UNKNOWN        127.0.0.1/8 ::1/128 
-tunl0@NONE       UNKNOWN        10.111.71.0/32 
-eth0@if29        UP             172.18.0.3/16 fc00:f853:ccd:e793::3/64 fe80::3888:cff:fee8:4252/64 
-default via 172.18.0.1 dev eth0 
-10.111.9.128/26 via 172.18.0.2 dev tunl0 proto bird metric 1024 onlink 
-blackhole 10.111.71.0/26 proto bird 
+lo               UNKNOWN        127.0.0.1/8 ::1/128
+tunl0@NONE       UNKNOWN        10.111.71.0/32
+eth0@if29        UP             172.18.0.3/16 fc00:f853:ccd:e793::3/64 fe80::3888:cff:fee8:4252/64
+default via 172.18.0.1 dev eth0
+10.111.9.128/26 via 172.18.0.2 dev tunl0 proto bird metric 1024 onlink
+blackhole 10.111.71.0/26 proto bird
 172.18.0.0/16 dev eth0 proto kernel scope link src 172.18.0.3
 ```
 
@@ -618,7 +618,7 @@ apt-get update -y \
 
 <details>
 <summary>
-
+Вывод установки tcpdump в control-plane внутри ноды
 </summary>
 
 ```log
@@ -650,7 +650,7 @@ exit
 
 <details>
 <summary>
-
+Вывод захвата трафика tcpdump между нодами Calico
 </summary>
 
 ```log
@@ -677,7 +677,7 @@ kubectl scale deployment coredns -n kube-system --replicas=6
 
 <details>
 <summary>
-
+Вывод масштабирования CoreDNS подов до 6 реплик
 </summary>
 
 ```log
@@ -695,7 +695,7 @@ kubectl get pods \
 
 <details>
 <summary>
-
+Вывод подов после масштабирования CoreDNS
 </summary>
 
 ```log
