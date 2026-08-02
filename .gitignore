@@ -16,7 +16,7 @@ tmp/
 .codeassistant/
 antrea/
 k8sprototypes/
-
+contour/
 
 # игнорировать расширения и файлы:
 *.deb

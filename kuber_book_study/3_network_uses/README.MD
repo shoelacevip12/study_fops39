@@ -2,7 +2,7 @@
 
 ## Использование CNI Antrea
 
-### Команда: клонирование репозитория Antrea
+### клонирование репозитория Antrea
 
 ```bash
 git clone https://github.com/antrea-io/antrea.git
@@ -74,7 +74,7 @@ find: «./antrea/.git»: Нет такого файла или каталога
 
 </details>
 
-### Команда: развертывание кластера с CNI Antrea
+### развертывание кластера с CNI Antrea
 
 ```bash
 cd ./antrea/ci/kind
@@ -171,7 +171,7 @@ validatingwebhookconfiguration.admissionregistration.k8s.io/crdvalidator.antrea.
 
 </details>
 
-### Команда: получение списка всех подов кластера
+### получение списка всех подов кластера
 
 ```bash
 kubectl get pods -A -o wide
@@ -202,7 +202,7 @@ local-path-storage   local-path-provisioner-855c7b7774-9crt9        1/1     Runn
 
 </details>
 
-### Команда: загрузка и установка sonobuoy
+### загрузка и установка sonobuoy
 
 ```bash
 wget https://github.com/vmware-tanzu/sonobuoy/releases/download/v0.57.5/sonobuoy_0.57.5_linux_amd64.tar.gz
@@ -251,13 +251,13 @@ API Version check skipped due to missing `--kubeconfig` or other error
 
 </details>
 
-### Команда: запуск quick conformance тестов
+### запуск quick conformance тестов
 
 ```bash
 sonobuoy run --mode quick
 ```
 
-### Команда: проверка подов в namespace sonobuoy
+### проверка подов в namespace sonobuoy
 
 ```bash
 kubectl get pods -n sonobuoy -o wide
@@ -350,20 +350,20 @@ Warnings:
 
 </details>
 
-### Команда: вход в контейнер antrea-worker2
+### вход в контейнер antrea-worker2
 
 ```bash
 docker exec -it antrea-worker2 bash
 ```
 
-### Команда: установка net-tools в контейнере antrea-worker2
+### установка net-tools в контейнере antrea-worker2
 
 ```bash
 apt-get update \
 ; apt-get install -y net-tools
 ```
 
-### Команда: просмотр сетевого окружения на antrea-worker2
+### просмотр сетевого окружения на antrea-worker2
 
 ```bash
 ip -br a
@@ -415,7 +415,7 @@ antrea-control-plane.ki  ether   fe:dc:a0:5c:c0:f7   C                     eth0
 
 </details>
 
-### Команда: масштабирование CoreDNS и проверка подов
+### масштабирование CoreDNS и проверка подов
 
 ```bash
 root@antrea-worker2:/# exit
@@ -496,7 +496,7 @@ kube-scheduler-antrea-control-plane            1/1     Running   0          21m 
 
 </details>
 
-### Команда: установка net-tools в контейнере control-plane
+### установка net-tools в контейнере control-plane
 
 ```bash
 apt-get update \
@@ -577,7 +577,7 @@ antrea-worker2.kind      ether   16:cf:a8:e5:53:f0   C                     eth0
 
 </details>
 
-### Команда: просмотр статистики сетевых интерфейсов
+### просмотр статистики сетевых интерфейсов
 
 ```bash
 ip -s a
@@ -731,7 +731,7 @@ ip -s a
 
 </details>
 
-### Команда: просмотр таблицы маршрутизации
+### просмотр таблицы маршрутизации
 
 ```bash
 route -n
@@ -754,7 +754,7 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 
 </details>
 
-### Команда: получение имени пода antrea-agent
+### получение имени пода antrea-agent
 
 ```bash
 kubectl get pods -n kube-system \
@@ -890,13 +890,13 @@ type                : ""
 
 </details>
 
-### Команда: вход в контейнер control-plane
+### вход в контейнер control-plane
 
 ```bash
 docker exec -it antrea-control-plane bash
 ```
 
-### Команда: установка tcpdump в контейнере control-plane
+### установка tcpdump в контейнере control-plane
 
 ```bash
 apt-get update \
@@ -911,7 +911,7 @@ ip -br a | grep core | tail -1
 coredns--91f0fb@if3 UP             fe80::3094:1fff:fe64:e93d/64 
 ```
 
-### Команда: захват трафика tcpdump
+### захват трафика tcpdump
 
 ```bash
 tcpdump -i coredns--91f0fb -n
@@ -956,7 +956,7 @@ listening on coredns--91f0fb, link-type EN10MB (Ethernet), snapshot length 26214
 
 </details>
 
-### Команда: захват трафика tcpdump с фильтром по хосту
+### захват трафика tcpdump с фильтром по хосту
 
 ```bash
 tcpdump host 10.244.0.11 -i coredns--91f0fb
@@ -1000,7 +1000,7 @@ listening on coredns--91f0fb, link-type EN10MB (Ethernet), snapshot length 26214
 
 </details>
 
-### Команда: просмотр правил iptables
+### просмотр правил iptables
 
 ```bash
 iptables-save
@@ -1359,7 +1359,7 @@ EOF
 
 </details>
 
-### Команда: применение манифеста nginx
+### применение манифеста nginx
 
 ```bash
 kubectl apply -f nginx-pod.yaml
@@ -1376,7 +1376,7 @@ daemonset.apps/nginx-ds created
 
 </details>
 
-### Команда: просмотр созданных pods
+### просмотр созданных pods
 
 ```bash
 kubectl get pods -n default -o wide
@@ -1395,7 +1395,7 @@ nginx-ds-pddvd   1/1     Running   0          2m9s   10.244.1.4   antrea-worker 
 
 </details>
 
-### Команда: сохранение правил iptables до применения политик
+### сохранение правил iptables до применения политик
 
 ```bash
 docker exec -it antrea-control-plane bash
@@ -1405,7 +1405,7 @@ root@antrea-control-plane:/# iptables-save > a1
 exit
 ```
 
-### Команда: применение политики блокировки доступа
+### применение политики блокировки доступа
 
 ```bash
 kubectl apply -f web-deny_all.yaml
@@ -1415,7 +1415,7 @@ kubectl apply -f web-deny_all.yaml
 networkpolicy.networking.k8s.io/web-deny-all created
 ```
 
-### Команда: сохранение правил iptables после применения политики
+### сохранение правил iptables после применения политики
 
 ```bash
 docker exec -it antrea-control-plane bash
@@ -1423,14 +1423,14 @@ docker exec -it antrea-control-plane bash
 root@antrea-control-plane:/# iptables-save > a2
 ```
 
-### Команда: установка git в контейнере control-plane
+### установка git в контейнере control-plane
 
 ```bash
 apt-get update \
 ; apt-get install -y git
 ```
 
-### Команда: просмотр изменений в iptables
+### просмотр изменений в iptables
 
 ```bash
 git diff a1 a2
@@ -1521,7 +1521,7 @@ index 1f75a6e..a9dba08 100644
 
 </details>
 
-### Команда: смена политик и проверка
+### смена политик и проверка
 
 ```bash
 root@antrea-control-plane:/# exit
@@ -1544,7 +1544,7 @@ networkpolicy.networking.k8s.io/web created
 
 </details>
 
-### Команда: сравнение трех снимков iptables
+### сравнение трех снимков iptables
 
 ```bash
 docker exec -it antrea-control-plane bash
@@ -1662,7 +1662,7 @@ diff3 a{1..3}
 
 </details>
 
-### Команда: удаление политик разрешения доступа
+### удаление политик разрешения доступа
 
 ```bash
 root@antrea-control-plane:/# exit
@@ -1681,7 +1681,7 @@ networkpolicy.networking.k8s.io "web" deleted from default namespace
 
 </details>
 
-### Команда: получение имени пода antrea-agent
+### получение имени пода antrea-agent
 
 ```bash
 kubectl get pods -n kube-system \
@@ -2007,7 +2007,7 @@ command terminated with exit code 1
 
 </details>
 
-### Команда: смена политик и сравнение OVS flows
+### смена политик и сравнение OVS flows
 
 ```bash
 kubectl delete -f web-deny_all.yaml
@@ -2477,7 +2477,7 @@ kubectl exec antrea-agent-m7w9b -n kube-system -- diff3 a1 a2 a3
 
 </details>
 
-### Команда: удаление политик разрешения доступа
+### удаление политик разрешения доступа
 
 ```bash
 kubectl delete -f web-web2-80-alllow.yaml
@@ -2506,7 +2506,7 @@ Deleted nodes: ["antrea-control-plane" "antrea-worker2" "antrea-worker"]
 
 </details>
 
-### Команда: клонирование репозитория k8sprototypes
+### клонирование репозитория k8sprototypes
 
 ```bash
 git clone https://github.com/jayunit100/k8sprototypes.git
@@ -2578,7 +2578,7 @@ find: «./k8sprototypes/.git»: Нет такого файла или катал
 
 </details>
 
-### Команда: создание кластера Calico через kind-local-up.sh
+### создание кластера Calico через kind-local-up.sh
 
 ```bash
 cd ./k8sprototypes/kind
@@ -2664,7 +2664,7 @@ daemonset.apps/calico-node env updated
 
 </details>
 
-### Команда: проверка подов кластера
+### проверка подов кластера
 
 ```bash
 kubectl get pods \
@@ -2696,7 +2696,7 @@ local-path-storage   local-path-provisioner-855c7b7774-zbz9w        1/1     Runn
 
 </details>
 
-### Команда: загрузка и установка sonobuoy
+### загрузка и установка sonobuoy
 
 ```bash
 wget https://github.com/vmware-tanzu/sonobuoy/releases/download/v0.57.5/sonobuoy_0.57.5_linux_amd64.tar.gz
@@ -2745,7 +2745,7 @@ API Version check skipped due to missing `--kubeconfig` or other error
 
 </details>
 
-### Команда: запуск conformance тестов
+### запуск conformance тестов
 
 ```bash
 sonobuoy run --wait
@@ -2785,7 +2785,7 @@ INFO[0000] create request issued                         name=sonobuoy-aggregato
 
 </details>
 
-### Команда: получение результатов conformance тестов
+### получение результатов conformance тестов
 
 ```bash
 export results="$(sonobuoy retrieve)"
@@ -2846,20 +2846,20 @@ Warnings:
 
 </details>
 
-### Команда: вход в контейнер calico-control-plane
+### вход в контейнер calico-control-plane
 
 ```bash
 docker exec -it calico-control-plane bash
 ```
 
-### Команда: установка net-tools в контейнере calico-control-plane
+### установка net-tools в контейнере calico-control-plane
 
 ```bash
 apt-get update \
 ; apt-get install -y net-tools
 ```
 
-### Команда: просмотр сетевого окружения на на ноде calico-control-plane
+### просмотр сетевого окружения на на ноде calico-control-plane
 
 ```bash
 ip -br a
@@ -2915,7 +2915,7 @@ root@calico-control-plane:/# arp -na
 
 </details>
 
-### Команда: масштабирование CoreDNS и проверка подов
+### масштабирование CoreDNS и проверка подов
 
 ```bash
 root@calico-control-plane:/# exit
@@ -2995,6 +2995,8 @@ kube-scheduler-calico-control-plane            1/1     Running   0          5m52
 
 </details>
 
+### просмотр сетевого окружения после масштабирования CoreDNS
+
 ```bash
 ip -br a
 
@@ -3053,7 +3055,7 @@ calico-worker.kind       ether   fe:fe:38:dc:6f:b7   C                     eth0
 
 </details>
 
-### Команда: просмотр статистики сетевых интерфейсов
+### просмотр статистики сетевых интерфейсов
 
 ```bash
 ip -s a
@@ -3139,7 +3141,7 @@ ip -s a
 
 </details>
 
-### Команда: просмотр таблицы маршрутизации
+### просмотр таблицы маршрутизации
 
 ```bash
 route -n
@@ -3167,12 +3169,14 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 
 </details>
 
-### Команда: установка tcpdump в контейнере control-plane
+### установка tcpdump в контейнере control-plane
 
 ```bash
 apt-get update \
 ; apt-get install -y tcpdump
 ```
+
+### поиск пода CoreDNS по IP-адресу
 
 ```bash
 kubectl get pods -n kube-system -o wide | grep 71.2
@@ -3182,9 +3186,13 @@ kubectl get pods -n kube-system -o wide | grep 71.2
 coredns-589f44dc88-p4k8r                       1/1     Running   0          23m   192.168.71.2    calico-control-plane   <none>           <none>
 ```
 
+### вход в контейнер control-plane
+
 ```bash
 docker exec -it calico-control-plane bash
 ```
+
+### поиск ARP-записи по IP-адресу пода
 
 ```bash
 arp  | grep 71.2
@@ -3194,7 +3202,7 @@ arp  | grep 71.2
 192.168.71.2  ether  56:3e:78:5a:7a:77  C  cali5958a8fd1b3 
 ```
 
-### Команда: захват трафика tcpdump
+### захват трафика tcpdump
 
 ```bash
 tcpdump -i cali5958a8fd1b3 -n
@@ -3227,7 +3235,7 @@ listening on cali5958a8fd1b3, link-type EN10MB (Ethernet), snapshot length 26214
 
 </details>
 
-### Команда: захват трафика tcpdump с фильтром по хосту
+### захват трафика tcpdump с фильтром по хосту
 
 ```bash
 tcpdump host 172.18.0.2 -i cali5958a8fd1b3
@@ -3269,7 +3277,7 @@ listening on cali5958a8fd1b3, link-type EN10MB (Ethernet), snapshot length 26214
 
 </details>
 
-### Команда: просмотр правил iptables
+### просмотр правил iptables
 
 ```bash
 iptables-save
@@ -3718,6 +3726,8 @@ COMMIT
 
 </details>
 
+### фильтрация правил NAT в iptables
+
 ```bash
 iptables-save \
 | grep SEP-Q 
@@ -3815,7 +3825,7 @@ EOF
 
 </details>
 
-### Команда: применение манифеста nginx
+### применение манифеста nginx
 
 ```bash
 kubectl apply -f nginx-pod.yaml
@@ -3832,8 +3842,7 @@ daemonset.apps/nginx-ds created
 
 </details>
 
-
-### Команда: просмотр созданных pods
+### просмотр созданных pods
 
 ```bash
 kubectl get pods -n default -o wide
@@ -3852,7 +3861,7 @@ nginx-ds-hsl4c   1/1     Running   0          74s   192.168.9.133   calico-worke
 
 </details>
 
-### Команда: сохранение правил iptables до применения политик
+### сохранение правил iptables до применения политик
 
 ```bash
 docker exec -it calico-control-plane bash
@@ -3862,7 +3871,7 @@ root@calico-control-plane:/# iptables-save > a1
 exit
 ```
 
-### Команда: применение политики блокировки доступа
+### применение политики блокировки доступа
 
 ```bash
 kubectl apply -f web-deny_all.yaml
@@ -3872,7 +3881,7 @@ kubectl apply -f web-deny_all.yaml
 networkpolicy.networking.k8s.io/web-deny-all created
 ```
 
-### Команда: сохранение правил iptables после применения политики
+### сохранение правил iptables после применения политики
 
 ```bash
 docker exec -it calico-control-plane bash
@@ -3880,14 +3889,14 @@ docker exec -it calico-control-plane bash
 root@calico-control-plane:/# iptables-save > a2
 ```
 
-### Команда: установка git в контейнере control-plane
+### установка git в контейнере control-plane
 
 ```bash
 apt-get update \
 ; apt-get install -y git
 ```
 
-### Команда: просмотр изменений в iptables
+### просмотр изменений в iptables
 
 ```bash
 git diff a1 a2
@@ -3967,7 +3976,7 @@ index 9ffeb7f..8f0c2fa 100644
 
 </details>
 
-### Команда: смена политик и проверка
+### смена политик и проверка
 
 ```bash
 root@calico-control-plane:/# exit
@@ -3990,6 +3999,8 @@ networkpolicy.networking.k8s.io/web created
 
 </details>
 
+### сравнение трех снимков iptables
+
 ```bash
 docker exec -it calico-control-plane bash
 
@@ -3998,7 +4009,7 @@ root@calico-control-plane:/# iptables-save > a3
 diff3 a{1..3}
 ```
 
-details>
+<details>
 <summary>
 Просмотр текущих удаленных репозиториев
 </summary>
@@ -4082,8 +4093,7 @@ details>
 
 </details>
 
-
-### Команда: удаление политик разрешения доступа
+### удаление политик разрешения доступа
 
 ```bash
 root@calico-control-plane:/# exit
@@ -4164,7 +4174,6 @@ kubectl apply \
 -f ../2_kuber_networks/calico.yaml
 
 kubectl set env daemonset.apps/calico-node -n kube-system FELIX_IGNORELOOSERPF=true FELIX_XDPENABLED=false
-
 ```
 
 <details>
@@ -4241,6 +4250,8 @@ daemonset.apps/calico-node env updated
 
 </details>
 
+### проверка подов кластера
+
 ```bash
 kubectl get pods -A -o wide
 ```
@@ -4269,6 +4280,431 @@ tigera-operator      tigera-operator-b9b4744fc-rxk44                1/1     Runn
 
 </details>
 
+### Создание Pod Веб-прижения на Python
+
+<details>
+<summary>
+Создание Pod Веб-прижения на Python
+</summary>
+
+```bash
+cat > Python_web_pod.yaml <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-pod
+  labels:
+    app: example-pod
+spec:
+  containers:
+  - name: frontend
+    image: python:alpine
+    command:
+      - "python"
+      - "-m"
+      - "http.server"
+      - "8080"
+    ports:
+      - containerPort: 8080
+EOF
+```
+
+</details>
+
+### Создание сервиса для Pod Веб-прижения на Python
+
+<details>
+<summary>
+Создание сервиса
+</summary>
+
+```bash
+cat > Python_web_service.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-web-service
+spec:
+  selector:
+    app: example-pod
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+EOF
+```
+
+</details>
+
+### применение манифестов и проверка сервиса
+
+```bash
+kubectl apply \
+-f Python_web_pod.yaml \
+-f Python_web_service.yaml
+
+kubectl get service \
+&& kubectl get pod
+```
+
+<details>
+<summary>
+Просмотр сервиса
+</summary>
+
+```log
+pod/python-web created
+service/python-web-service created
+
+NAME                 TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)    AGE
+kubernetes           ClusterIP   10.96.0.1     <none>        443/TCP    35m
+python-web-service   ClusterIP   10.96.64.64   <none>        8080/TCP   35s
+
+NAME          READY   STATUS    RESTARTS   AGE
+example-pod   1/1     Running   0          35s
+```
+
+</details>
+
+### Создание Pod для работы с созданным веб-приложением
+
+<details>
+<summary>
+Создание Pod для работы с Веб-прижением
+</summary>
+
+```bash
+cat > Check_pod.yaml <<'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: checker
+spec:
+  containers:
+  - name: check
+    image: jayunit100/ubuntu-utils
+    command:
+      - "sleep"
+      - "10000"
+EOF
+```
+
+</details>
+
+### применение манифеста и проверка pod
+
+```bash
+kubectl apply \
+-f Check_pod.yaml
+
+kubectl get pod
+```
+
+<details>
+<summary>
+Просмотр Pod
+</summary>
+
+```log
+pod/checker created
+
+NAME          READY   STATUS              RESTARTS   AGE
+checker       0/1     ContainerCreating   0          26s
+example-pod   1/1     Running             0          6m37s
+
+NAME          READY   STATUS    RESTARTS   AGE
+checker       1/1     Running   0          30s
+example-pod   1/1     Running   0          6m41s
+```
+
+</details>
+
+### проверка доступа к веб-приложению через curl
+
+```bash
+kubectl exec checker -- curl python-web-service:8080/etc/passwd
+```
+
+<details>
+<summary>
+Просмотр содержимого файла /etc/passwd
+</summary>
+
+```log
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   702  100   702    0     0   114k      0 --:--:-- --:root:x:0:0:root:/root:/bin/sh
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+sync:x:5:0:sync:/sbin:/bin/sync
+shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+halt:x:7:0:halt:/sbin:/sbin/halt
+mail:x:8:12:mail:/var/mail:/sbin/nologin
+news:x:9:13:news:/usr/lib/news:/sbin/nologin
+uucp:x:10:14:uucp:/var/spool/uucppublic:/sbin/nologin
+cron:x:16:16:cron:/var/spool/cron:/sbin/nologin
+ftp:x:21:21::/var/lib/ftp:/sbin/nologin
+sshd:x:22:22:sshd:/dev/null:/sbin/nologin
+games:x:35:35:games:/usr/games:/sbin/nologin
+ntp:x:123:123:NTP:/var/empty:/sbin/nologin
+guest:x:405:100:guest:/dev/null:/sbin/nologin
+nobody:x:65534:65534:nobody:/:/sbin/nologin
+--:-- --:--:--  114k
+```
+
+</details>
+
+### Скачивание и подготовка для внешнего доступа до приложения
+
+```bash
+git clone https://github.com/projectcontour/contour.git
+
+find . -name ".git" -exec rm -vrf {} \;
+
+kubectl apply \
+-f ./contour/examples/contour
+```
+
+<details>
+<summary>
+Вывод развертывания contour
+</summary>
+
+```log
+Клонирование в «contour»...
+remote: Enumerating objects: 57503, done.
+remote: Counting objects: 100% (1099/1099), done.
+remote: Compressing objects: 100% (467/467), done.
+remote: Total 57503 (delta 964), reused 632 (delta 632), pack-reused 56404 (from 3)
+Получение объектов: 100% (57503/57503), 38.46 MiB | 4.84 MiB/s, готово.
+Определение изменений: 100% (42970/42970), готово.
+Updating files: 100% (2982/2982), готово.
+
+удалён './contour/.git/description'
+удалён './contour/.git/hooks/post-update.sample'
+удалён './contour/.git/hooks/pre-rebase.sample'
+удалён './contour/.git/hooks/pre-commit.sample'
+удалён './contour/.git/hooks/pre-receive.sample'
+удалён './contour/.git/hooks/commit-msg.sample'
+удалён './contour/.git/hooks/pre-push.sample'
+удалён './contour/.git/hooks/applypatch-msg.sample'
+удалён './contour/.git/hooks/pre-applypatch.sample'
+удалён './contour/.git/hooks/update.sample'
+удалён './contour/.git/hooks/fsmonitor-watchman.sample'
+удалён './contour/.git/hooks/push-to-checkout.sample'
+удалён './contour/.git/hooks/pre-merge-commit.sample'
+удалён './contour/.git/hooks/sendemail-validate.sample'
+удалён './contour/.git/hooks/prepare-commit-msg.sample'
+удалён каталог './contour/.git/hooks'
+удалён './contour/.git/info/exclude'
+удалён каталог './contour/.git/info'
+удалён './contour/.git/objects/pack/pack-e55cec18e47f3452a1a0c4c28c425fc0ccb8d699.pack'
+удалён './contour/.git/objects/pack/pack-e55cec18e47f3452a1a0c4c28c425fc0ccb8d699.rev'
+удалён './contour/.git/objects/pack/pack-e55cec18e47f3452a1a0c4c28c425fc0ccb8d699.idx'
+удалён каталог './contour/.git/objects/pack'
+удалён каталог './contour/.git/objects/info'
+удалён каталог './contour/.git/objects'
+удалён './contour/.git/refs/heads/main'
+удалён каталог './contour/.git/refs/heads'
+удалён каталог './contour/.git/refs/tags'
+удалён './contour/.git/refs/remotes/origin/HEAD'
+удалён каталог './contour/.git/refs/remotes/origin'
+удалён каталог './contour/.git/refs/remotes'
+удалён каталог './contour/.git/refs'
+удалён './contour/.git/packed-refs'
+удалён './contour/.git/logs/refs/remotes/origin/HEAD'
+удалён каталог './contour/.git/logs/refs/remotes/origin'
+удалён каталог './contour/.git/logs/refs/remotes'
+удалён './contour/.git/logs/refs/heads/main'
+удалён каталог './contour/.git/logs/refs/heads'
+удалён каталог './contour/.git/logs/refs'
+удалён './contour/.git/logs/HEAD'
+удалён каталог './contour/.git/logs'
+удалён './contour/.git/HEAD'
+удалён './contour/.git/config'
+удалён './contour/.git/index'
+удалён каталог './contour/.git'
+find: «./contour/.git»: Нет такого файла или каталога
+
+namespace/projectcontour created
+serviceaccount/contour created
+serviceaccount/envoy created
+configmap/contour created
+customresourcedefinition.apiextensions.k8s.io/contourconfigurations.projectcontour.io created
+customresourcedefinition.apiextensions.k8s.io/contourdeployments.projectcontour.io created
+customresourcedefinition.apiextensions.k8s.io/extensionservices.projectcontour.io created
+customresourcedefinition.apiextensions.k8s.io/httpproxies.projectcontour.io created
+customresourcedefinition.apiextensions.k8s.io/tlscertificatedelegations.projectcontour.io created
+serviceaccount/contour-certgen created
+rolebinding.rbac.authorization.k8s.io/contour created
+role.rbac.authorization.k8s.io/contour-certgen created
+job.batch/contour-certgen-main created
+clusterrolebinding.rbac.authorization.k8s.io/contour created
+rolebinding.rbac.authorization.k8s.io/contour-rolebinding created
+clusterrole.rbac.authorization.k8s.io/contour created
+role.rbac.authorization.k8s.io/contour created
+service/contour created
+service/envoy created
+deployment.apps/contour created
+daemonset.apps/envoy created
+```
+
+</details>
+
+### проверка подов в namespace projectcontour
+
+```bash
+kubectl get pods -n projectcontour -o wide
+```
+
+<details>
+<summary>
+Проверка созданных ресурсов
+</summary>
+
+```log
+NAME                       READY   STATUS    RESTARTS   AGE     IP            NODE            NOMINATED NODE   READINESS GATES
+contour-5595b97775-5lnfp   1/1     Running   0          2m24s   10.33.9.136   calico-worker   <none>           <none>
+contour-5595b97775-6f9p8   1/1     Running   0          2m24s   10.33.9.135   calico-worker   <none>           <none>
+envoy-sc5sf                2/2     Running   0          2m24s   10.33.9.137   calico-worker   <none>           <none>
+```
+
+</details>
+
+### добавление записи в /etc/hosts и проверка
+
+```bash
+echo "127.0.0.1   my-service.local" \
+| sudo tee -a /etc/hosts
+
+cat /etc/hosts
+```
+
+<details>
+<summary>
+Проверка resolving имен на хосnt сервера kubernetes
+</summary>
+
+```log
+# Static table lookup for hostnames.
+# See hosts(5) for details.
+127.0.0.1        localhost
+::1              localhost
+172.16.100.2     altwks1
+127.0.0.1   my-service.local
+```
+
+</details>
+
+### Создание ingress ресурса
+
+<details>
+<summary>
+Создание Pod для работы с Веб-прижением
+</summary>
+
+```bash
+cat > Ingress-test.yaml <<'EOF'
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: example-ingress
+spec:
+  rules:
+    - host: my-service.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: python-web-service
+                port:
+                  number: 8080
+
+EOF
+```
+
+</details>
+
+### применение Ingress и проверка
+
+```bash
+kubectl apply -f Ingress-test.yaml
+
+kubectl get ingresses
+```
+
+<details>
+<summary>
+Проверка созданного ресурса
+</summary>
+
+```log
+ingress.networking.k8s.io/example-ingress created
+
+NAME              CLASS    HOSTS              ADDRESS   PORTS   AGE
+example-ingress   <none>   my-service.local             80      83s
+```
+
+</details>
+
+### проверка доступа через Ingress
+
+```bash
+[shoel@shoellin 3_network_uses]$ curl -v http://my-service.local/etc/passwd
+```
+
+<details>
+<summary>
+Проверка созданного ресурса
+</summary>
+
+```log
+* Host my-service.local:80 was resolved.
+* IPv6: (none)
+* IPv4: 127.0.0.1
+*   Trying 127.0.0.1:80...
+* Established connection to my-service.local (127.0.0.1 port 80) from 127.0.0.1 port 36454 
+* using HTTP/1.x
+> GET /etc/passwd HTTP/1.1
+> Host: my-service.local
+> User-Agent: curl/8.21.0
+> Accept: */*
+> 
+* Request completely sent off
+< HTTP/1.1 200 OK
+< server: envoy
+< date: Sun, 02 Aug 2026 19:31:08 GMT
+< content-type: application/octet-stream
+< content-length: 702
+< last-modified: Tue, 24 Mar 2026 19:40:54 GMT
+< x-envoy-upstream-service-time: 1
+< 
+root:x:0:0:root:/root:/bin/sh
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+sync:x:5:0:sync:/sbin:/bin/sync
+shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+halt:x:7:0:halt:/sbin:/sbin/halt
+mail:x:8:12:mail:/var/mail:/sbin/nologin
+news:x:9:13:news:/usr/lib/news:/sbin/nologin
+uucp:x:10:14:uucp:/var/spool/uucppublic:/sbin/nologin
+cron:x:16:16:cron:/var/spool/cron:/sbin/nologin
+ftp:x:21:21::/var/lib/ftp:/sbin/nologin
+sshd:x:22:22:sshd:/dev/null:/sbin/nologin
+games:x:35:35:games:/usr/games:/sbin/nologin
+ntp:x:123:123:NTP:/var/empty:/sbin/nologin
+guest:x:405:100:guest:/dev/null:/sbin/nologin
+nobody:x:65534:65534:nobody:/:/sbin/nologin
+* Connection #0 to host my-service.local:80 left intact
+```
+
+</details>
+
+### работа с git репозиторием
 
 ```bash
 # Просмотр текущих удаленных репозиториев
