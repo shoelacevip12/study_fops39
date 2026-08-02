@@ -4100,8 +4100,174 @@ kubectl delete -f web-web2-80-alllow.yaml
 networkpolicy.networking.k8s.io "web" deleted from default namespace
 ```
 
+</details>
 
+### Удаление кластера kubernets kind
 
+```bash
+kind delete cluster \
+--name="$(kind get clusters |head -n1)"
+```
+
+<details>
+<summary>
+Вывод команды удаления кластера
+</summary>
+
+```log
+Deleting cluster "calico" ...
+Deleted nodes: ["calico-worker2" "calico-worker" "calico-control-plane"]
+```
+
+</details>
+
+### Создание кластера с портами пенаправления 80 и 443
+
+<details>
+<summary>
+Конфиг создания кластера
+</summary>
+
+```bash
+cat > kind_calico_cluster_port_mapping.yaml <<'EOF'
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+  podSubnet: 10.33.0.0/16
+nodes:
+  - role: control-plane
+  - role: worker
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        listenAddress: "0.0.0.0"
+      - containerPort: 443
+        hostPort: 443
+        listenAddress: "0.0.0.0"
+EOF
+```
+
+</details>
+
+### Команда создания кластера Calico
+
+```bash
+kind create cluster \
+--name=calico \
+--config=./kind_calico_cluster_port_mapping.yaml
+
+kubectl apply \
+-f https://raw.githubusercontent.com/projectcalico/calico/refs/heads/master/manifests/tigera-operator.yaml
+
+kubectl apply \
+-f ../2_kuber_networks/calico.yaml
+
+kubectl set env daemonset.apps/calico-node -n kube-system FELIX_IGNORELOOSERPF=true FELIX_XDPENABLED=false
+
+```
+
+<details>
+<summary>
+Вывод создания кластера с портами пенаправления 80 и 443
+</summary>
+
+```log
+Creating cluster "calico" ...
+ ✓ Ensuring node image (kindest/node:v1.36.1) 🖼
+ ✓ Preparing nodes 📦 📦  
+ ✓ Writing configuration 📜 
+ ✓ Starting control-plane 🕹️ 
+ ✓ Installing StorageClass 💾 
+ ✓ Joining worker nodes 🚜 
+Set kubectl context to "kind-calico"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-calico
+
+Have a nice day! 👋
+
+namespace/tigera-operator created
+serviceaccount/tigera-operator created
+clusterrole.rbac.authorization.k8s.io/tigera-operator-secrets created
+clusterrole.rbac.authorization.k8s.io/tigera-operator created
+clusterrolebinding.rbac.authorization.k8s.io/tigera-operator created
+rolebinding.rbac.authorization.k8s.io/tigera-operator-secrets created
+deployment.apps/tigera-operator created
+
+poddisruptionbudget.policy/calico-kube-controllers created
+serviceaccount/calico-kube-controllers created
+serviceaccount/calico-node created
+serviceaccount/calico-cni-plugin created
+configmap/calico-config created
+customresourcedefinition.apiextensions.k8s.io/bgpconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgpfilters.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgppeers.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/blockaffinities.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/caliconodestatuses.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/clusterinformations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/felixconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/hostendpoints.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamblocks.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamconfigs.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamhandles.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.projectcalico.org created
+Warning: unrecognized format "cidr"
+customresourcedefinition.apiextensions.k8s.io/ipreservations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/kubecontrollersconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/stagedglobalnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/stagedkubernetesnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/stagednetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/tiers.crd.projectcalico.org created
+Warning: resource customresourcedefinitions/clusternetworkpolicies.policy.networking.k8s.io is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by kubectl apply. kubectl apply should only be used on resources created declaratively by either kubectl create --save-config or kubectl apply. The missing annotation will be patched automatically.
+customresourcedefinition.apiextensions.k8s.io/clusternetworkpolicies.policy.networking.k8s.io configured
+clusterrole.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrole.rbac.authorization.k8s.io/calico-node created
+clusterrole.rbac.authorization.k8s.io/calico-cni-plugin created
+clusterrole.rbac.authorization.k8s.io/calico-tier-getter created
+clusterrolebinding.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrolebinding.rbac.authorization.k8s.io/calico-node created
+clusterrolebinding.rbac.authorization.k8s.io/calico-cni-plugin created
+clusterrolebinding.rbac.authorization.k8s.io/calico-tier-getter created
+daemonset.apps/calico-node created
+deployment.apps/calico-kube-controllers created
+
+daemonset.apps/calico-node env updated
+```
+
+</details>
+
+```bash
+kubectl get pods -A -o wide
+```
+
+<details>
+<summary>
+Вывод списка pods
+</summary>
+
+```log
+NAMESPACE            NAME                                           READY   STATUS    RESTARTS   AGE     IP           NODE                   NOMINATED NODE   READINESS GATES
+kube-system          calico-kube-controllers-58f68d56d9-8tc9c       1/1     Running   0          2m1s    10.33.71.3   calico-control-plane   <none>           <none>
+kube-system          calico-node-n6cz7                              1/1     Running   0          22s     172.18.0.2   calico-worker          <none>           <none>
+kube-system          calico-node-z87rn                              1/1     Running   0          37s     172.18.0.3   calico-control-plane   <none>           <none>
+kube-system          coredns-589f44dc88-pt9xn                       1/1     Running   0          10m     10.33.71.2   calico-control-plane   <none>           <none>
+kube-system          coredns-589f44dc88-rrhlq                       1/1     Running   0          10m     10.33.71.4   calico-control-plane   <none>           <none>
+kube-system          etcd-calico-control-plane                      1/1     Running   0          10m     172.18.0.3   calico-control-plane   <none>           <none>
+kube-system          kube-apiserver-calico-control-plane            1/1     Running   0          10m     172.18.0.3   calico-control-plane   <none>           <none>
+kube-system          kube-controller-manager-calico-control-plane   1/1     Running   0          10m     172.18.0.3   calico-control-plane   <none>           <none>
+kube-system          kube-proxy-gw6z8                               1/1     Running   0          10m     172.18.0.3   calico-control-plane   <none>           <none>
+kube-system          kube-proxy-pp8rp                               1/1     Running   0          10m     172.18.0.2   calico-worker          <none>           <none>
+kube-system          kube-scheduler-calico-control-plane            1/1     Running   0          10m     172.18.0.3   calico-control-plane   <none>           <none>
+local-path-storage   local-path-provisioner-855c7b7774-5mgx6        1/1     Running   0          10m     10.33.71.1   calico-control-plane   <none>           <none>
+tigera-operator      tigera-operator-b9b4744fc-rxk44                1/1     Running   0          9m40s   172.18.0.2   calico-worker          <none>           <none>
+```
+
+</details>
 
 
 ```bash
