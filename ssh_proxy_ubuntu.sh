@@ -148,3 +148,39 @@ select opt in "${options[@]}"; do
     esac
 done
 EOF
+
+echo ""
+echo "======================================================================="
+echo " Аналог для Alpine Linux (OpenRC): ssh_proxy_alpine.sh"
+echo "======================================================================="
+echo "Файл: ssh_proxy_alpine.sh"
+echo ""
+echo "Отличия от systemd-версии (Ubuntu/Debian/Arch):"
+echo "  - Пакетный менеджер: apk (apk update, apk add openssh openrc)"
+echo "  - sshd запускается через: rc-update add sshd default && rc-service sshd start"
+echo "  - Туннельная служба создаётся как OpenRC init-скрипт: /etc/init.d/ssh-tunnel"
+echo "  - Запуск/автозагрузка: rc-update add ssh-tunnel default && rc-service ssh-tunnel start"
+echo "  - Скрипт прокси: ~/proxy_socks_alpine.sh, алиас pr_ssh в ~/.profile"
+echo "  - Управление службой через rc-service вместо systemctl --user"
+echo "  - OpenRC работает в системном контексте, поэтому init-скрипт кладётся"
+echo "    в /etc/init.d/ и запускается от root (а не как user-служба)"
+echo ""
+echo "Аналог systemd-блока выше (см. ssh_proxy_alpine.sh, раздел создания службы):"
+echo "  /etc/init.d/ssh-tunnel:"
+echo '    #!/sbin/openrc-run'
+echo '    name="ssh-tunnel"'
+echo '    description="SSH SOCKS туннель в Нидерланды"'
+echo '    command="/usr/bin/ssh"'
+echo '    command_args="-v -D 1080 -N ... root@\$IP"'
+echo '    command_background="yes"'
+echo '    pidfile="/run/\${RC_SVCNAME}.pid"'
+echo "    depend() { need net; after firewall; }"
+echo ""
+echo "Соответствие systemd -> OpenRC:"
+echo "  systemd user service (~/.config/systemd/user/) -> /etc/init.d/ (root)"
+echo "  systemctl --user enable --now -> rc-update add ... && rc-service ... start"
+echo "  systemctl --user stop        -> rc-service ... stop"
+echo "  Restart=always               -> (в OpenRC не требуется, служба управляется"
+echo "                                   вручную через rc-service)"
+echo "  MemoryLimit=100M             -> в OpenRC не поддерживается напрямую"
+echo "======================================================================="
