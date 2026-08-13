@@ -1,5 +1,5 @@
-echo "Подключение к развернотому VPC в Нидерландах" 
-IP=xxx.xxx.xxx.xxx
+echo "Подключение к развернотому VPC в Нидерландах"
+export IP=xxx.xxx.xxx.xxx
 ssh root@$IP
 
 echo "Обновление и установка Openssh для ubuntu"
@@ -8,12 +8,11 @@ sudo apt install openssh-server -y
 exit
 
 echo "генерация пары ssh ключей на локальной машине"
-ssh-keygen -t ed25519 -C "ssh_proxy_Netherlands"
-~/.ssh/ssh_id_ed25519
+ssh-keygen -t ed25519 -C "ssh_proxy_Netherlands" -f ~/.ssh/id_ed25519 -N ""
 
 echo "отправка отправка публичного ключа на VPC в Нидерландах и подключение по ключу"
-ssh-copy-id -i ~/.ssh/ssh_id_ed25519.pub root@$IP
-ssh -i ~/.ssh/ssh_id_ed25519 root@$IP
+ssh-copy-id -i ~/.ssh/id_ed25519.pub root@$IP
+ssh -i ~/.ssh/id_ed25519 root@$IP
 
 echo 'backup оригинального конфига ssh, замена на конфиг для проброса трафика и отключение ввода по паролю для ubuntu'
 sudo mv /etc/ssh/sshd_config{,.bak}
@@ -35,22 +34,22 @@ sudo systemctl restart ssh
 exit
 
 echo "создание systemd службы на подключение к туннелю в Нидерландах на локально машине"
-cat > ~/.config/systemd/user/ssh-tunnel.service << 'EOF'
+cat > ~/.config/systemd/user/ssh-tunnel.service << EOF
 [Unit]
 Description=SSH SOCKS туннель в Нидерланды
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 Environment="TERM=xterm"
 Environment="HOME=%h"
-Environment="IP=xxx.xxx.xxx.xxx"
 ExecStart=/usr/bin/ssh -v -D 1080 -N \
   -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=30 \
   -o ServerAliveCountMax=3 \
   -o TCPKeepAlive=yes \
-  -i /home/%u/.ssh/ssh_id_ed25519 \
+  -i /home/%u/.ssh/id_ed25519 \
   root@$IP
 Restart=always
 RestartSec=10
@@ -92,14 +91,22 @@ check_ip() {
 enable_proxy() {
     echo -n "Включаем SSH-туннель... "
     if systemctl --user enable --now ssh-tunnel.service; then
+        echo "Успешно! Подготавливаем запуск..."
+        for d in $(seq 0 25 50 75 100); do
+        echo "$d% - подготовка к запуску"  && sleep 1 ;
+        done
         export ALL_PROXY="socks5://localhost:1080"
         echo "Успешно! ALL_PROXY установлен."
         echo "Проверяем работу прокси..."
-        for d in $(seq 0 25 100); do 
-        echo "$d% - подготовка к запуску"  && sleep 1 ; 
-        done
-        check_ip
-        return 0
+        if curl -s -m 10 -x socks5://localhost:1080 https://2ip.ru > /dev/null; then
+            check_ip
+            return 0
+        else
+            echo "Туннель не работает, прокси не установлен." >&2
+            unset ALL_PROXY
+            systemctl --user stop ssh-tunnel.service
+            return 1
+        fi
     else
         echo "Ошибка включения сервиса!" >&2
         return 1
@@ -113,8 +120,8 @@ disable_proxy() {
     if systemctl --user disable --now ssh-tunnel.service; then
         echo "Успешно! ALL_PROXY удалён."
         echo "Проверяем прямое подключение..."
-        for d in $(seq 0 50 100); do 
-        echo "$d% - выключаем туннель"  && sleep 1 ; 
+        for d in $(seq 0 25 50 75 100); do
+        echo "$d% - выключаем туннель"  && sleep 1 ;
         done
         check_ip
         return 0
