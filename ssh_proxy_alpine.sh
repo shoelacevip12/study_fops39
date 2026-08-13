@@ -153,14 +153,14 @@ EOF
 rc-service sshd restart
 exit
 
-echo "создание OpenRC службы на подключение к туннелю в Нидерландах на локально машине"
+echo "создание OpenRC службы на подключение к туннелю в Нидерландах на УДАЛЁННОЙ машине"
 cat > /etc/init.d/ssh-tunnel << 'EOF'
 #!/sbin/openrc-run
 
 name="ssh-tunnel"
 description="SSH SOCKS туннель в Нидерланды"
 command="/usr/bin/ssh"
-command_args="-v -D 1080 -N \
+command_args="-v -D 0.0.0.0:1080 -N \
   -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=30 \
   -o ServerAliveCountMax=3 \
@@ -189,20 +189,45 @@ echo "добавляем службу в автозагрузку и запус�
 rc-update add ssh-tunnel default
 rc-service ssh-tunnel start
 
-echo 'создание алиас-команды для запуска/отключения прокси для alpine (rc-service)'
+echo 'создание алиас-команды для запуска/отключения прокси для alpine (клиент)'
 cat >> ~/.profile << 'EOF'
 alias pr_ssh='source ~/proxy_socks_alpine.sh'
 EOF
 
-echo "создание скрипта на подключение к туннелю в Нидерландах на локально машине (alpine)"
+echo "создание скрипта на подключение к туннелю в Нидерландах с УДАЛЁННОЙ машины (alpine)"
 cat > ~/proxy_socks_alpine.sh << 'EOF'
 #!/bin/ash
 
+# ============================================================================
+#  proxy_socks_alpine.sh  —  клиент для РАБОТЫ С УДАЛЁННОЙ МАШИНЫ
+#
+#  Этот скрипт запускается НА УДАЛЁННОМ КЛИЕНТЕ (не на сервере!).
+#  Он поднимает ЛОКАЛЬНЫЙ SSH SOCKS-туннель до сервера, где крутится
+#  служба ssh-tunnel, и использует его как прокси.
+#
+#  Управление происходит через переменные ниже.
+# ============================================================================
+
+# --- Настройки (замените на свои) ------------------------------------------
+TUNNEL_HOST="xxx.xxx.xxx.xxx"        # адрес сервера, где живёт ssh-tunnel
+TUNNEL_USER="ssss"                 # пользователь на TUNNEL_HOST
+TUNNEL_KEY="$HOME/.ssh/id_shoelst_2026_ed25519"  # путь до приватного ключа
+TUNNEL_PORT="1080"                  # локальный порт SOCKS-прокси
+# ----------------------------------------------------------------------------
+
+# Проверяем установлен ли ssh
+if ! command -v ssh > /dev/null 2>&1; then
+    echo "Ошибка: ssh не установлен. Установите openssh-client." >&2
+    exit 1
+fi
 # Проверяем установлен ли curl
-if ! command -v curl &> /dev/null; then
+if ! command -v curl > /dev/null 2>&1; then
     echo "Ошибка: curl не установлен. Установите curl для работы скрипта." >&2
     exit 1
 fi
+
+# PID-файл локального туннеля
+SSH_PID="$HOME/.ssh-tunnel-client.pid"
 
 # Функция проверки IP
 check_ip() {
@@ -211,48 +236,76 @@ check_ip() {
     echo
 }
 
-# Функция для включения прокси
+# Функция для включения прокси (поднимаем локальный туннель до сервера)
 enable_proxy() {
-    echo -n "Включаем SSH-туннель... "
-    if rc-service ssh-tunnel start; then
-        echo "Успешно! Подготавливаем запуск..."
-        for d in $(seq 0 25 50 75 100); do
-            echo "$d% - подготовка к запуску" && sleep 1
-        done
-        export ALL_PROXY="socks5://localhost:1080"
-        echo "Успешно! ALL_PROXY установлен."
-        echo "Проверяем работу прокси..."
-        if curl -s -m 10 -x socks5://localhost:1080 https://2ip.ru > /dev/null; then
-            check_ip
-            return 0
-        else
-            echo "Туннель не работает, прокси не установлен." >&2
-            unset ALL_PROXY
-            rc-service ssh-tunnel stop
-            return 1
-        fi
+    # Если туннель уже поднят — не запускаем второй раз
+    if [ -f "$SSH_PID" ] && kill -0 "$(cat "$SSH_PID")" 2>/dev/null; then
+        echo "SSH-туннель уже запущен (pid $(cat "$SSH_PID"))."
+        export ALL_PROXY="socks5://localhost:$TUNNEL_PORT"
+        echo "ALL_PROXY установлен."
+        check_ip
+        return 0
+    fi
+
+    echo -n "Поднимаем локальный SSH-туннель до $TUNNEL_HOST... "
+    ssh -f -N -D "$TUNNEL_PORT" \
+        -o ExitOnForwardFailure=yes \
+        -o ServerAliveInterval=30 \
+        -o ServerAliveCountMax=3 \
+        -o TCPKeepAlive=yes \
+        -o StrictHostKeyChecking=accept-new \
+        -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+        -i "$TUNNEL_KEY" \
+        -p 22 \
+        "$TUNNEL_USER@$TUNNEL_HOST"
+
+    if [ $? -ne 0 ]; then
+        echo "Ошибка: не удалось поднять туннель." >&2
+        return 1
+    fi
+
+    # ssh -f -N не отдаёт PID напрямую; находим его через pgrep
+    PID=$(pgrep -f "ssh -f -N -D $TUNNEL_PORT" | head -n1)
+    if [ -n "$PID" ]; then
+        echo "$PID" > "$SSH_PID"
+    fi
+
+    echo "Успешно!"
+    export ALL_PROXY="socks5://localhost:$TUNNEL_PORT"
+    echo "ALL_PROXY установлен."
+    echo "Проверяем работу прокси..."
+    if curl -s -m 10 -x "socks5://localhost:$TUNNEL_PORT" https://2ip.ru > /dev/null; then
+        check_ip
+        return 0
     else
-        echo "Ошибка включения сервиса!" >&2
+        echo "Туннель не работает, прокси не установлен." >&2
+        unset ALL_PROXY
+        disable_proxy
         return 1
     fi
 }
 
-# Функция для выключения прокси
+# Функция для выключения прокси (гасим локальный туннель)
 disable_proxy() {
     echo -n "Выключаем SSH-туннель... "
     unset ALL_PROXY
-    if rc-service ssh-tunnel stop; then
+    if [ -f "$SSH_PID" ]; then
+        PID=$(cat "$SSH_PID")
+        if kill -0 "$PID" 2>/dev/null; then
+            kill "$PID"
+            rm -f "$SSH_PID"
+        else
+            rm -f "$SSH_PID"
+        fi
         echo "Успешно! ALL_PROXY удалён."
-        echo "Проверяем прямое подключение..."
-        for d in $(seq 0 25 50 75 100); do
-            echo "$d% - выключаем туннель" && sleep 1
-        done
-        check_ip
-        return 0
     else
-        echo "Ошибка выключения сервиса!" >&2
-        return 1
+        # fallback: гасим по имени процесса
+        pkill -f "ssh -f -N -D $TUNNEL_PORT" 2>/dev/null
+        echo "Успешно! ALL_PROXY удалён."
     fi
+    echo "Проверяем прямое подключение..."
+    check_ip
+    return 0
 }
 
 # Меню выбора
@@ -273,7 +326,25 @@ select opt in "${options[@]}"; do
 done
 EOF
 
-echo "Готово! Управление туннелем: pr_ssh (или rc-service ssh-tunnel start|stop)"
+echo "Готово! Управление туннелем с УДАЛЁННОЙ машины: pr_ssh"
+echo ""
+echo "======================================================================="
+echo " ВАЖНО: этот скрипт настраивает УДАЛЁННЫЙ КЛИЕНТ (не сам сервер!)"
+echo "======================================================================="
+echo "Служба ssh-tunnel на сервере по умолчанию слушает 0.0.0.0:1080"
+echo "машин. Поэтому клиентский скрипт (~/proxy_socks_alpine.sh) поднимает"
+echo "СВОЙ локальный SSH SOCKS-туннель до сервера командой:"
+echo "    ssh -f -N -D 1080 sss@xxx.xxx.xxx.xxx"
+echo "и использует его как локальный прокси socks5://localhost:1080."
+echo ""
+echo "ОБРАТИТЕ ВНИМАНИЕ на настройки TUNNEL_HOST/TUNNEL_USER/TUNNEL_KEY"
+echo "в начале ~/proxy_socks_alpine.sh — замените их на свои реальные!"
+echo ""
+echo "Если вы хотите, чтобы служба ssh-tunnel на сервере слушала НА ВСЕХ"
+echo "интерфейсах (тогда клиент мог бы обращаться напрямую к IP:1080),"
+echo "измените в /etc/init.d/ssh-tunnel:  -D 0.0.0.0:1080"
+echo "НО это открывает прокси всей локальной сети — не рекомендуется."
+echo "======================================================================="
 
 echo ""
 echo "======================================================================="
@@ -343,7 +414,7 @@ echo "  - Проверка логов: tail -f /var/log/messages | grep ssh-tunn
 echo ""
 echo "ВАЖНО: конфигурируемые переменные init-скрипта ssh-tunnel:"
 echo "  RC_SVCUSER  - локальный пользователь, от имени которого работает ssh"
-echo "                (по умолчанию root). Пример: RC_SVCUSER=shoel"
+echo "                (по умолчанию root). Пример: RC_SVCUSER=ssss"
 echo "  RC_SSH_LOGIN- пользователь на удалённом сервере"
 echo "                (по умолчанию root)."
 echo "  RC_SSH_KEYS_DIR - каталог с ключами (по умолчанию"
@@ -357,12 +428,12 @@ echo "  Пример неудачной аутентификации (Permission
 echo "  публичный ключ не добавлен в authorized_keys на удалённом сервере:"
 echo "    ssh-copy-id -i ~/.ssh/id_ed25519.pub LOGIN@IP"
 echo ""
-echo "ТИПОВОЙ СЦЕНАРИЙ (проверен на реальном Alpine-хосте shoelst):"
-echo "  Ключ лежит в /home/shoel/.ssh/ и публичный ключ добавлен в"
-echo "  /home/shoel/.ssh/authorized_keys на сервере. Тогда в init-скрипте:"
-echo "      command_user=shoel"
-echo "      command_args=\"... -i /home/shoel/.ssh/id_shoelst_2026_ed25519 \\"
-echo "        shoel@IP\""
+echo "ТИПОВОЙ СЦЕНАРИЙ (проверен на реальном Alpine-хосте):"
+echo "  Ключ лежит в /home/sssss/.ssh/ и публичный ключ добавлен в"
+echo "  /home/ssss/.ssh/authorized_keys на сервере. Тогда в init-скрипте:"
+echo "      command_user=ssss"
+echo "      command_args=\"... -i /home/ssss/.ssh/id_shoelst_2026_ed25519 \\"
+echo "        ssss@IP\""
 echo "  КРИТИЧНО: LOGIN@IP должен совпадать с пользователем, для которого"
 echo "  положен ключ. Если заходить как root - ключ должен быть в"
 echo "  /root/.ssh/authorized_keys. Несовпадение даёт Permission denied"

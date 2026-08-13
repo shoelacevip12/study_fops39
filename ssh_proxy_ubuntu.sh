@@ -33,7 +33,7 @@ EOF
 sudo systemctl restart ssh
 exit
 
-echo "создание systemd службы на подключение к туннелю в Нидерландах на локально машине"
+echo "создание systemd службы на подключение к туннелю в Нидерландах на УДАЛЁННОЙ машине"
 cat > ~/.config/systemd/user/ssh-tunnel.service << EOF
 [Unit]
 Description=SSH SOCKS туннель в Нидерланды
@@ -44,7 +44,7 @@ Wants=network-online.target
 Type=simple
 Environment="TERM=xterm"
 Environment="HOME=%h"
-ExecStart=/usr/bin/ssh -v -D 1080 -N \
+ExecStart=/usr/bin/ssh -v -D 0.0.0.0:1080 -N \
   -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=30 \
   -o ServerAliveCountMax=3 \
@@ -70,15 +70,38 @@ if [ -z "$XDG_RUNTIME_DIR" ]; then
 fi
 EOF
 
-echo "создание скрипта на подключение к туннелю в Нидерландах на локально машине"
+echo "создание скрипта на подключение к туннелю в Нидерландах с УДАЛЁННОЙ машины"
 cat > ~/proxy_socks.sh << 'EOF'
 #!/bin/bash
 
+# ============================================================================
+#  proxy_socks.sh  —  клиент для РАБОТЫ С УДАЛЁННОЙ МАШИНЫ
+#
+#  Этот скрипт запускается НА УДАЛЁННОМ КЛИЕНТЕ (не на сервере !).
+#  Он поднимает ЛОКАЛЬНЫЙ SSH SOCKS-туннель до сервера, где крутится
+#  служба ssh-tunnel, и использует его как прокси.
+# ============================================================================
+
+# --- Настройки (замените на свои) ------------------------------------------
+TUNNEL_HOST="xxx.xxx.xxx.xxx"        # адрес сервера, где живёт ssh-tunnel
+TUNNEL_USER="ssss"                 # пользователь на TUNNEL_HOST
+TUNNEL_KEY="$HOME/.ssh/id_shoelst_2026_ed25519"  # путь до приватного ключа
+TUNNEL_PORT="1080"                  # локальный порт SOCKS-прокси
+# ----------------------------------------------------------------------------
+
+# Проверяем установлен ли ssh
+if ! command -v ssh > /dev/null 2>&1; then
+    echo "Ошибка: ssh не установлен. Установите openssh-client." >&2
+    exit 1
+fi
 # Проверяем установлен ли curl
-if ! command -v curl &> /dev/null; then
+if ! command -v curl > /dev/null 2>&1; then
     echo "Ошибка: curl не установлен. Установите curl для работы скрипта." >&2
     exit 1
 fi
+
+# PID-файл локального туннеля
+SSH_PID="$HOME/.ssh-tunnel-client.pid"
 
 # Функция проверки IP
 check_ip() {
@@ -87,48 +110,74 @@ check_ip() {
     echo
 }
 
-# Функция для включения прокси
+# Функция для включения прокси (поднимаем локальный туннель до удаленного)
 enable_proxy() {
-    echo -n "Включаем SSH-туннель... "
-    if systemctl --user enable --now ssh-tunnel.service; then
-        echo "Успешно! Подготавливаем запуск..."
-        for d in $(seq 0 25 50 75 100); do
-        echo "$d% - подготовка к запуску"  && sleep 1 ;
-        done
-        export ALL_PROXY="socks5://localhost:1080"
-        echo "Успешно! ALL_PROXY установлен."
-        echo "Проверяем работу прокси..."
-        if curl -s -m 10 -x socks5://localhost:1080 https://2ip.ru > /dev/null; then
-            check_ip
-            return 0
-        else
-            echo "Туннель не работает, прокси не установлен." >&2
-            unset ALL_PROXY
-            systemctl --user stop ssh-tunnel.service
-            return 1
-        fi
+    # Если туннель уже поднят — не запускаем второй раз
+    if [ -f "$SSH_PID" ] && kill -0 "$(cat "$SSH_PID")" 2>/dev/null; then
+        echo "SSH-туннель уже запущен (pid $(cat "$SSH_PID"))."
+        export ALL_PROXY="socks5://localhost:$TUNNEL_PORT"
+        echo "ALL_PROXY установлен."
+        check_ip
+        return 0
+    fi
+
+    echo -n "Поднимаем локальный SSH-туннель до $TUNNEL_HOST... "
+    ssh -f -N -D "$TUNNEL_PORT" \
+        -o ExitOnForwardFailure=yes \
+        -o ServerAliveInterval=30 \
+        -o ServerAliveCountMax=3 \
+        -o TCPKeepAlive=yes \
+        -o StrictHostKeyChecking=accept-new \
+        -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+        -i "$TUNNEL_KEY" \
+        -p 22 \
+        "$TUNNEL_USER@$TUNNEL_HOST"
+
+    if [ $? -ne 0 ]; then
+        echo "Ошибка: не удалось поднять туннель." >&2
+        return 1
+    fi
+
+    # ssh -f -N не отдаёт PID напрямую; находим его через pgrep
+    PID=$(pgrep -f "ssh -f -N -D $TUNNEL_PORT" | head -n1)
+    if [ -n "$PID" ]; then
+        echo "$PID" > "$SSH_PID"
+    fi
+
+    echo "Успешно!"
+    export ALL_PROXY="socks5://localhost:$TUNNEL_PORT"
+    echo "ALL_PROXY установлен."
+    echo "Проверяем работу прокси..."
+    if curl -s -m 10 -x "socks5://localhost:$TUNNEL_PORT" https://2ip.ru > /dev/null; then
+        check_ip
+        return 0
     else
-        echo "Ошибка включения сервиса!" >&2
+        echo "Туннель не работает, прокси не установлен." >&2
+        unset ALL_PROXY
+        disable_proxy
         return 1
     fi
 }
 
-# Функция для выключения прокси
+# Функция для выключения прокси (гасим локальный туннель)
 disable_proxy() {
     echo -n "Выключаем SSH-туннель... "
     unset ALL_PROXY
-    if systemctl --user disable --now ssh-tunnel.service; then
+    if [ -f "$SSH_PID" ]; then
+        PID=$(cat "$SSH_PID")
+        if kill -0 "$PID" 2>/dev/null; then
+            kill "$PID"
+        fi
+        rm -f "$SSH_PID"
         echo "Успешно! ALL_PROXY удалён."
-        echo "Проверяем прямое подключение..."
-        for d in $(seq 0 25 50 75 100); do
-        echo "$d% - выключаем туннель"  && sleep 1 ;
-        done
-        check_ip
-        return 0
     else
-        echo "Ошибка выключения сервиса!" >&2
-        return 1
+        # fallback: гасим по имени процесса
+        pkill -f "ssh -f -N -D $TUNNEL_PORT" 2>/dev/null
+        echo "Успешно! ALL_PROXY удалён."
     fi
+    echo "Проверяем прямое подключение..."
+    check_ip
+    return 0
 }
 
 # Меню выбора
@@ -151,36 +200,26 @@ EOF
 
 echo ""
 echo "======================================================================="
-echo " Аналог для Alpine Linux (OpenRC): ssh_proxy_alpine.sh"
+echo " ВАЖНО: оба скрипта теперь настраивают УДАЛЁННЫЙ КЛИЕНТ"
 echo "======================================================================="
-echo "Файл: ssh_proxy_alpine.sh"
+echo "Служба ssh-tunnel на сервере по умолчанию слушает только loopback"
+echo "(127.0.0.1:1080) — к ней НЕЛЬЗЯ обратиться напрямую с других машин."
 echo ""
-echo "Отличия от systemd-версии (Ubuntu/Debian/Arch):"
-echo "  - Пакетный менеджер: apk (apk update, apk add openssh openrc)"
-echo "  - sshd запускается через: rc-update add sshd default && rc-service sshd start"
-echo "  - Туннельная служба создаётся как OpenRC init-скрипт: /etc/init.d/ssh-tunnel"
-echo "  - Запуск/автозагрузка: rc-update add ssh-tunnel default && rc-service ssh-tunnel start"
+echo "Поэтому клиентский скрипт (~/proxy_socks.sh) поднимает СВОЙ локальный"
+echo "SSH SOCKS-туннель до сервера командой:"
+echo "    ssh -f -N -D 1080 ssss@xxx.xxx.xxx.xxx"
+echo "и использует его как локальный прокси socks5://localhost:1080."
+echo ""
+echo "ОБРАТИТЕ ВНИМАНИЕ на настройки TUNNEL_HOST/TUNNEL_USER/TUNNEL_KEY"
+echo "в начале ~/proxy_socks.sh — замените их на свои реальные!"
+echo ""
+echo "Если хотите, чтобы служба ssh-tunnel на сервере слушала НА ВСЕХ"
+echo "интерфейсах (тогда клиент мог бы обращаться напрямую к IP:1080),"
+echo "измените в unit-файле:  -D 0.0.0.0:1080"
+echo "НО это открывает прокси всей локальной сети — не рекомендуется."
+echo ""
+echo "Аналог для Alpine Linux (OpenRC): ssh_proxy_alpine.sh"
 echo "  - Скрипт прокси: ~/proxy_socks_alpine.sh, алиас pr_ssh в ~/.profile"
-echo "  - Управление службой через rc-service вместо systemctl --user"
-echo "  - OpenRC работает в системном контексте, поэтому init-скрипт кладётся"
-echo "    в /etc/init.d/ и запускается от root (а не как user-служба)"
-echo ""
-echo "Аналог systemd-блока выше (см. ssh_proxy_alpine.sh, раздел создания службы):"
-echo "  /etc/init.d/ssh-tunnel:"
-echo '    #!/sbin/openrc-run'
-echo '    name="ssh-tunnel"'
-echo '    description="SSH SOCKS туннель в Нидерланды"'
-echo '    command="/usr/bin/ssh"'
-echo '    command_args="-v -D 1080 -N ... root@\$IP"'
-echo '    command_background="yes"'
-echo '    pidfile="/run/\${RC_SVCNAME}.pid"'
-echo "    depend() { need net; after firewall; }"
-echo ""
-echo "Соответствие systemd -> OpenRC:"
-echo "  systemd user service (~/.config/systemd/user/) -> /etc/init.d/ (root)"
-echo "  systemctl --user enable --now -> rc-update add ... && rc-service ... start"
-echo "  systemctl --user stop        -> rc-service ... stop"
-echo "  Restart=always               -> (в OpenRC не требуется, служба управляется"
-echo "                                   вручную через rc-service)"
-echo "  MemoryLimit=100M             -> в OpenRC не поддерживается напрямую"
+echo "  - Управление происходит без systemd — локальный туннель гасится/поднимается"
+echo "    напрямую (ssh -f -N -D), поэтому OpenRC/systemd не требуется на клиенте."
 echo "======================================================================="
