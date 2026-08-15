@@ -25,8 +25,10 @@ docker ps
 ```
 
 ```log
-CONTAINER ID   IMAGE                  COMMAND                  CREATED       STATUS       PORTS                       NAMES
-03fc4d32ddd6   kindest/node:v1.36.1   "/usr/local/bin/entr…"   3 hours ago   Up 3 hours   127.0.0.1:43853->6443/tcp   kind-control-plane
+CONTAINER ID   IMAGE                  COMMAND                  CREATED         STATUS         PORTS                    NAMES
+27278ed9ff32   kindest/node:v1.36.1   "/usr/local/bin/entr…"   4 minutes ago   Up 4 minutes   0.0.0.0:6443->6443/tcp   skv-21-2-k8s-depl-control-plane
+607bf5f324ff   kindest/node:v1.36.1   "/usr/local/bin/entr…"   4 minutes ago   Up 4 minutes                            skv-21-2-k8s-depl-worker2
+c2a73902d98e   kindest/node:v1.36.1   "/usr/local/bin/entr…"   4 minutes ago   Up 4 minutes                            skv-21-2-k8s-depl-worker
 ```
 
 ```bash
@@ -35,9 +37,13 @@ kubectl get no
 ```
 
 ```log
-NAME                 STATUS   ROLES           AGE    VERSION
-kind-control-plane   Ready    control-plane   3h6m   v1.36.1
+NAME                              STATUS   ROLES           AGE     VERSION
+skv-21-2-k8s-depl-control-plane   Ready    control-plane   4m51s   v1.36.1
+skv-21-2-k8s-depl-worker          Ready    <none>          4m40s   v1.36.1
+skv-21-2-k8s-depl-worker2         Ready    <none>          4m40s   v1.36.1
 ```
+
+![](./img/1.png)
 
 2. Установленный локальный kubectl.
 
