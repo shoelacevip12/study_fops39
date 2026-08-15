@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: multitool-test
+  labels:
+    role: test
+    app: multitool-test
+    organization: netology-fops40
+    creator: denskv
+spec:
+  containers:
+  - name: multitool
+    image: wbitt/network-multitool:latest
+    command: ["sleep", "3600"]

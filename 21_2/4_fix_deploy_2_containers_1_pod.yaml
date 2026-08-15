@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skv-deploy-4-fix
+  labels:
+    role: den-4-fix
+    app: 4-fix
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 3
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nginx-multitool
+  template:
+    metadata:
+      labels:
+        app: nginx-multitool
+    spec:
+      containers:
+      - name: nginx-app
+        image: nginx:latest
+      - name: multitool-app
+        image: wbitt/network-multitool:latest
