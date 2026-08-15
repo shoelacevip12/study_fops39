@@ -20,6 +20,7 @@ kind version 0.32.0
 ```
 
 ```bash
+# Запущенные ноды в докере
 docker ps
 ```
 
