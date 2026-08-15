@@ -131,11 +131,15 @@ git commit -am 'commit1, 21_1-pods-bases' \
 && git push \
 --set-upstream \
 study_fops39 \
-19_1-monitoring_base \
+21_1-pods-bases \
 && git push \
 --set-upstream \
 study_fops39_gitflic_ru \
-19_1-monitoring_base
+21_1-pods-bases \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+21_1-pods-bases
 ```
 
-## commit_2,
+## commit_2,`21_1-pods-bases`
