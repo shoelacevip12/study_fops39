@@ -47,8 +47,27 @@ find . \
 -not -path "*1.3*" \
 -delete
 
-# Перемовение 
+# Переименование 
 mv -v {1.3,README}.md
+```
+
+```bash
+# Удаление кластера kind из предыдущего задания
+kind delete cluster \
+--name="$(kind get clusters |head -n1)"
+```
+
+<details>
+<summary>
+удаление кластера kind
+</summary>
+
+```log
+Deleting cluster "kind" ...
+Deleted nodes: ["kind-control-plane"]
+```
+
+</details>
 ```
 
 ```bash
@@ -100,3 +119,4 @@ master
 ```
 
 ## commit_1, `21_2-K8S-Depl`
+
