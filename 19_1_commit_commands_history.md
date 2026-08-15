@@ -331,7 +331,6 @@ Opening tabs in browser...
 
 </details>
 
-
 ```bash
 sudo chmod 777 -R ./
 sudo chmod 777 -R ./
