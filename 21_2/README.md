@@ -11,6 +11,24 @@
 1. Установленное k8s-решение (например, MicroK8S).
 
 ```bash
+# k8s-решение In docker kind
+kind --version
+```
+
+```log
+kind version 0.32.0
+```
+
+```bash
+docker ps
+```
+
+```log
+CONTAINER ID   IMAGE                  COMMAND                  CREATED       STATUS       PORTS                       NAMES
+03fc4d32ddd6   kindest/node:v1.36.1   "/usr/local/bin/entr…"   3 hours ago   Up 3 hours   127.0.0.1:43853->6443/tcp   kind-control-plane
+```
+
+```bash
 # Просмотр нод кластера
 kubectl get no
 ```
