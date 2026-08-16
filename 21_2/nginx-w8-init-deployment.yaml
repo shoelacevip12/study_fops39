@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-w8-init
+  labels:
+    role: den-w8
+    app: nginx-w8
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-w8
+  template:
+    metadata:
+      labels:
+        app: nginx-w8
+    spec:
+      initContainers:
+      - name: w8-4-svc
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup nginx-wait-svc.default.svc.cluster.local; do
+              echo "Waiting for Service nginx-wait-svc..."
+              sleep 2
+            done
+            echo "Service nginx-wait-svc is UP!"
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80

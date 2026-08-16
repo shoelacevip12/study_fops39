@@ -951,3 +951,318 @@ study-fops39_sc \
 ```
 
 ## commit_4,`21_2-K8S-Depl`
+
+```bash
+# удаление службы
+kubectl delete -f svc_2_containers_1_pod.yaml
+
+# удаление deployment 1ого задания
+kubectl delete -f fixed_deploy_2_containers_1_pod.yaml
+```
+
+### `Yaml`-манифест deployment с init контейнером
+
+<details>
+<summary>
+Yaml-манифест deployment с init контейнером
+</summary>
+
+```bash
+cat > nginx-w8-init-deployment.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-w8-init
+  labels:
+    role: den-w8
+    app: nginx-w8
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-w8
+  template:
+    metadata:
+      labels:
+        app: nginx-w8
+    spec:
+      initContainers:
+      - name: w8-4-svc
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup nginx-wait-svc.default.svc.cluster.local; do
+              echo "Waiting for Service nginx-wait-svc..."
+              sleep 2
+            done
+            echo "Service nginx-wait-svc is UP!"
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+EOF
+```
+
+</details>
+
+```bash
+# применение манифеста deployment с init контейнером
+kubectl apply -f nginx-w8-init-deployment.yaml
+```
+
+<details>
+<summary>
+применение манифеста deployment с init контейнером
+</summary>
+
+```log
+deployment.apps/nginx-w8-init created
+```
+
+</details>
+
+```bash
+# проверка логов пода с init контейнером
+watch kubectl logs -l app=nginx-w8 -c w8-4-svc
+```
+
+<details>
+<summary>
+проверка логов пода с init контейнером
+</summary>
+
+```log
+** server can't find nginx-wait-svc.cluster.local: NXDOMAIN
+
+** server can't find nginx-wait-svc.cluster.local: NXDOMAIN
+
+Name:   nginx-wait-svc.default.svc.cluster.local
+Address: 10.96.163.80
+
+** server can't find nginx-wait-svc.svc.cluster.local: NXDOMAIN
+
+Waiting for Service nginx-wait-svc...
+```
+
+</details>
+
+```bash
+# проверка статуса пода с init контейнером
+kubectl get pods -l app=nginx-w8 -w
+```
+
+<details>
+<summary>
+проверка статуса пода с init контейнером
+</summary>
+
+```log
+NAME                             READY   STATUS     RESTARTS   AGE
+nginx-w8-init-67b8b5b75b-lmh8m   0/1     Init:0/1   0          114s
+```
+
+</details>
+
+```bash
+# проверка статуса rollout deployment
+kubectl rollout status deployment -l role=den-w8
+```
+
+<details>
+<summary>
+проверка статуса rollout deployment
+</summary>
+
+```log
+Waiting for deployment "nginx-w8-init" rollout to finish: 0 of 1 updated replicas are available...
+```
+
+</details>
+
+### `Yaml`-манифест службы
+
+<details>
+<summary>
+Yaml-манифест службы
+</summary>
+
+```bash
+cat > nginx-w8-svc.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-wait-svc
+  labels:
+    role: den-w8
+    app: nginx-w8
+    organization: netology-fops40
+    creator: denskv
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx-w8
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+EOF
+```
+
+</details>
+
+```bash
+# применение манифеста службы
+kubectl apply -f nginx-w8-svc.yaml
+```
+
+<details>
+<summary>
+применение манифеста службы
+</summary>
+
+```log
+service/nginx-wait-svc created
+```
+
+</details>
+
+```bash
+# просмотр подов и сервисов
+kubectl get pods -l app=nginx-w8 \
+&& kubectl get svc -l organization=netology-fops40
+```
+
+<details>
+<summary>
+просмотр подов и сервисов
+</summary>
+
+```log
+NAME                             READY   STATUS    RESTARTS   AGE
+nginx-w8-init-8474cc7598-pvxkn   1/1     Running   0          3m59s
+NAME             TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+nginx-wait-svc   ClusterIP   10.96.206.75   <none>        80/TCP    3m20s
+```
+
+</details>
+
+```bash
+# проверка логов пода после создания службы
+watch kubectl logs -l app=nginx-w8 -c w8-4-svc
+```
+
+<details>
+<summary>
+проверка логов пода после создания службы
+</summary>
+
+```log
+Waiting for Service nginx-wait-svc...
+Server:		10.96.0.10
+Address:	10.96.0.10:53
+
+** server can't find nginx-wait-svc.default.svc.cluster.local: NXDOMAIN
+
+** server can't find nginx-wait-svc.default.svc.cluster.local: NXDOMAIN
+
+Waiting for Service nginx-wait-svc...
+Server:		10.96.0.10
+Address:	10.96.0.10:53
+
+
+Name:	nginx-wait-svc.default.svc.cluster.local
+Address: 10.96.206.75
+
+Service nginx-wait-svc is UP!
+```
+
+</details>
+
+```bash
+# Удаление манифеста службы и деплоймента
+kubectl delete -f nginx-w8-svc.yaml
+
+kubectl delete -f nginx-w8-init-deployment.yaml
+```
+
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit4, 21_2-K8S-Depl' \
+&& git push \
+--set-upstream \
+study_fops39 \
+21_2-K8S-Depl \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+21_2-K8S-Depl \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+21_2-K8S-Depl
+```
+
+## commit_76, master
+
+```bash
+cd ..
+
+git checkout master
+
+git branch -v
+
+git merge 21_2-K8S-Depl
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_76, master' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master --force
+```
