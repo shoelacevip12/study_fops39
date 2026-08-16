@@ -26,6 +26,17 @@ git branch -v
 git clone \
 https://github.com/netology-code/kuber-homeworks.git
 
+cd kuber-homeworks
+
+git config \
+--global \
+--add safe.directory \
+/home/shoel/nfs_git/gited/kuber-homeworks
+
+git checkout shkuber-16
+
+cd ..
+
 # Удаление всех файлов и каталогов кроме нужных
 find kuber-homeworks/ \
 -mindepth 1 \
