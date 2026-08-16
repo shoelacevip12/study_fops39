@@ -52,7 +52,7 @@ skv-21-2-k8s-depl-worker          Ready    <none>          4m40s   v1.36.1
 skv-21-2-k8s-depl-worker2         Ready    <none>          4m40s   v1.36.1
 ```
 
-![](./img/1.png)
+![](../21_2/img/1.png)
 
 - Установлен `kubectl`.
 
