@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-mtool-init
+  labels:
+    role: den-clip-nopo
+    app: nginx-clip-nopo
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 3
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nginx-clip-nopo
+  template:
+    metadata:
+      labels:
+        app: nginx-clip-nopo
+    spec:
+      initContainers:
+      - name: w8-4-svc-clip
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup w8-svc-clip.default.svc.cluster.local || nslookup w8-svc-nopo.default.svc.cluster.local; do
+              echo "Waiting for Service w8-svc-clip or w8-svc-nopo..."
+              sleep 2
+            done
+            echo "Service w8-svc is UP!"
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+      - name: multitool
+        image: wbitt/network-multitool:latest
+        env:
+        - name: HTTP_PORT
+          value: "1180"
+        ports:
+        - containerPort: 1180

@@ -107,6 +107,10 @@ Kustomize Version: v5.8.1
  curl <service-name>:9002 # Проверить multitool
 ```
 4. **Создать Service типа NodePort** для доступа к `nginx` снаружи.
+
+![](./img/1.gif)
+---
+
 5. **Проверить доступ** с локального компьютера:
 ```bash
  curl <node-ip>:<node-port>
@@ -119,6 +123,11 @@ Kustomize Version: v5.8.1
   - `service-clusterip.yaml`
   - `service-nodeport.yaml`
 - Скриншоты проверки доступа (`curl` или браузер).
+
+![](./img/2.gif)
+---
+![](./img/3.gif)
+---
 
 ---
 ## **Задание 2: Настройка Ingress**
