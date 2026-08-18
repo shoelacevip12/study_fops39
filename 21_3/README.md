@@ -97,18 +97,156 @@ Kustomize Version: v5.8.1
    - `nginx` (порт `80`).
    - `multitool` (порт `8080`).
    - Количество реплик: `3`.
+
+---
+<details>
+<summary>
+Yaml-манифест deployment с init контейнером
+</summary>
+
+```bash
+cat > depl_nginx-mtool-init.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-mtool-init
+  labels:
+    role: den-clip-nopo
+    app: nginx-clip-nopo
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 3
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nginx-clip-nopo
+  template:
+    metadata:
+      labels:
+        app: nginx-clip-nopo
+    spec:
+      initContainers:
+      - name: w8-4-svc-clip
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup w8-svc-clip.default.svc.cluster.local || nslookup w8-svc-nopo.default.svc.cluster.local; do
+              echo "Waiting for Service w8-svc-clip or w8-svc-nopo..."
+              sleep 2
+            done
+            echo "Service w8-svc is UP!"
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+      - name: multitool
+        image: wbitt/network-multitool:latest
+        env:
+        - name: HTTP_PORT
+          value: "1180"
+        ports:
+        - containerPort: 1180
+EOF
+```
+
+</details>
+
+---
+
 2. **Создать Service типа ClusterIP**, который:
    - Открывает `nginx` на порту `9001`.
    - Открывает `multitool` на порту `9002`.
+
+---
+<details>
+<summary>
+Yaml-манифест ClusterIP для deployment nginx-mtool-init
+</summary>
+
+```bash
+cat > svc_clip_nginx-mtool-init.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: w8-svc-clip
+  labels:
+    role: den-clip-nopo
+    app: nginx-clip-nopo
+    organization: netology-fops40
+    creator: denskv
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx-clip-nopo
+  ports:
+  - name: nginx
+    port: 9001
+    targetPort: 80
+    protocol: TCP
+  - name: multitool
+    port: 9002
+    targetPort: 1180
+    protocol: TCP
+EOF
+```
+
+</details>
+
+---
+
+![](./img/1.gif)
+---
+
 3. **Проверить доступность** изнутри кластера:
 ```bash
  kubectl run test-pod --image=wbitt/network-multitool --rm -it -- sh
  curl <service-name>:9001 # Проверить nginx
  curl <service-name>:9002 # Проверить multitool
 ```
+
+![](./img/2.gif)
+---
+
 4. **Создать Service типа NodePort** для доступа к `nginx` снаружи.
 
-![](./img/1.gif)
+---
+<details>
+<summary>
+Yaml-манифест NodePort для deployment nginx-mtool-init
+</summary>
+
+```bash
+cat > svc_nopo_nginx-mtool-init.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: w8-svc-nopo
+  labels:
+    role: den-clip-nopo
+    app: nginx-clip-nopo
+    organization: netology-fops40
+    creator: denskv
+spec:
+  type: NodePort
+  selector:
+    app: nginx-clip-nopo
+  ports:
+  - name: nginx
+    port: 80
+    targetPort: 80
+    nodePort: 30080
+    protocol: TCP
+EOF
+```
+
+</details>
+
 ---
 
 5. **Проверить доступ** с локального компьютера:
@@ -117,17 +255,16 @@ Kustomize Version: v5.8.1
    ```
  или через браузер.
 
+
+![](./img/3.gif)
+---
+
 ### **Что сдать на проверку**
 - Манифесты:
   - `deployment-multi-container.yaml`
   - `service-clusterip.yaml`
   - `service-nodeport.yaml`
 - Скриншоты проверки доступа (`curl` или браузер).
-
-![](./img/2.gif)
----
-![](./img/3.gif)
----
 
 ---
 ## **Задание 2: Настройка Ingress**

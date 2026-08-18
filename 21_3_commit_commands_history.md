@@ -528,10 +528,162 @@ study-fops39_sc \
 
 ## commit_3,`21_3-K8S-netw`
 
-
-
 ```bash
 kubectl delete -f depl_nginx-mtool-init.yaml \
 && kubectl delete -f svc_clip_nginx-mtool-init.yaml \
 && kubectl delete -f svc_nopo_nginx-mtool-init.yaml
 ```
+
+```log
+deployment.apps "nginx-mtool-init" deleted from default namespace
+service "w8-svc-clip" deleted from default namespace
+service "w8-svc-nopo" deleted from default namespace
+```
+
+
+### Скачивание и подготовка для внешнего доступа до приложения
+
+```bash
+git clone https://github.com/projectcontour/contour.git
+
+find . \
+-name ".git" \
+-exec rm -vrf {} \;
+
+kubectl apply \
+-f ./contour/examples/contour
+```
+
+<details>
+<summary>
+Вывод развертывания contour
+</summary>
+
+```log
+Клонирование в «contour»...
+remote: Enumerating objects: 57875, done.
+remote: Counting objects: 100% (1428/1428), done.
+remote: Compressing objects: 100% (671/671), done.
+remote: Total 57875 (delta 1176), reused 812 (delta 746), pack-reused 56447 (from 5)
+Получение объектов: 100% (57875/57875), 39.55 MiB | 10.49 MiB/s, готово.
+Определение изменений: 100% (43186/43186), готово.
+Updating files: 100% (2992/2992), готово.
+
+удалён './contour/.git/description'
+удалён './contour/.git/hooks/post-update.sample'
+удалён './contour/.git/hooks/pre-rebase.sample'
+удалён './contour/.git/hooks/pre-commit.sample'
+удалён './contour/.git/hooks/pre-receive.sample'
+удалён './contour/.git/hooks/commit-msg.sample'
+удалён './contour/.git/hooks/pre-push.sample'
+удалён './contour/.git/hooks/applypatch-msg.sample'
+удалён './contour/.git/hooks/pre-applypatch.sample'
+удалён './contour/.git/hooks/update.sample'
+удалён './contour/.git/hooks/fsmonitor-watchman.sample'
+удалён './contour/.git/hooks/push-to-checkout.sample'
+удалён './contour/.git/hooks/pre-merge-commit.sample'
+удалён './contour/.git/hooks/sendemail-validate.sample'
+удалён './contour/.git/hooks/prepare-commit-msg.sample'
+удалён каталог './contour/.git/hooks'
+удалён './contour/.git/info/exclude'
+удалён каталог './contour/.git/info'
+удалён './contour/.git/objects/pack/pack-38e2169f1d9ca8d3db9ca5e3e031db43b733f469.pack'
+удалён './contour/.git/objects/pack/pack-38e2169f1d9ca8d3db9ca5e3e031db43b733f469.rev'
+удалён './contour/.git/objects/pack/pack-38e2169f1d9ca8d3db9ca5e3e031db43b733f469.idx'
+удалён каталог './contour/.git/objects/pack'
+удалён каталог './contour/.git/objects/info'
+удалён каталог './contour/.git/objects'
+удалён './contour/.git/refs/heads/main'
+удалён каталог './contour/.git/refs/heads'
+удалён каталог './contour/.git/refs/tags'
+удалён './contour/.git/refs/remotes/origin/HEAD'
+удалён каталог './contour/.git/refs/remotes/origin'
+удалён каталог './contour/.git/refs/remotes'
+удалён каталог './contour/.git/refs'
+удалён './contour/.git/packed-refs'
+удалён './contour/.git/logs/refs/remotes/origin/HEAD'
+удалён каталог './contour/.git/logs/refs/remotes/origin'
+удалён каталог './contour/.git/logs/refs/remotes'
+удалён './contour/.git/logs/refs/heads/main'
+удалён каталог './contour/.git/logs/refs/heads'
+удалён каталог './contour/.git/logs/refs'
+удалён './contour/.git/logs/HEAD'
+удалён каталог './contour/.git/logs'
+удалён './contour/.git/HEAD'
+удалён './contour/.git/config'
+удалён './contour/.git/index'
+удалён каталог './contour/.git'
+find: «./contour/.git»: Нет такого файла или каталога
+
+namespace/projectcontour created
+serviceaccount/contour created
+serviceaccount/envoy created
+configmap/contour created
+customresourcedefinition.apiextensions.k8s.io/contourconfigurations.projectcontour.io created
+customresourcedefinition.apiextensions.k8s.io/contourdeployments.projectcontour.io created
+customresourcedefinition.apiextensions.k8s.io/extensionservices.projectcontour.io created
+customresourcedefinition.apiextensions.k8s.io/httpproxies.projectcontour.io created
+customresourcedefinition.apiextensions.k8s.io/tlscertificatedelegations.projectcontour.io created
+serviceaccount/contour-certgen created
+rolebinding.rbac.authorization.k8s.io/contour created
+role.rbac.authorization.k8s.io/contour-certgen created
+job.batch/contour-certgen-main created
+clusterrolebinding.rbac.authorization.k8s.io/contour created
+rolebinding.rbac.authorization.k8s.io/contour-rolebinding created
+clusterrole.rbac.authorization.k8s.io/contour created
+role.rbac.authorization.k8s.io/contour created
+service/contour created
+service/envoy created
+deployment.apps/contour created
+daemonset.apps/envoy created
+```
+
+</details>
+
+### проверка подов в namespace projectcontour
+
+```bash
+kubectl get pods -n projectcontour -o wide
+```
+
+<details>
+<summary>
+Проверка созданных ресурсов
+</summary>
+
+```log
+NAME                       READY   STATUS    RESTARTS   AGE   IP           NODE                        NOMINATED NODE   READINESS GATES
+contour-5595b97775-n88js   1/1     Running   0          87s   10.244.2.4   skv-21-2-k8s-depl-worker2   <none>           <none>
+contour-5595b97775-psd4d   1/1     Running   0          87s   10.244.1.4   skv-21-2-k8s-depl-worker    <none>           <none>
+envoy-mb6vz                2/2     Running   0          87s   10.244.1.5   skv-21-2-k8s-depl-worker    <none>           <none>
+envoy-zpxfp                2/2     Running   0          87s   10.244.2.5   skv-21-2-k8s-depl-worker2   <none>           <none>
+```
+
+</details>
+
+### добавление записи в /etc/hosts и проверка
+
+```bash
+echo "127.0.0.1  my-service.local" \
+| sudo tee -a /etc/hosts
+
+cat /etc/hosts
+```
+
+<details>
+<summary>
+Проверка resolving имен на хосnt сервера kubernetes
+</summary>
+
+```log
+# Static table lookup for hostnames.
+# See hosts(5) for details.
+127.0.0.1        localhost
+::1              localhost
+172.16.100.2     altwks1
+127.0.0.1   my-service.local
+```
+
+</details>
+
+### Создание ingress ресурса
