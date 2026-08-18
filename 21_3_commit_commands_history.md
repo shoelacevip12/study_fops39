@@ -857,7 +857,7 @@ spec:
   - host: fops.local
     http:
       paths:
-      - path: /api(/|$)(.*)
+      - path: /api
         pathType: Prefix
         backend:
           service:
@@ -865,7 +865,7 @@ spec:
             port:
               number: 8080
       - path: /
-        pathType: Prefix
+        pathType: Exact
         backend:
           service:
             name: svc-front
@@ -1145,4 +1145,57 @@ kubectl delete -f depl-front.yaml \
 && kubectl delete -f svc-back.yaml \
 && kubectl delete -f svc-front.yaml \
 && kubectl delete -f svc_ingress.yaml
+```
+
+```bash
+cd ..
+
+git checkout master
+
+git branch -v
+
+git merge 21_3-K8S-netw
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git commit -am 'commit_77, master' \
+&& git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master --force
 ```
