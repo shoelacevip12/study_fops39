@@ -13,6 +13,6 @@ spec:
     app: app-back
   ports:
   - name: http
-    port: 1180
-    targetPort: 1180
+    port: 8080
+    targetPort: 8080
     protocol: TCP

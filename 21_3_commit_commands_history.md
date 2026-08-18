@@ -791,9 +791,9 @@ spec:
         image: wbitt/network-multitool:latest
         env:
         - name: HTTP_PORT
-          value: "1180"
+          value: "8080"
         ports:
-        - containerPort: 1180
+        - containerPort: 8080
 EOF
 ```
 
@@ -823,14 +823,13 @@ spec:
     app: app-back
   ports:
   - name: http
-    port: 1180
-    targetPort: 1180
+    port: 8080
+    targetPort: 8080
     protocol: TCP
 EOF
 ```
 
 </details>
-
 
 ### Создание ingress ресурса
 
@@ -842,7 +841,6 @@ Yaml-манифест ingress сервиса для deployment depl-front и dep
 ```bash
 cat > svc_ingress.yaml <<'EOF'
 apiVersion: networking.k8s.io/v1
-apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: fops-ingress
@@ -851,7 +849,10 @@ metadata:
     app: ingress-svc-front-back
     organization: netology-fops40
     creator: denskv
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
+  ingressClassName: contour
   rules:
   - host: fops.local
     http:
@@ -862,8 +863,8 @@ spec:
           service:
             name: svc-back
             port:
-              number: 1180
-      - path: /()(.*)  
+              number: 8080
+      - path: /
         pathType: Prefix
         backend:
           service:
@@ -906,7 +907,7 @@ cat /etc/hosts
 
 
 ```bash
-gping fops.local
+ping -c 2 fops.local
 ```
 
 <details>
@@ -926,6 +927,193 @@ rtt min/avg/max/mdev = 0.042/0.047/0.053/0.005 ms                               
 
 </details>
 
+
+```bash
+# Применение манифестов deployment и сервисов, просмотр подов
+kubectl apply -f depl-front.yaml \
+&& kubectl apply -f depl-back.yaml \
+&& kubectl apply -f svc-back.yaml \
+&& kubectl apply -f svc-front.yaml \
+&& kubectl apply -f svc_ingress.yaml \
+&& kubectl get po -L creator=denskv -w
+```
+
+<details>
+<summary>
+применение манифестов и просмотр подов
+</summary>
+
+```log
+deployment.apps/depl-front created
+deployment.apps/depl-back created
+service/svc-back created
+service/svc-front created
+ingress.networking.k8s.io/fops-ingress created
+NAME                          READY   STATUS     RESTARTS   AGE   CREATOR=DENSKV
+depl-back-5b8b6b5fc4-49rxz    0/1     Init:0/1   0          0s    
+depl-back-5b8b6b5fc4-hkw67    0/1     Init:0/1   0          0s    
+depl-front-744b56968d-qr9m2   0/1     Init:0/1   0          1s    
+depl-front-744b56968d-qst6r   0/1     Init:0/1   0          1s    
+depl-front-744b56968d-qst6r   0/1     Init:0/1   0          2s    
+depl-front-744b56968d-qr9m2   0/1     Init:0/1   0          2s    
+depl-front-744b56968d-qr9m2   0/1     PodInitializing   0          3s    
+depl-front-744b56968d-qst6r   0/1     PodInitializing   0          3s    
+depl-back-5b8b6b5fc4-hkw67    0/1     Init:0/1          0          2s    
+depl-back-5b8b6b5fc4-49rxz    0/1     Init:0/1          0          2s    
+depl-front-744b56968d-qst6r   1/1     Running           0          4s    
+depl-back-5b8b6b5fc4-hkw67    0/1     PodInitializing   0          3s    
+depl-back-5b8b6b5fc4-49rxz    0/1     PodInitializing   0          3s    
+depl-back-5b8b6b5fc4-49rxz    1/1     Running           0          4s    
+depl-front-744b56968d-qr9m2   1/1     Running           0          5s    
+depl-back-5b8b6b5fc4-hkw67    1/1     Running           0          5s 
+```
+
+</details>
+
+
+```bash
+# Мониторинг подов и сервисов deployment
+watch -cn 1 \
+"kubectl get pods -L creator=denskv \
+&& echo ---------==================-------- \
+&& kubectl get svc -l creator=denskv \
+&& echo ---------==================-------- \
+&& kubectl get ing -l creator=denskv \
+&& echo ---------==================-------- \
+&& ping -c 1 fops.local | head -n2"
+
+```
+
+<details>
+<summary>
+мониторинг подов и сервисов
+</summary>
+
+```log
+NAME                          READY   STATUS    RESTARTS   AGE   CREATOR=DEN
+SKV
+depl-back-5b8b6b5fc4-49rxz    1/1     Running   0          85s
+depl-back-5b8b6b5fc4-hkw67    1/1     Running   0          85s
+depl-front-744b56968d-qr9m2   1/1     Running   0          86s
+depl-front-744b56968d-qst6r   1/1     Running   0          86s
+---------==================--------
+NAME        TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+svc-back    ClusterIP   10.96.243.75   <none>        8080/TCP   85s
+svc-front   ClusterIP   10.96.198.80   <none>        80/TCP     85s
+---------==================--------
+NAME           CLASS     HOSTS        ADDRESS   PORTS   AGE
+fops-ingress   contour   fops.local             80      86s
+---------==================--------
+PING fops.local (172.18.0.4) 56(84) bytes of data.
+64 bytes from fops.local (172.18.0.4): icmp_seq=1 ttl=64 time=0.050 ms
+```
+
+</details>
+
+```bash
+# Проверка статуса rollout deployment
+kubectl rollout status deployment \
+-l creator=denskv -w
+```
+
+<details>
+<summary>
+проверка статуса rollout deployment
+</summary>
+
+```log
+Waiting for deployment "depl-back" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "depl-back" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "depl-back" rollout to finish: 0 of 2 updated replicas are available...
+deployment "depl-back" successfully rolled out
+deployment "depl-front" successfully rolled out
+```
+
+</details>
+
+
+```bash
+# Обновление команды просмотра логов из backend и frontend deployment
+watch -c -n1 \
+"echo ----------======BACK========------------------- \
+&& kubectl logs deployments/depl-back | tail -n5 \
+&& echo ----------====FRONTEND======-------------------  \
+&& kubectl logs deployments/depl-front | tail -n5"
+```
+
+<details>
+<summary>
+проверка Проверка логов deployment
+</summary>
+
+```log
+----------======BACK========-------------------
+Found 2 pods, using pod/depl-back-5b8b6b5fc4-9nwt8
+Defaulted container "multitool" out of: multitool, w8-4-svc-back (init)
+10.244.1.3 - - [18/Aug/2026:20:14:33 +0000] "GET /api HTTP/1.1" 404 153 "-" "curl/8.21.0" "172.18.0.
+1"
+2026/08/18 20:14:35 [error] 24#24: *4 open() "/usr/share/nginx/html/api" failed (2: No such file or
+directory), client: 10.244.1.3, server: localhost, request: "GET /api HTTP/1.1", host: "fops.local"
+10.244.1.3 - - [18/Aug/2026:20:14:35 +0000] "GET /api HTTP/1.1" 404 153 "-" "curl/8.21.0" "172.18.0.
+1"
+10.244.1.3 - - [18/Aug/2026:20:14:37 +0000] "GET /api HTTP/1.1" 404 153 "-" "curl/8.21.0" "172.18.0.
+1"
+2026/08/18 20:14:37 [error] 24#24: *18 open() "/usr/share/nginx/html/api" failed (2: No such file or
+ directory), client: 10.244.1.3, server: localhost, request: "GET /api HTTP/1.1", host: "fops.local"
+----------====FRONTEND======-------------------
+Found 2 pods, using pod/depl-front-744b56968d-6zcdf
+Defaulted container "nginx" out of: nginx, w8-4-svc-front (init)
+10.244.1.3 - - [18/Aug/2026:20:14:26 +0000] "GET / HTTP/1.1" 200 896 "-" "curl/8.21.0" "172.18.0.1"
+10.244.1.3 - - [18/Aug/2026:20:14:30 +0000] "GET / HTTP/1.1" 200 896 "-" "curl/8.21.0" "172.18.0.1"
+10.244.1.3 - - [18/Aug/2026:20:14:31 +0000] "GET / HTTP/1.1" 200 896 "-" "curl/8.21.0" "172.18.0.1"
+10.244.1.3 - - [18/Aug/2026:20:14:34 +0000] "GET / HTTP/1.1" 200 896 "-" "curl/8.21.0" "172.18.0.1"
+10.244.1.3 - - [18/Aug/2026:20:14:36 +0000] "GET / HTTP/1.1" 200 896 "-" "curl/8.21.0" "172.18.0.1"
+```
+
+</details>
+
+```bash
+# Скрипт опроса сервисов
+while true; do \
+echo "||||BACKEND||||" \
+&& curl -s http://fops.local/api \
+&& sleep 1 \
+&& echo "||||FRONTEND||||" \
+&& curl -s http://fops.local/ \
+| head -n12; \
+done
+```
+
+<details>
+<summary>
+вывод скрипта опроса сервисов
+</summary>
+
+```log
+||||BACKEND||||
+<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx/1.28.0</center>
+</body>
+</html>
+||||FRONTEND||||
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+```
+
+</details>
 
 ```bash
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
@@ -949,3 +1137,12 @@ study-fops39_sc \
 ```
 
 ## commit_77, master
+
+```bash
+# Удаление манифестов deployment и сервисов, просмотр подов
+kubectl delete -f depl-front.yaml \
+&& kubectl delete -f depl-back.yaml \
+&& kubectl delete -f svc-back.yaml \
+&& kubectl delete -f svc-front.yaml \
+&& kubectl delete -f svc_ingress.yaml
+```

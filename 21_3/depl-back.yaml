@@ -37,6 +37,6 @@ spec:
         image: wbitt/network-multitool:latest
         env:
         - name: HTTP_PORT
-          value: "1180"
+          value: "8080"
         ports:
-        - containerPort: 1180
+        - containerPort: 8080
