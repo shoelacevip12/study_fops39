@@ -504,7 +504,6 @@ test-pod                            0/1     Completed           1 (3s ago)   4s 
 
 </details>
 
-
 ```bash
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
 git add . .. \
@@ -540,8 +539,7 @@ service "w8-svc-clip" deleted from default namespace
 service "w8-svc-nopo" deleted from default namespace
 ```
 
-
-### Скачивание и подготовка для внешнего доступа до приложения
+### Скачивание манифеста ingress контроллера
 
 ```bash
 git clone https://github.com/projectcontour/contour.git
@@ -640,9 +638,8 @@ daemonset.apps/envoy created
 
 </details>
 
-### проверка подов в namespace projectcontour
-
 ```bash
+# проверка подов в namespace projectcontour
 kubectl get pods -n projectcontour -o wide
 ```
 
@@ -661,10 +658,228 @@ envoy-zpxfp                2/2     Running   0          87s   10.244.2.5   skv-2
 
 </details>
 
-### добавление записи в /etc/hosts и проверка
+### `Yaml`-манифест deployment depl-front
+
+<details>
+<summary>
+Yaml-манифест deployment depl-front
+</summary>
 
 ```bash
-echo "127.0.0.1  my-service.local" \
+cat > depl-front.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: depl-front
+  labels:
+    role: den-ingress
+    app: front-app
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 2
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: app-front
+  template:
+    metadata:
+      labels:
+        app: app-front
+    spec:
+      initContainers:
+      - name: w8-4-svc-front
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup svc-front.default.svc.cluster.local; do
+              echo "Waiting for Service svc-front..."
+              sleep 2
+            done
+            echo "Service svc-front is UP!"
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+EOF
+```
+
+</details>
+
+### `Yaml`-манифест frontend сервиса для deployment depl-front
+
+<details>
+<summary>
+Yaml-манифест frontend сервиса для deployment depl-front
+</summary>
+
+```bash
+cat > svc-front.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-front
+  labels:
+    role: den-ingress
+    app: front-app
+    organization: netology-fops40
+    creator: denskv
+spec:
+  type: ClusterIP
+  selector:
+    app: app-front
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+EOF
+```
+
+</details>
+
+### `Yaml`-манифест deployment depl-back
+
+<details>
+<summary>
+Yaml-манифест deployment depl-back
+</summary>
+
+```bash
+cat > depl-back.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: depl-back
+  labels:
+    role: den-ingress
+    app: back-app
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 2
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: app-back
+  template:
+    metadata:
+      labels:
+        app: app-back
+    spec:
+      initContainers:
+      - name: w8-4-svc-back
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup svc-back.default.svc.cluster.local; do
+              echo "Waiting for Service svc-back..."
+              sleep 2
+            done
+            echo "Service svc-back is UP!"
+      containers:
+      - name: multitool
+        image: wbitt/network-multitool:latest
+        env:
+        - name: HTTP_PORT
+          value: "1180"
+        ports:
+        - containerPort: 1180
+EOF
+```
+
+</details>
+
+### `Yaml`-манифест backend сервиса для deployment depl-back
+
+<details>
+<summary>
+Yaml-манифест backend сервиса для deployment depl-back
+</summary>
+
+```bash
+cat > svc-back.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-back
+  labels:
+    role: den-ingress
+    app: back-app
+    organization: netology-fops40
+    creator: denskv
+spec:
+  type: ClusterIP
+  selector:
+    app: app-back
+  ports:
+  - name: http
+    port: 1180
+    targetPort: 1180
+    protocol: TCP
+EOF
+```
+
+</details>
+
+
+### Создание ingress ресурса
+
+<details>
+<summary>
+Yaml-манифест ingress сервиса для deployment depl-front и depl-back
+</summary>
+
+```bash
+cat > svc_ingress.yaml <<'EOF'
+apiVersion: networking.k8s.io/v1
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fops-ingress
+  labels:
+    role: den-ingress
+    app: ingress-svc-front-back
+    organization: netology-fops40
+    creator: denskv
+spec:
+  rules:
+  - host: fops.local
+    http:
+      paths:
+      - path: /api(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: svc-back
+            port:
+              number: 1180
+      - path: /()(.*)  
+        pathType: Prefix
+        backend:
+          service:
+            name: svc-front
+            port:
+              number: 80
+EOF
+```
+
+</details>
+
+
+
+```bash
+# добавление записи в /etc/hosts и проверка backend и frontend сервисов
+echo "172.18.0.4 fops.local" \
 | sudo tee -a /etc/hosts
 
 cat /etc/hosts
@@ -672,18 +887,65 @@ cat /etc/hosts
 
 <details>
 <summary>
-Проверка resolving имен на хосnt сервера kubernetes
+Проверка resolving имен на хосте сервера kubernetes
 </summary>
 
 ```log
+172.18.0.4 fops.local
+
+# Static table lookup for hostnames.
+# See hosts(5) for details.
 # Static table lookup for hostnames.
 # See hosts(5) for details.
 127.0.0.1        localhost
 ::1              localhost
-172.16.100.2     altwks1
-127.0.0.1   my-service.local
+172.18.0.4 fops.local
 ```
 
 </details>
 
-### Создание ingress ресурса
+
+```bash
+gping fops.local
+```
+
+<details>
+<summary>
+Проверка resolving имен на хосте сервера kubernetes
+</summary>
+
+```log
+PING fops.local (172.18.0.4) 56(84) bytes of data.
+64 bytes from fops.local (172.18.0.4): icmp_seq=1 ttl=64 time=0.042 ms
+64 bytes from fops.local (172.18.0.4): icmp_seq=2 ttl=64 time=0.053 ms
+
+--- fops.local ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1059ms
+rtt min/avg/max/mdev = 0.042/0.047/0.053/0.005 ms                                                                                            15:53:34
+```
+
+</details>
+
+
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit3, 21_3-K8S-netw' \
+&& git push \
+--set-upstream \
+study_fops39 \
+21_3-K8S-netw \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+21_3-K8S-netw \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+21_3-K8S-netw
+```
+
+## commit_77, master

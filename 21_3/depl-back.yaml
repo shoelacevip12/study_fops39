@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: depl-back
+  labels:
+    role: den-ingress
+    app: back-app
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 2
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: app-back
+  template:
+    metadata:
+      labels:
+        app: app-back
+    spec:
+      initContainers:
+      - name: w8-4-svc-back
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup svc-back.default.svc.cluster.local; do
+              echo "Waiting for Service svc-back..."
+              sleep 2
+            done
+            echo "Service svc-back is UP!"
+      containers:
+      - name: multitool
+        image: wbitt/network-multitool:latest
+        env:
+        - name: HTTP_PORT
+          value: "1180"
+        ports:
+        - containerPort: 1180

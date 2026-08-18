@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-front
+  labels:
+    role: den-ingress
+    app: front-app
+    organization: netology-fops40
+    creator: denskv
+spec:
+  type: ClusterIP
+  selector:
+    app: app-front
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP

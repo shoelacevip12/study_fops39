@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: depl-front
+  labels:
+    role: den-ingress
+    app: front-app
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 2
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: app-front
+  template:
+    metadata:
+      labels:
+        app: app-front
+    spec:
+      initContainers:
+      - name: w8-4-svc-front
+        image: busybox:latest
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup svc-front.default.svc.cluster.local; do
+              echo "Waiting for Service svc-front..."
+              sleep 2
+            done
+            echo "Service svc-front is UP!"
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
