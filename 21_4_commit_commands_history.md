@@ -112,3 +112,56 @@ master
 
 ## commit_1, `21_4-K8S-stor`
 
+```bash
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Переключение\формирование новой ветки git
+git checkout -b 21_4-K8S-stor
+
+# Вывод всех веток
+git branch -v
+
+# Вывод списка удаленных репозиториев
+git remote -v
+
+# вывод текущего состояния репозитория
+git status
+
+# Просмотр истории коммитов в кратком формате
+git log --oneline
+
+# Добавляем ключи агенту ssh от репозитория gitflic и github
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_gitflic_2026_ed25519 \
+&& ssh-add ~/.ssh/id_github_2026_ed25519 \
+&& ssh-agent -c
+
+# Просмотр различий в рабочей директории и индексов
+git diff \
+&& git diff --staged
+
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit1, 21_4-K8S-stor' \
+&& git push \
+--set-upstream \
+study_fops39 \
+21_4-K8S-stor \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+21_4-K8S-stor \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+21_4-K8S-stor
+```
+
+## commit_2,`21_4-K8S-stor`
