@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox-init
+  labels:
+    role: den-store-exch
+    app: busybox-store-exch
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 1
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: busybox-store-exch
+  template:
+    metadata:
+      labels:
+        app: busybox-store-exch
+    spec:
+      containers:
+      - name: gen-data
+        image: busybox:latest
+        volumeMounts:
+        - name: exch-vol
+          mountPath: /exch-to
+        command:
+          - sh
+          - -c
+          - |
+            while true; do
+              for c in 1 2 3; do
+              echo "$(date "+%b_%a_%d_%H:%M:%S")" | tee /exch-to/exch-data
+              echo "Записано в файл $(find /exch-to -name exch-data)"
+              sleep $c
+              echo "$(date "+%b_%a_%d_%H:%M:%S")" | tee -a /exch-to/exch-data
+              echo "Записано в файл $(find /exch-to -name exch-data)"
+              sleep $c
+              echo "$(date "+%b_%a_%d_%H:%M:%S")" | tee -a /exch-to/exch-data
+              echo "Записано в файл $(find /exch-to -name exch-data)"
+              sleep $c
+              done
+            done
+      - name: data-consumer
+        image: wbitt/network-multitool:latest
+        volumeMounts:
+        - name: exch-vol
+          mountPath: /exch-from
+        command:
+          - tail
+          - -f
+          - /exch-from/exch-data
+      volumes:
+      - name: exch-vol
+        emptyDir:
+          sizeLimit: 1Mi
+          medium: Memory

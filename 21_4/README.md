@@ -99,10 +99,131 @@ Kustomize Version: v5.8.1
 
 ### Что сдать на проверку
 - Манифесты:
-  - `containers-data-exchange.yaml`
+  - [containers-data-exchange.yaml](./depl_busybox-init.yaml)
 - Скриншоты:
   - описание пода с контейнерами (`kubectl describe pods data-exchange`)
+  
+<details>
+<summary>
+describe подов -l app=busybox-store-exch
+</summary>
+
+```log
+Name:             busybox-init-5896676458-2vzw2
+Namespace:        default
+Priority:         0
+Service Account:  default
+Node:             skv-21-2-k8s-depl-worker2/172.18.0.3
+Start Time:       Thu, 20 Aug 2026 15:52:39 +0300
+Labels:           app=busybox-store-exch
+                  pod-template-hash=5896676458
+Annotations:      <none>
+Status:           Running
+IP:               10.244.2.10
+IPs:
+  IP:           10.244.2.10
+Controlled By:  ReplicaSet/busybox-init-5896676458
+Containers:
+  gen-data:
+    Container ID:  containerd://334fbfab3756581a2648416e7c25a6596b705fdef810d6bee2434d06b3ffc30e
+    Image:         busybox:latest
+    Image ID:      docker.io/library/busybox@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      sh
+      -c
+      while true; do
+        for c in 1 2 3; do
+        echo "$(date "+%b_%a_%d_%H:%M:%S")" | tee /exch-to/exch-data
+        echo "Записано в файл $(find /exch-to -name exch-data)"
+        sleep $c
+        echo "$(date "+%b_%a_%d_%H:%M:%S")" | tee -a /exch-to/exch-data
+        echo "Записано в файл $(find /exch-to -name exch-data)"
+        sleep $c
+        echo "$(date "+%b_%a_%d_%H:%M:%S")" | tee -a /exch-to/exch-data
+        echo "Записано в файл $(find /exch-to -name exch-data)"
+        sleep $c
+        done
+      done
+      
+    State:          Running
+      Started:      Thu, 20 Aug 2026 15:52:41 +0300
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /exch-to from exch-vol (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-mz6wr (ro)
+  data-consumer:
+    Container ID:  containerd://1bff88eb071f6c3054c42d936e40ef8bd25e2c25b06025b63bf3573686ecfdf9
+    Image:         wbitt/network-multitool:latest
+    Image ID:      docker.io/wbitt/network-multitool@sha256:db2810fe2c8d36db074eab5d98fbf861c8ed55e0786d648d3477b3de9135632e
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      tail
+      -f
+      /exch-from/exch-data
+    State:          Running
+      Started:      Thu, 20 Aug 2026 15:52:42 +0300
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /exch-from from exch-vol (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-mz6wr (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  exch-vol:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     Memory
+    SizeLimit:  1Mi
+  kube-api-access-mz6wr:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                            node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  11m   default-scheduler  Successfully assigned default/busybox-init-5896676458-2vzw2 to skv-21-2-k8s-depl-worker2
+  Normal  Pulling    11m   kubelet            spec.containers{gen-data}: Pulling image "busybox:latest"
+  Normal  Pulled     11m   kubelet            spec.containers{gen-data}: Successfully pulled image "busybox:latest" in 1.248s (1.248s including waiting). Image size: 2236931 bytes.
+  Normal  Created    11m   kubelet            spec.containers{gen-data}: Container created
+  Normal  Started    11m   kubelet            spec.containers{gen-data}: Container started
+  Normal  Pulling    11m   kubelet            spec.containers{data-consumer}: Pulling image "wbitt/network-multitool:latest"
+  Normal  Pulled     11m   kubelet            spec.containers{data-consumer}: Successfully pulled image "wbitt/network-multitool:latest" in 1.078s (1.078s including waiting). Image size: 96718848 bytes.
+  Normal  Created    11m   kubelet            spec.containers{data-consumer}: Container created
+  Normal  Started    11m   kubelet            spec.containers{data-consumer}: Container started
+```
+
+</details>
+
+<details>
+<summary>
+Скрин Вывода
+</summary>
+
+![](./img/2.png)
+![](./img/2.1.png)
+
+</details>
+
   - вывод команды чтения файла (`tail -f <имя общего файла>`)
+
+![](./img/1.gif)
 
 ------
 
