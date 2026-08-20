@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-node-store
+  labels:
+    role: den-store-exch
+    type: hostpath
+    organization: netology-fops40
+    creator: denskv
+spec:
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain  # Политика сохранения PV после удаления PVC
+  storageClassName: ""
+  hostPath:
+    path:  /mnt/data/pv-node-store
+    type: DirectoryOrCreate
