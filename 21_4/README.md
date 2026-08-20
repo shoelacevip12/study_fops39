@@ -307,9 +307,33 @@ spec:
 ### Что сдать на проверку
 
 - Манифесты:
-  - `sc.yaml`
+  - [sc.yaml](./sc_node.yaml)
+  - [pvc-sc.yaml](./pvc-sc_node.yaml)
+  
+```bash
+# Вывод доступных PROVISIONER в класторе
+kubectl get storageclass standard \
+|| kubectl describe sc standard | grep -i provisioner:
+```
+
+```log
+NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+standard (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  5d3h
+#или
+Provisioner:           rancher.io/local-path
+```
+
+```yaml
+...
+provisioner: "rancher.io/local-path"    # стандартный Provisioner для KIND (Kubernetes IN Docker)
+volumeBindingMode: WaitForFirstConsumer # отложить выбор ноды до момента создания пода
+...
+```
+
 - Скриншоты:
   - каждый шаг выполнения задания, начиная с шага 2
+
+![](./img/4.gif)
 
 ---
 
