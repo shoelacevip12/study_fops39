@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sc-node-hostpath
+  labels:
+    role: den-store-exch
+    type: hostpath
+    organization: netology-fops40
+    creator: denskv
+provisioner: "rancher.io/local-path"
+volumeBindingMode: WaitForFirstConsumer # отложить выбор ноды до момента создания пода
+reclaimPolicy: Retain
