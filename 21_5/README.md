@@ -120,9 +120,13 @@ OpenSSL 3.6.3 9 Jun 2026 (Library: OpenSSL 3.6.3 9 Jun 2026)
 ### **Что сдать на проверку**
 
 - Манифесты:
-  - `deployment.yaml`
-  - `configmap-web.yaml`
+  - [deployment.yaml](./depl_svc_clip_nopo_nginx-mtool-init.yaml)
+  - [configmap-web.yaml](./cm_nginx-html.yaml)
 - Скриншот вывода `curl` или браузера
+
+> Из-за того что в каталоге `/usr/share/nginx/html/` контейнера nginx располагался еще 1 `.html` файл и чтобы избежать затирание этого файла, в `volumeMounts` применялась `mountPath` с полным путем до конечного файл из `configMaps` и доп параметром `subPath`. Ввиду этого для применения любых изменений примонтированных `configMaps` необходим перезапуск подов
+
+![](./img/1.gif)
 
 ---
 

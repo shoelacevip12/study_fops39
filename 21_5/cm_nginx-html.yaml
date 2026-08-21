@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-html-file
+  labels:
+    role: den-clip-nopo
+    app: nginx-clip-nopo
+    organization: netology-fops40
+    creator: denskv
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Страница из volumeMounts</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .joke { background-color: #f0f0f0; padding: 15px; border-radius: 8px; margin-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <h1>Привет из ПОДА Kubernetes!</h1>
+      <p>Эта страница подгружена из ConfigMap в volumeMounts.</p>
+      
+      <div class="joke">
+        <h3>Из окружения DevOps:</h3>
+        <p>- Почему разработчик не стал чинить прод?<br>
+        - Потому что в локальной среде всё работало!</p>
+      </div>
+    </body>
+    </html>
