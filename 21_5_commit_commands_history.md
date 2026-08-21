@@ -1338,18 +1338,6 @@ echo
 kubectl run test --image=nginx:denskv
 ```
 
-<details>
-<summary>
-Лог тестов до смены контекста на нового пользователя developer
-</summary>
-
-```log
-
-```
-
-</details>
-
-
 ```bash
 # Тесты после смены контекста на нового пользователя developer
 kubectl config use-context developer-context
@@ -1367,16 +1355,7 @@ echo
 kubectl run test --image=nginx:denskv
 ```
 
-<details>
-<summary>
-Лог тестов после смены контекста на нового пользователя developer
-</summary>
-
-```log
-
-```
-
-</details>
+![](./21_5/img/3.gif)
 
 ```bash
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
@@ -1399,4 +1378,54 @@ study-fops39_sc \
 21_5-K8S-conf-app
 ```
 
-## commit_81, maaster
+## commit_81, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge 21_5-K8S-conf-app
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master --force
+```
