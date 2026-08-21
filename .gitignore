@@ -17,9 +17,12 @@ tmp/
 antrea/
 k8sprototypes/
 contour/
+ingress-nginx/
 
 # игнорировать расширения и файлы:
 *.deb
+*.crt
+*.key
 authorized_key.json
 .terraform.lock.hcl
 tfplan

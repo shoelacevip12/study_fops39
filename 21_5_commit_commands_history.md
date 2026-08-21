@@ -440,12 +440,10 @@ data:
       </div>
     </body>
     </html>
-
 EOF
 ```
 
 </details>
-
 
 ```bash
 # Просмотр IP-адресов нод и подов кластера
@@ -590,3 +588,487 @@ study-fops39_sc \
 ```
 
 ## commit_3,`21_5-K8S-conf-app`
+
+### Формирование Secret для k8s
+
+```bash
+# Генерация самоподписного сертификата и создание Secret:
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+-keyout tls.key \
+-out tls.crt \
+-subj "/CN=myapp.den.skv/O=netology-fops40/CN=denskv"
+```
+
+<details>
+<summary>
+Лог создания сертификата
+</summary>
+
+```log
+.....+.......+..+.+++++++++++++++++++++++++++++++++++++++*.+.............+++++++++++++++++++++++++++++++++++++++*......+...+.......+........+...+..........+..+...+......+...............+...................+......+......+.........+......+.....+....+.....+.++++++
+.........+...+........+.+......+.....+++++++++++++++++++++++++++++++++++++++*......+....+..+.+++++++++++++++++++++++++++++++++++++++*.......+..+.+..+...+...+.+......+...+..............+...++++++
+-----
+```
+
+</details>
+
+```bash
+# Экспорт сертификата в переменные окружения для применения в манифестах
+export TLS_CRT=$(cat tls.crt | base64 -w 0)
+export TLS_KEY=$(cat tls.key | base64 -w 0)
+```
+
+
+### `Yaml`-манифест секретов tls на основе переменных окружения
+
+<details>
+<summary>
+Yaml-манифест секретов tls на основе переменных окружения
+</summary>
+
+```bash
+## Применять только после exports
+cat > secr_tls.yaml <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: myapp-tls-secret
+  labels:
+    role: den-clip-nopo
+    app: nginx-clip-nopo
+    organization: netology-fops40
+    creator: denskv
+type: kubernetes.io/tls
+data:
+  tls.crt: ${TLS_CRT}
+  tls.key: ${TLS_KEY}
+EOF
+```
+
+</details>
+
+### Переустановка Ingress контроллера
+
+```bash
+# Удаление Ingress контроллера contour
+kubectl delete \
+-f ../21_3/contour/examples/contour
+```
+
+<details>
+<summary>
+лог удаления Ingress контроллера
+</summary>
+
+```log
+namespace "projectcontour" deleted
+serviceaccount "contour" deleted from projectcontour namespace
+serviceaccount "envoy" deleted from projectcontour namespace
+configmap "contour" deleted from projectcontour namespace
+customresourcedefinition.apiextensions.k8s.io "contourconfigurations.projectcontour.io" deleted
+customresourcedefinition.apiextensions.k8s.io "contourdeployments.projectcontour.io" deleted
+customresourcedefinition.apiextensions.k8s.io "extensionservices.projectcontour.io" deleted
+customresourcedefinition.apiextensions.k8s.io "httpproxies.projectcontour.io" deleted
+customresourcedefinition.apiextensions.k8s.io "tlscertificatedelegations.projectcontour.io" deleted
+serviceaccount "contour-certgen" deleted from projectcontour namespace
+rolebinding.rbac.authorization.k8s.io "contour" deleted from projectcontour namespace
+role.rbac.authorization.k8s.io "contour-certgen" deleted from projectcontour namespace
+clusterrolebinding.rbac.authorization.k8s.io "contour" deleted
+rolebinding.rbac.authorization.k8s.io "contour-rolebinding" deleted from projectcontour namespace
+clusterrole.rbac.authorization.k8s.io "contour" deleted
+role.rbac.authorization.k8s.io "contour" deleted from projectcontour namespace
+service "contour" deleted from projectcontour namespace
+service "envoy" deleted from projectcontour namespace
+deployment.apps "contour" deleted from projectcontour namespace
+daemonset.apps "envoy" deleted from projectcontour namespace
+Error from server (NotFound): error when deleting "../21_3/contour/examples/contour/02-job-certgen.yaml": jobs.batch "contour-certgen-main" not found
+```
+
+</details>
+
+#### Скачивание манифеста ingress контроллера nginx
+
+```bash
+git clone https://github.com/kubernetes/ingress-nginx.git
+
+find . \
+-name ".git" \
+-exec rm -vrf {} \;
+
+kubectl apply \
+-f ingress-nginx/deploy/static/provider/kind/deploy.yaml
+```
+
+<details>
+<summary>
+Вывод развертывания nginx ingress контроллера
+</summary>
+
+```log
+Клонирование в «ingress-nginx»...
+remote: Enumerating objects: 140569, done.
+remote: Total 140569 (delta 0), reused 0 (delta 0), pack-reused 140569 (from 1)
+Получение объектов: 100% (140569/140569), 137.23 MiB | 1.06 MiB/s, готово.
+Определение изменений: 100% (82574/82574), готово.
+Updating files: 100% (1150/1150), готово.
+
+удалён './ingress-nginx/.git/description'
+удалён './ingress-nginx/.git/hooks/post-update.sample'
+удалён './ingress-nginx/.git/hooks/pre-rebase.sample'
+удалён './ingress-nginx/.git/hooks/pre-commit.sample'
+удалён './ingress-nginx/.git/hooks/pre-receive.sample'
+удалён './ingress-nginx/.git/hooks/commit-msg.sample'
+удалён './ingress-nginx/.git/hooks/pre-push.sample'
+удалён './ingress-nginx/.git/hooks/applypatch-msg.sample'
+удалён './ingress-nginx/.git/hooks/pre-applypatch.sample'
+удалён './ingress-nginx/.git/hooks/update.sample'
+удалён './ingress-nginx/.git/hooks/fsmonitor-watchman.sample'
+удалён './ingress-nginx/.git/hooks/push-to-checkout.sample'
+удалён './ingress-nginx/.git/hooks/pre-merge-commit.sample'
+удалён './ingress-nginx/.git/hooks/sendemail-validate.sample'
+удалён './ingress-nginx/.git/hooks/prepare-commit-msg.sample'
+удалён каталог './ingress-nginx/.git/hooks'
+удалён './ingress-nginx/.git/info/exclude'
+удалён каталог './ingress-nginx/.git/info'
+удалён './ingress-nginx/.git/objects/pack/pack-814d23fdac2a3637ed66266b4efe5bbb58547712.pack'
+удалён './ingress-nginx/.git/objects/pack/pack-814d23fdac2a3637ed66266b4efe5bbb58547712.rev'
+удалён './ingress-nginx/.git/objects/pack/pack-814d23fdac2a3637ed66266b4efe5bbb58547712.idx'
+удалён каталог './ingress-nginx/.git/objects/pack'
+удалён каталог './ingress-nginx/.git/objects/info'
+удалён каталог './ingress-nginx/.git/objects'
+удалён './ingress-nginx/.git/refs/heads/main'
+удалён каталог './ingress-nginx/.git/refs/heads'
+удалён каталог './ingress-nginx/.git/refs/tags'
+удалён './ingress-nginx/.git/refs/remotes/origin/HEAD'
+удалён каталог './ingress-nginx/.git/refs/remotes/origin'
+удалён каталог './ingress-nginx/.git/refs/remotes'
+удалён каталог './ingress-nginx/.git/refs'
+удалён './ingress-nginx/.git/packed-refs'
+удалён './ingress-nginx/.git/logs/refs/remotes/origin/HEAD'
+удалён каталог './ingress-nginx/.git/logs/refs/remotes/origin'
+удалён каталог './ingress-nginx/.git/logs/refs/remotes'
+удалён './ingress-nginx/.git/logs/refs/heads/main'
+удалён каталог './ingress-nginx/.git/logs/refs/heads'
+удалён каталог './ingress-nginx/.git/logs/refs'
+удалён './ingress-nginx/.git/logs/HEAD'
+удалён каталог './ingress-nginx/.git/logs'
+удалён './ingress-nginx/.git/HEAD'
+удалён './ingress-nginx/.git/config'
+удалён './ingress-nginx/.git/index'
+удалён каталог './ingress-nginx/.git'
+find: «./ingress-nginx/.git»: Нет такого файла или каталога
+
+namespace/ingress-nginx created
+serviceaccount/ingress-nginx created
+serviceaccount/ingress-nginx-admission created
+role.rbac.authorization.k8s.io/ingress-nginx created
+role.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx-admission created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+configmap/ingress-nginx-controller created
+service/ingress-nginx-controller created
+service/ingress-nginx-controller-admission created
+deployment.apps/ingress-nginx-controller created
+job.batch/ingress-nginx-admission-create created
+job.batch/ingress-nginx-admission-patch created
+ingressclass.networking.k8s.io/nginx created
+validatingwebhookconfiguration.admissionregistration.k8s.io/ingress-nginx-admission created
+```
+
+</details>
+
+### `Yaml`-манифест deployment с ingress на tls
+
+<details>
+<summary>
+Yaml-манифест deployment с ingress на tls
+</summary>
+
+```bash
+cat > depl_svc_clip_ingress_nginx-mtool-init.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: w8-svc-clip
+  labels:
+    role: den-clip-nopo
+    app: nginx-clip-ingr
+    organization: netology-fops40
+    creator: denskv
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx-clip-ingr
+  ports:
+  - name: nginx
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: multitool
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-ingress
+  labels:
+    role: den-clip-ingr
+    app: nginx-clip-ingr
+    organization: netology-fops40
+    creator: denskv
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - myapp.den.skv
+    secretName: myapp-tls-secret
+  rules:
+  - host: myapp.den.skv
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: w8-svc-clip
+            port:
+              number: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-mtool-init
+  labels:
+    role: den-clip-ingr
+    app: nginx-clip-ingr
+    organization: netology-fops40
+    creator: denskv
+spec:
+  replicas: 3
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nginx-clip-ingr
+  template:
+    metadata:
+      labels:
+        app: nginx-clip-ingr
+    spec:
+      initContainers:
+      - name: w8-4-svc-clip
+        image: busybox:denskv
+        imagePullPolicy: Never  # Использовать ранее использованные или выгруженные в кластер образы
+        command:
+          - sh
+          - -c
+          - |
+            until nslookup w8-svc-clip.default.svc.cluster.local; do
+              echo "Waiting for Service w8-svc-clip..."
+              sleep 2
+            done
+            echo "Service w8-svc is UP!"
+      containers:
+      - name: nginx
+        image: nginx:denskv
+        imagePullPolicy: Never  # Использовать ранее использованные или выгруженные в кластер образы
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: nginx-html
+            mountPath: /usr/share/nginx/html/index.html  # полный путь монтирования для опции subPath
+            subPath: index.html # Подмонтировать только index.html (для обновления пересоздать pod)
+            readOnly: true
+      - name: multitool
+        image: wbitt/network-multitool:denskv
+        imagePullPolicy: Never  # Использовать ранее использованные или выгруженные в кластер образы
+        env:
+        - name: HTTP_PORT
+          value: "8080"
+        ports:
+        - containerPort: 8080
+      volumes:
+        - name: nginx-html
+          configMap:
+            name: nginx-html-file
+EOF
+```
+
+</details>
+
+```bash
+# Просмотр IP-адресов нод
+kubectl get no -o wide \
+| awk '{print $1 "\n" $6}'
+```
+
+<details>
+<summary>
+просмотр IP-адресов нод
+</summary>
+
+```log
+NAME
+INTERNAL-IP
+skv-21-2-k8s-depl-control-plane
+172.18.0.3
+skv-21-2-k8s-depl-worker
+172.18.0.2
+skv-21-2-k8s-depl-worker2
+172.18.0.4
+```
+
+</details>
+
+```bash
+# добавление записи в /etc/hosts на адрес -host в ingress myapp.den.skv на текущий contolplane
+echo "172.18.0.3 myapp.den.skv" \
+| sudo tee -a /etc/hosts
+
+cat /etc/hosts
+```
+
+<details>
+<summary>
+Проверка resolving имен на хосте сервера kubernetes
+</summary>
+
+```log
+172.18.0.3 myapp.den.skv
+
+# Static table lookup for hostnames.
+# See hosts(5) for details.
+127.0.0.1        localhost
+::1              localhost
+172.18.0.4 fops.local
+172.18.0.3 myapp.den.skv
+```
+
+</details>
+
+```bash
+# Для определения работы порта сервиса ingress-nginx-controller в режиме LoadBalancer в класторе
+kubectl get svc -n ingress-nginx \
+| awk '/LoadBalancer/{print $5}'
+```
+
+```log
+80:30993/TCP,443:30652/TCP
+```
+
+```bash
+# Применение манифестов и port-forward до порта ingress-nginx-controller на 80 порту
+kubectl apply \
+-f secr_tls.yaml \
+-f cm_nginx-html.yaml \
+-f depl_svc_clip_ingress_nginx-mtool-init.yaml \
+&& kubectl port-forward \
+-n ingress-nginx svc/ingress-nginx-controller \
+--address=0.0.0.0 30993:443
+```
+
+<details>
+<summary>
+Лог развертывания
+</summary>
+
+```log
+secret/myapp-tls-secret created
+configmap/nginx-html-file created
+service/w8-svc-clip created
+ingress.networking.k8s.io/myapp-ingress created
+deployment.apps/nginx-mtool-init created
+Forwarding from 0.0.0.0:30993 -> 443
+Handling connection for 30993
+Handling connection for 30993
+Handling connection for 30993
+Handling connection for 30993
+Handling connection for 30993
+Handling connection for 30993
+....
+```
+
+</details>
+
+```bash
+# Мониторинг подов и сервисов deployment
+watch -cn 1 \
+"kubectl get pods -L creator=denskv \
+&& echo ---------==================-------- \
+&& kubectl get svc -l creator=denskv \
+&& echo ---------==================-------- \
+&& kubectl get ing -l creator=denskv \
+&& echo ----------======Запросы_на_Nginx========------------------- \
+&& kubectl logs deployments/nginx-mtool-init | tail -n5 \
+&& echo ---------==================-------- \
+&& ping -c 1 myapp.den.skv | head -n2"
+```
+
+<details>
+<summary>
+Мониторинг подов и сервисов deployment
+</summary>
+
+```log
+NAME                              READY   STATUS    RESTARTS   AGE    CREATOR=DENSKV
+nginx-mtool-init-55d4fd8d-bhnsg   2/2     Running   0          119s
+nginx-mtool-init-55d4fd8d-jsjww   2/2     Running   0          119s
+nginx-mtool-init-55d4fd8d-rj2kq   2/2     Running   0          119s
+---------==================--------
+NAME          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)           AGE
+w8-svc-clip   ClusterIP   10.96.181.103   <none>        80/TCP,8080/TCP   119s
+---------==================--------
+NAME            CLASS   HOSTS           ADDRESS     PORTS     AGE
+myapp-ingress   nginx   myapp.den.skv   localhost   80, 443   2m
+----------======Запросы_на_Nginx========-------------------
+Found 3 pods, using pod/nginx-mtool-init-55d4fd8d-bhnsg
+Defaulted container "nginx" out of: nginx, multitool, w8-4-svc-clip (init)
+2026/08/21 20:06:19 [notice] 1#1: start worker process 50
+2026/08/21 20:06:19 [notice] 1#1: start worker process 51
+10.244.2.53 - - [21/Aug/2026:20:06:48 +0000] "GET / HTTP/1.1" 200 701 "https://myapp.den.skv:30993/" "Mozi
+lla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 YaBrowser/26
+.8.0.0 Safari/537.36" "127.0.0.1"
+10.244.2.53 - - [21/Aug/2026:20:07:18 +0000] "GET / HTTP/1.1" 200 701 "-" "Mozilla/5.0 (Windows NT 10.0; W
+in64; x64; rv:140.0) Gecko/20100101 Firefox/140.0" "127.0.0.1"
+10.244.2.53 - - [21/Aug/2026:20:08:08 +0000] "GET / HTTP/1.1" 200 701 "-" "curl/8.21.0" "127.0.0.1"
+---------==================--------
+PING myapp.den.skv (172.18.0.3) 56(84) bytes of data.
+64 bytes from myapp.den.skv (172.18.0.3): icmp_seq=1 ttl=64 time=0.082 ms
+```
+
+</details>>
+
+
+```bash
+# Скрипт опроса сервисов
+while true; do \
+echo "||||||||" \
+&& curl -sk --max-time 5 https://myapp.den.skv:30993 --resolve myapp.den.skv:30993:172.18.0.1 \
+| grep -A2 "DevOps" \
+&& sleep 1; \
+done
+```
+
+<details>
+<summary>
+Лог Скрипта опроса веб страницы
+</summary>
+
+```log
+||||||||
+    <h3>Из окружения DevOps:</h3>
+    <p>- Почему разработчик не стал чинить прод?<br>
+    - Потому что в локальной среде всё работало!</p>
+```
+
+</details>

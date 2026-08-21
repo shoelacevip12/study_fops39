@@ -970,7 +970,6 @@ depl-back-5b8b6b5fc4-hkw67    1/1     Running           0          5s
 
 </details>
 
-
 ```bash
 # Мониторинг подов и сервисов deployment
 watch -cn 1 \
@@ -981,7 +980,6 @@ watch -cn 1 \
 && kubectl get ing -l creator=denskv \
 && echo ---------==================-------- \
 && ping -c 1 fops.local | head -n2"
-
 ```
 
 <details>

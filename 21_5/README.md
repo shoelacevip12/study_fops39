@@ -152,9 +152,50 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 ### **Что сдать на проверку**  
 
 - Манифесты:
-  - `secret-tls.yaml`
-  - `ingress-tls.yaml`
+  - [secret-tls.yaml](./secr_tls.yaml)
+  - [ingress-tls.yaml](./depl_svc_clip_ingress_nginx-mtool-init.yaml)
+  - <details>
+    <summary>
+    Лог действий Формирование Yaml-манифеста секретов tls на основе переменных окружения
+    </summary>
+
+    ```bash
+    # Генерация самоподписного сертификата и создание Secret:
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout tls.key \
+    -out tls.crt \
+    -subj "/CN=myapp.den.skv/O=netology-fops40/CN=denskv"
+
+    # Экспорт команды вывода сертификата и ключа в base64 кодировке
+    export TLS_CRT=$(cat tls.crt | base64 -w 0)
+    export TLS_KEY=$(cat tls.key | base64 -w 0)
+
+
+    ## Применять только после exports
+    cat > secr_tls.yaml <<EOF
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: myapp-tls-secret
+      labels:
+        role: den-clip-nopo
+        app: nginx-clip-nopo
+        organization: netology-fops40
+        creator: denskv
+    type: kubernetes.io/tls
+    data:
+      tls.crt: ${TLS_CRT}
+      tls.key: ${TLS_KEY}
+    EOF
+    ```
+
+    </details>
+---
 - Скриншот вывода `curl -k`
+
+
+
+![](./img/2.gif)
 
 ---
 
