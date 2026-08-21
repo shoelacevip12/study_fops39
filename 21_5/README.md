@@ -156,7 +156,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   - [ingress-tls.yaml](./depl_svc_clip_ingress_nginx-mtool-init.yaml)
   - <details>
     <summary>
-    Лог действий Формирование Yaml-манифеста секретов tls на основе переменных окружения
+    Лог действий Формирования Yaml-манифеста секретов tls на основе переменных окружения
     </summary>
 
     ```bash
@@ -227,10 +227,125 @@ openssl x509 -req -in developer.csr -CA {CA серт вашего кластер
 ### **Что сдать на проверку**  
 
 - Манифесты:
-  - `role-pod-reader.yaml`
-  - `rolebinding-developer.yaml`
-- Команды генерации сертификатов
+  - [role-pod-reader.yaml](./role_pod_viewer.yaml)
+  - [rolebinding-developer.yaml](./rb_pod_viewer.yaml)
+  - <details>
+    <summary> 
+    Команды генерации сертификатов
+    </summary>
+    
+    ```bash
+    export CONTROL_PLANE_CONTAINER=$(docker ps | awk '/control-plane/ {print $11}')
+
+    echo $CONTROL_PLANE_CONTAINER
+    ```
+    
+    ```log
+    skv-21-2-k8s-depl-control-plane
+    ```
+
+    ```bash
+    mkdir -pv ~/kind-ca
+
+    docker cp ${CONTROL_PLANE_CONTAINER}:/etc/kubernetes/pki/ca.crt ~/kind-ca/
+
+    docker cp ${CONTROL_PLANE_CONTAINER}:/etc/kubernetes/pki/ca.key ~/kind-ca/
+
+    tree ~/kind-ca
+    ```
+
+    ```log
+    mkdir: создан каталог '/home/shoel/kind-ca'
+    Successfully copied 1.11kB (transferred 3.07kB) to /home/shoel/kind-ca/
+    Successfully copied 1.68kB (transferred 3.58kB) to /home/shoel/kind-ca/
+    /home/shoel/kind-ca
+    ├── ca.crt
+    └── ca.key
+
+    1 directory, 2 files
+    ```
+
+    ```bash
+    # Генерация сертификата пользователя
+    openssl genrsa -out developer.key 2048
+    openssl req -new -key developer.key -out developer.csr -subj "/CN=developer/O=dev-team"
+    openssl x509 -req -in developer.csr \
+    -CA ~/kind-ca/ca.crt \
+    -CAkey ~/kind-ca/ca.key \
+    -CAcreateserial \
+    -out developer.crt \
+    -days 365 \
+    -sha256
+
+    tree ~/kind-ca
+
+    tree -L1 . \
+    | grep devel
+    ```
+
+    ```log
+    Certificate request self-signature ok
+    subject=CN=developer, O=dev-team
+    /home/shoel/kind-ca
+    ├── ca.crt
+    ├── ca.key
+    └── ca.srl
+
+    1 directory, 3 files
+
+    ├── developer.crt
+    ├── developer.csr
+    ├── developer.key
+    ```
+
+    ```bash
+    export CLUSTER_NAME="$(kubectl config get-contexts | awk '/kind/ {print $2}')"
+
+    echo $CLUSTER_NAME
+    ```
+
+    ```log
+    kind-skv-21-2-k8s-depl
+    ```
+
+    ```bash
+    # Проверка контекстов в kubectl
+    kubectl config get-contexts
+
+    # Настройка пользователя developer
+    kubectl config set-credentials developer \
+    --client-certificate=developer.crt \
+    --client-key=developer.key \
+    --embed-certs=true
+
+    # Настройка контекста для нового пользователя developer
+    kubectl config set-context developer-context \
+    --cluster=${CLUSTER_NAME} \
+    --user=developer \
+    --namespace=default
+
+    # Повторная Проверка контекстов в kubectl
+    kubectl config get-contexts
+    ```
+
+    ```log
+    CURRENT   NAME                     CLUSTER                  AUTHINFO                 NAMESPACE
+    *         kind-skv-21-2-k8s-depl   kind-skv-21-2-k8s-depl   kind-skv-21-2-k8s-depl 
+
+    User "developer" set.
+
+    Context "developer-context" created.
+
+    CURRENT   NAME                     CLUSTER                  AUTHINFO                 NAMESPACE
+              developer-context        kind-skv-21-2-k8s-depl   developer                default
+    *         kind-skv-21-2-k8s-depl   kind-skv-21-2-k8s-depl   kind-skv-21-2-k8s-depl
+    ```
+
+    </details>
+
 - Скриншот проверки прав (`kubectl get pods --as=developer`)
+
+![](./img/3.gif)
 
 ---
 

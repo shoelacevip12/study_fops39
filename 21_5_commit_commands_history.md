@@ -634,8 +634,8 @@ kind: Secret
 metadata:
   name: myapp-tls-secret
   labels:
-    role: den-clip-nopo
-    app: nginx-clip-nopo
+    role: den-clip-ingr
+    app: nginx-clip-ingr
     organization: netology-fops40
     creator: denskv
 type: kubernetes.io/tls
@@ -1094,3 +1094,309 @@ study-fops39_sc \
 ```
 
 ## commit_4,`21_5-K8S-conf-app`
+
+### Получение CA сертификата и ключа кластера
+
+```bash
+export CONTROL_PLANE_CONTAINER=$(docker ps | awk '/control-plane/ {print $11}')
+
+echo $CONTROL_PLANE_CONTAINER
+```
+
+```log
+skv-21-2-k8s-depl-control-plane
+```
+
+```bash
+mkdir -pv ~/kind-ca
+
+docker cp ${CONTROL_PLANE_CONTAINER}:/etc/kubernetes/pki/ca.crt ~/kind-ca/
+
+docker cp ${CONTROL_PLANE_CONTAINER}:/etc/kubernetes/pki/ca.key ~/kind-ca/
+
+tree ~/kind-ca
+```
+
+<details>
+<summary>
+Лог получения CA сертификата и ключа кластера
+</summary>
+
+```log
+mkdir: создан каталог '/home/shoel/kind-ca'
+Successfully copied 1.11kB (transferred 3.07kB) to /home/shoel/kind-ca/
+Successfully copied 1.68kB (transferred 3.58kB) to /home/shoel/kind-ca/
+/home/shoel/kind-ca
+├── ca.crt
+└── ca.key
+
+1 directory, 2 files
+```
+
+</details>
+
+```bash
+# Генерация сертификата пользователя
+openssl genrsa -out developer.key 2048
+openssl req -new -key developer.key -out developer.csr -subj "/CN=developer/O=dev-team"
+openssl x509 -req -in developer.csr \
+-CA ~/kind-ca/ca.crt \
+-CAkey ~/kind-ca/ca.key \
+-CAcreateserial \
+-out developer.crt \
+-days 365 \
+-sha256
+
+tree ~/kind-ca
+
+tree -L1 . \
+| grep devel
+```
+
+<details>
+<summary>
+Лог генерации сертификата пользователя
+</summary>
+
+```log
+Certificate request self-signature ok
+subject=CN=developer, O=dev-team
+/home/shoel/kind-ca
+├── ca.crt
+├── ca.key
+└── ca.srl
+
+1 directory, 3 files
+
+├── developer.crt
+├── developer.csr
+├── developer.key
+```
+
+</details>
+
+### `Yaml`-манифест Роли в класторе k8s
+
+<details>
+<summary>
+Yaml-манифест Роли в класторе k8s
+</summary>
+
+```bash
+cat > role_pod_viewer.yaml <<'EOF'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-viewer
+  namespace: default
+  labels:
+    role: den-rbac
+    app: developer-access
+    organization: netology-fops40
+    creator: denskv
+rules:
+- apiGroups: [""]
+  resources:
+    - pods
+    - pods/log
+  verbs:
+    - get
+    - list
+    - watch
+EOF
+```
+
+</details>
+
+### `Yaml`-манифест Привязки Роли(RoleBinding) в класторе k8s
+
+<details>
+<summary>
+Yaml-манифест привязки роли 
+</summary>
+
+```bash
+cat > rb_pod_viewer.yaml <<'EOF'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods-binding
+  namespace: default
+  labels:
+    role: den-rbac
+    app: developer-access
+    organization: netology-fops40
+    creator: denskv
+subjects:
+- kind: User
+  name: developer
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-viewer
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+
+</details>
+
+
+```bash
+kubectl apply \
+-f role_pod_viewer.yaml \
+-f rb_pod_viewer.yaml
+```
+
+<details>
+<summary>
+Лог применения роли и привязки роли
+</summary>
+
+```log
+role.rbac.authorization.k8s.io/pod-viewer created
+rolebinding.rbac.authorization.k8s.io/read-pods-binding created
+```
+
+</details>
+
+### Настройка контекста для нового пользователя `developer`
+
+```bash
+export CLUSTER_NAME="$(kubectl config get-contexts | awk '/kind/ {print $2}')"
+
+echo $CLUSTER_NAME
+```
+
+```log
+kind-skv-21-2-k8s-depl
+```
+
+```bash
+# Проверка контекстов в kubectl
+kubectl config get-contexts
+
+# Настройка пользователя developer
+kubectl config set-credentials developer \
+--client-certificate=developer.crt \
+--client-key=developer.key \
+--embed-certs=true
+
+# Настройка контекста для нового пользователя developer
+kubectl config set-context developer-context \
+--cluster=${CLUSTER_NAME} \
+--user=developer \
+--namespace=default
+
+# Повторная Проверка контекстов в kubectl
+kubectl config get-contexts
+```
+
+<details>
+<summary>
+Лог настройки контекста для нового пользователя developer
+</summary>
+
+```log
+CURRENT   NAME                     CLUSTER                  AUTHINFO                 NAMESPACE
+*         kind-skv-21-2-k8s-depl   kind-skv-21-2-k8s-depl   kind-skv-21-2-k8s-depl 
+
+User "developer" set.
+
+Context "developer-context" created.
+
+CURRENT   NAME                     CLUSTER                  AUTHINFO                 NAMESPACE
+          developer-context        kind-skv-21-2-k8s-depl   developer                default
+*         kind-skv-21-2-k8s-depl   kind-skv-21-2-k8s-depl   kind-skv-21-2-k8s-depl
+```
+
+</details>
+
+
+```bash
+# Мониторинг подов и ролей
+watch -cn 1 \
+"kubectl get pods -L creator=denskv \
+&& echo ---------==================-------- \
+&& kubectl get rolebindings \
+&& echo ---------==================-------- \
+&& kubectl get role \
+&& echo ---------==================-------- \
+&& kubectl logs deployments/nginx-mtool-init | tail \
+&& echo ---------==================--------"
+```
+
+```bash
+# Тесты до смены контекста на нового пользователя developer
+kubectl get pods
+echo 
+kubectl logs deployments/nginx-mtool-init | tail
+echo
+kubectl delete pods/nginx-mtool-init-55d4fd8d-64rmb
+echo
+kubectl exec -it pods/nginx-mtool-init-55d4fd8d-9xt9v -- sh
+echo
+kubectl run test --image=nginx:denskv
+```
+
+<details>
+<summary>
+Лог тестов до смены контекста на нового пользователя developer
+</summary>
+
+```log
+
+```
+
+</details>
+
+
+```bash
+# Тесты после смены контекста на нового пользователя developer
+kubectl config use-context developer-context
+echo
+kubectl config get-contexts
+echo
+kubectl get pods
+echo 
+kubectl logs deployments/nginx-mtool-init | tail
+echo
+kubectl delete pods/nginx-mtool-init-55d4fd8d-64rmb
+echo
+kubectl exec -it pods/nginx-mtool-init-55d4fd8d-9xt9v -- sh
+echo
+kubectl run test --image=nginx:denskv
+```
+
+<details>
+<summary>
+Лог тестов после смены контекста на нового пользователя developer
+</summary>
+
+```log
+
+```
+
+</details>
+
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit4, 21_5-K8S-conf-app' \
+&& git push \
+--set-upstream \
+study_fops39 \
+21_5-K8S-conf-app \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+21_5-K8S-conf-app \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+21_5-K8S-conf-app
+```
+
+## commit_81, maaster
