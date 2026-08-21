@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: myapp-tls-secret
+  labels:
+    role: den-clip-nopo
+    app: nginx-clip-ingr
+    organization: netology-fops40
+    creator: denskv
+type: kubernetes.io/tls
+data:
+  tls.crt: 
+  tls.key: 

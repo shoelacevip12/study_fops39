@@ -1046,8 +1046,7 @@ PING myapp.den.skv (172.18.0.3) 56(84) bytes of data.
 64 bytes from myapp.den.skv (172.18.0.3): icmp_seq=1 ttl=64 time=0.082 ms
 ```
 
-</details>>
-
+</details>
 
 ```bash
 # Скрипт опроса сервисов
@@ -1072,3 +1071,26 @@ done
 ```
 
 </details>
+
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit3, 21_5-K8S-conf-app' \
+&& git push \
+--set-upstream \
+study_fops39 \
+21_5-K8S-conf-app \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+21_5-K8S-conf-app \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+21_5-K8S-conf-app
+```
+
+## commit_4,`21_5-K8S-conf-app`
