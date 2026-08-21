@@ -1338,18 +1338,6 @@ echo
 kubectl run test --image=nginx:denskv
 ```
 
-<details>
-<summary>
-Лог тестов до смены контекста на нового пользователя developer
-</summary>
-
-```log
-
-```
-
-</details>
-
-
 ```bash
 # Тесты после смены контекста на нового пользователя developer
 kubectl config use-context developer-context
@@ -1367,16 +1355,7 @@ echo
 kubectl run test --image=nginx:denskv
 ```
 
-<details>
-<summary>
-Лог тестов после смены контекста на нового пользователя developer
-</summary>
-
-```log
-
-```
-
-</details>
+![](./21_5/img/3.gif)
 
 ```bash
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
