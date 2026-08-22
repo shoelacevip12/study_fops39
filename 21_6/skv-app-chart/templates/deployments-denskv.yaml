@@ -1,0 +1,65 @@
+{{- range $componentName, $componentValues := dict "nginx" .Values.nginx "multitool" .Values.multitool }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "skv-app-chart.fullname" $ }}-{{ $componentName }}
+  labels:
+    {{- include "skv-app-chart.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName }}
+spec:
+  replicas: {{ $.Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "skv-app-chart.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $componentName }}
+  template:
+    metadata:
+      labels:
+        {{- include "skv-app-chart.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $componentName }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "skv-app-chart.serviceAccountName" $ }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ $componentName }}
+          securityContext:
+            {{- toYaml $.Values.securityContext | nindent 12 }}
+          image: "{{ $componentValues.image.repository }}:{{ $componentValues.image.tag }}"
+          imagePullPolicy: {{ $componentValues.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $componentValues.service.targetPort }}
+              protocol: TCP
+          {{- if $componentValues.env }}
+          env:
+            {{- toYaml $componentValues.env | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml $componentValues.resources | nindent 12 }}
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+{{- end }}
