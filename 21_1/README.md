@@ -384,7 +384,7 @@ Kustomize Version: v5.8.1
 2. Использовать image - gcr.io/kubernetes-e2e-test-images/echoserver:2.2.
 3. Подключиться локально к Pod с помощью `kubectl port-forward` и вывести значение (curl или в браузере).
 
-![](../img/1.png)
+![](./img/1.png)
 
 ------
 
@@ -395,7 +395,7 @@ Kustomize Version: v5.8.1
 3. Создать Service с именем netology-svc и подключить к netology-web.
 4. Подключиться локально к Service с помощью `kubectl port-forward` и вывести значение (curl или в браузере).
 
-![](../img/2.png) ![](../img/3.png)
+![](./img/2.png) ![](./img/3.png)
 
 ```bash
 # Просмотр всех подов и сервисов во всех namespace
