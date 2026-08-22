@@ -1,4 +1,4 @@
-# Для домашнего задания 21.5 `Helm`
+# Для домашнего задания 21.6 `Helm`
 
 ## commit_81, master Предварительная подготовка
 
@@ -909,7 +909,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit1, 21_6-helm' \
+git commit -am 'commit2, 21_6-helm' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -924,4 +924,54 @@ study-fops39_sc \
 21_6-helm
 ```
 
-## commit_2,`21_6-helm`
+## commit_82, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge 21_6-helm
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master --force
+```
