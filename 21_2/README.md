@@ -59,6 +59,29 @@ Kustomize Version: v5.8.1
 
 3. Редактор YAML-файлов с подключённым git-репозиторием.
 
+```bash
+code -v
+```
+
+```log
+1.134.0
+110a328ea54b42367b803ec53ee0bf52ef26b419
+x64
+```
+
+```bash
+git remote -v
+```
+
+```log
+study-fops39_sc ssh://ssh.sourcecraft.dev/shoelacevip12/study-fops39.git (fetch)
+study-fops39_sc ssh://ssh.sourcecraft.dev/shoelacevip12/study-fops39.git (push)
+study_fops39    git@github.com:shoelacevip12/study_fops39.git (fetch)
+study_fops39    git@github.com:shoelacevip12/study_fops39.git (push)
+study_fops39_gitflic_ru git@gitflic.ru:shoelacevip12/fops39.git (fetch)
+study_fops39_gitflic_ru git@gitflic.ru:shoelacevip12/fops39.git (push)
+```
+
 ------
 
 ### Инструменты и дополнительные материалы, которые пригодятся для выполнения задания

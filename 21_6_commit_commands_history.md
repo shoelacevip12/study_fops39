@@ -165,3 +165,78 @@ study-fops39_sc \
 ```
 
 ## commit_2,`21_6-helm`
+
+```bash
+# Поиск пакетов в репозиториях archlinux
+sudo pacman -Ss helm
+```
+
+<Details>
+<Summary>
+Поиск пакетов в репозиториях archlinux
+</Summary>
+
+```log
+extra/datree 1.9.19-2
+    CLI tool to ensure K8s manifests and Helm charts follow best practices as well as your organization’s policies
+extra/gap-packages 4.16.0-2
+    Extra packages for GAP
+extra/helm 4.2.2-1
+    The Kubernetes Package Manager
+extra/helmfile 1.5.2-1
+    Manage multiple helm charts with a single helmfile
+extra/kube-linter 0.8.3-1
+    Static analysis tool that checks Kubernetes YAML files and Helm charts
+extra/texlive-mathscience 2026.1-1 (texlive)
+    TeX Live - Mathematics, natural sciences, computer science packages
+extra/vals 0.43.2-1
+    Helm-like configuration values loader with support for various sources
+```
+
+</Details>
+
+```bash
+# Установка пакетов helm и kube-linter
+sudo pacman -Syu \
+helm \
+kube-linter
+```
+
+<details>
+<summary>
+Установка пакетов helm и kube-linter
+</summary>
+
+```log
+...
+проверка конфликтов...
+
+Пакеты (3) wine-11.16-1  helm-4.2.2-1  kube-linter-0.8.3-1
+
+Будет загружено:    112,21 MiB
+Будет установлено:  740,14 MiB
+Изменение размера:  140,05 MiB
+
+:: Приступить к установке? [Y/n] Y
+:: Получение пакетов...
+ kube-linter-0.8.3-1-x86_64   15,6 MiB   193 KiB/s 01:23 [#####################] 100%
+ helm-4.2.2-1-x86_64          18,5 MiB   172 KiB/s 01:50 [#####################] 100%
+ ...
+```
+
+</details>
+
+```bash
+helm version
+```
+
+<details>
+<summary>
+Вывод версии helm
+</summary>
+
+```log
+version.BuildInfo{Version:"v4.2.2", GitCommit:"b05881cf967a5a09e19866799d0edfd40675803a", GitTreeState:"", GoVersion:"go1.26.4-X:nodwarf5", KubeClientVersion:"v1.36"}
+```
+
+</details>

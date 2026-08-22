@@ -73,6 +73,17 @@ Kustomize Version: v5.8.1
 ```
 
 - Редактор для YAML-файлов (VS Code, Vim и др.)
+
+```bash
+code -v
+```
+
+```log
+1.134.0
+110a328ea54b42367b803ec53ee0bf52ef26b419
+x64
+```
+
 - Утилита `openssl` для генерации сертификатов
 
 ```bash
