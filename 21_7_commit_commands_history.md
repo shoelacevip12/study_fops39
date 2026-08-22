@@ -143,15 +143,15 @@ git commit -am 'commit1, 21_7-comp-k8s' \
 && git push \
 --set-upstream \
 study_fops39 \
-21_6-helm \
+21_7-comp-k8s \
 && git push \
 --set-upstream \
 study_fops39_gitflic_ru \
-21_6-helm \
+21_7-comp-k8s \
 && git push \
 --set-upstream \
 study-fops39_sc \
-21_6-helm
+21_7-comp-k8s
 ```
 
 ## commit_2,`21_7-comp-k8s`
