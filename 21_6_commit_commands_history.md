@@ -909,7 +909,7 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit1, 21_6-helm' \
+git commit -am 'commit2, 21_6-helm' \
 && git push \
 --set-upstream \
 study_fops39 \
@@ -924,4 +924,4 @@ study-fops39_sc \
 21_6-helm
 ```
 
-## commit_2,`21_6-helm`
+## commit_82, master
