@@ -154,4 +154,54 @@ study-fops39_sc \
 21_7-comp-k8s
 ```
 
-## commit_2,`21_7-comp-k8s`
+## commit_83, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge 21_7-comp-k8s
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master --force
+```
