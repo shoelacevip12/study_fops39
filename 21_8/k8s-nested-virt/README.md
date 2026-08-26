@@ -96,11 +96,13 @@ echo "default via 192.168.89.1" > /disk/VMs/k8s_rootfs/etc/net/ifaces/eth0/ipv4r
 
 cat > /disk/VMs/k8s_rootfs/etc/net/ifaces/eth0/resolv.conf <<EOF
 nameserver 192.168.89.1
+nameserver 77.88.8.8
 search den.skv
 EOF
 
 cat > /disk/VMs/k8s_rootfs/etc/resolv.conf <<EOF
 nameserver 192.168.89.1
+nameserver 77.88.8.8
 search den.skv
 EOF
 ```
@@ -190,9 +192,13 @@ echo
 echo "Готово."
 echo "Пути rootfs: $LXC_ROOT/{k8s-cp,k8s-w1,k8s-w2,k8s-w3,k8s-w4}/rootfs"
 EOF
+```
 
+```bash
+# Делаем скрипт исполняемым
 chmod -v +x scripts/clone_rootfs.sh
 
+# Запуск Клонирования
 BASE_ROOTFS=/disk/VMs/k8s_rootfs \
 ./scripts/clone_rootfs.sh
 ```
@@ -642,7 +648,7 @@ EOF
 ### Запуск контейнеров
 
 ```bash
-# Регистрирование конфигов
+# Регистрирование LXC через конфиги xml
 for f in lxc-k8s-*.xml; do
 echo "Определено $f"
 virsh -c lxc:/// define "$f"
@@ -705,7 +711,523 @@ Domain 'k8s-w4' started
 
 </details>
 
+### Проверка работы в контейнерах
+
+```bash
+# Проверка входа в контейнеры
+for f in {1..5}; do
+echo "Проверка входа на .1$f"
+ssh -t -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_kvm_host root@192.168.89.1$f "exit"
+done
+```
+
+<details>
+<summary>
+Вывод проверки входа в контейнеры LXC по ssh
+</summary>
+
+```log
+Проверка входа на .11
+Warning: Permanently added '192.168.89.11' (ED25519) to the list of known hosts.
+Connection to 192.168.89.11 closed.
+Проверка входа на .12
+Warning: Permanently added '192.168.89.12' (ED25519) to the list of known hosts.
+Connection to 192.168.89.12 closed.
+Проверка входа на .13
+Warning: Permanently added '192.168.89.13' (ED25519) to the list of known hosts.
+Connection to 192.168.89.13 closed.
+Проверка входа на .14
+Warning: Permanently added '192.168.89.14' (ED25519) to the list of known hosts.
+Connection to 192.168.89.14 closed.
+Проверка входа на .15
+Warning: Permanently added '192.168.89.15' (ED25519) to the list of known hosts.
+Connection to 192.168.89.15 closed.
+```
+
+</details>
+
+```bash
+# принудительный перезапуск сетевой службы для применения сетевых настроек
+for f in {1..5}; do
+echo "перезапуск сетевой службы на .1$f"
+ssh -o StrictHostKeyChecking=accept-new \
+-o ConnectTimeout=1 \
+-o ServerAliveInterval=1 \
+-o ServerAliveCountMax=2 \
+-i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+"systemctl restart network; poweroff"
+done
+```
+
+<details>
+<summary>
+Вывод обрыва связи при перезапуске сетевой службы для применения сетевых настроек
+</summary>
+
+```log
+перезапуск сетевой службы на .11
+Timeout, server 192.168.89.11 not responding.
+перезапуск сетевой службы на .12
+Timeout, server 192.168.89.12 not responding.
+перезапуск сетевой службы на .13
+Timeout, server 192.168.89.13 not responding.
+перезапуск сетевой службы на .14
+Timeout, server 192.168.89.14 not responding.
+перезапуск сетевой службы на .15
+Timeout, server 192.168.89.15 not responding.
+```
+
+</details>
+
+```bash
+# Повторный Запуск контейнеров
+for f in $(virsh -c lxc:/// list --all --name); do
+echo "Повторный Запуск на $f"
+virsh -c lxc:/// start "$f"
+done
+```
+
+<details>
+<summary>
+Вывод повторного запуска контейнеров
+</summary>
+
+```log
+Повторный Запуск на k8s-cp
+Domain 'k8s-cp' started
+
+Повторный Запуск на k8s-w1
+Domain 'k8s-w1' started
+
+Повторный Запуск на k8s-w2
+Domain 'k8s-w2' started
+
+Повторный Запуск на k8s-w3
+Domain 'k8s-w3' started
+
+Повторный Запуск на k8s-w4
+Domain 'k8s-w4' started
+```
+
+</details>
+
+```bash
+# Проверка resolver dns
+for f in {1..5}; do
+echo "Проверка DNS resolver на .1$f"
+ssh -t -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+"ping -c3 ya.ru"
+done
+```
+
+<details>
+<summary>
+Проверка DNS resolver
+</summary>
+
+```log
+Проверка DNS resolver на .11
+PING ya.ru (77.88.44.242) 56(84) bytes of data.
+64 bytes from ya.ru (77.88.44.242): icmp_seq=1 ttl=250 time=5.06 ms
+64 bytes from ya.ru (77.88.44.242): icmp_seq=2 ttl=250 time=4.95 ms
+64 bytes from ya.ru (77.88.44.242): icmp_seq=3 ttl=250 time=5.07 ms
+
+--- ya.ru ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 4.952/5.026/5.071/0.052 ms
+Connection to 192.168.89.11 closed.
+Проверка DNS resolver на .12
+PING ya.ru (77.88.44.242) 56(84) bytes of data.
+64 bytes from ya.ru (77.88.44.242): icmp_seq=1 ttl=250 time=5.09 ms
+64 bytes from ya.ru (77.88.44.242): icmp_seq=2 ttl=250 time=5.15 ms
+64 bytes from ya.ru (77.88.44.242): icmp_seq=3 ttl=250 time=5.12 ms
+
+--- ya.ru ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 5.092/5.120/5.149/0.023 ms
+Connection to 192.168.89.12 closed.
+Проверка DNS resolver на .13
+PING ya.ru (77.88.44.242) 56(84) bytes of data.
+64 bytes from ya.ru (77.88.44.242): icmp_seq=1 ttl=250 time=4.89 ms
+64 bytes from ya.ru (77.88.44.242): icmp_seq=2 ttl=250 time=5.03 ms
+64 bytes from ya.ru (77.88.44.242): icmp_seq=3 ttl=250 time=5.27 ms
+
+--- ya.ru ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 4.885/5.062/5.274/0.160 ms
+Connection to 192.168.89.13 closed.
+Проверка DNS resolver на .14
+PING ya.ru (5.255.255.242) 56(84) bytes of data.
+64 bytes from ya.ru (5.255.255.242): icmp_seq=1 ttl=250 time=5.51 ms
+64 bytes from ya.ru (5.255.255.242): icmp_seq=2 ttl=250 time=5.64 ms
+64 bytes from ya.ru (5.255.255.242): icmp_seq=3 ttl=250 time=5.67 ms
+
+--- ya.ru ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 5.509/5.605/5.665/0.068 ms
+Connection to 192.168.89.14 closed.
+Проверка DNS resolver на .15
+PING ya.ru (77.88.55.242) 56(84) bytes of data.
+64 bytes from ya.ru (77.88.55.242): icmp_seq=1 ttl=250 time=10.1 ms
+64 bytes from ya.ru (77.88.55.242): icmp_seq=2 ttl=250 time=10.4 ms
+64 bytes from ya.ru (77.88.55.242): icmp_seq=3 ttl=250 time=10.3 ms
+
+--- ya.ru ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 10.126/10.281/10.413/0.118 ms
+Connection to 192.168.89.15 closed.
+```
+
+</details>
+
+```bash
+# Проверка связности нод между собой по dns именам через местный DNS
+for f in {1..5}; do
+echo "---===Проверка связности нод по dns на ноде .1$f===---"
+ssh -t -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+"for D in cp w{1..4}; do \
+ping -c 2 k8s-\$D \
+| grep -B1 'packets transmitted' && echo ; done"
+done
+```
+
+<details>
+<summary>
+Проверка DNS связности нод
+</summary>
+
+```log
+---===Проверка связности нод по dns на ноде .11===---
+--- k8s-cp ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w1.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1000ms
+
+--- k8s-w2.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w3.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1000ms
+
+--- k8s-w4.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+Connection to 192.168.89.11 closed.
+---===Проверка связности нод по dns на ноде .12===---
+--- k8s-cp.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w1 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+
+--- k8s-w2.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1000ms
+
+--- k8s-w3.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w4.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1044ms
+
+Connection to 192.168.89.12 closed.
+---===Проверка связности нод по dns на ноде .13===---
+--- k8s-cp.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1021ms
+
+--- k8s-w1.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w2 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w3.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w4.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+Connection to 192.168.89.13 closed.
+---===Проверка связности нод по dns на ноде .14===---
+--- k8s-cp.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1000ms
+
+--- k8s-w1.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w2.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1062ms
+
+--- k8s-w3 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+
+--- k8s-w4.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+Connection to 192.168.89.14 closed.
+---===Проверка связности нод по dns на ноде .15===---
+--- k8s-cp.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w1.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w2.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w3.den.skv ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+--- k8s-w4 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+Connection to 192.168.89.15 closed.
+```
+
+</details>
+
+### Отключение swap в LXC контейнерах
+
+```bash
+# Отключение файла подкачки на хостовой системе с LXC
+sudo swapoff -va
+
+# Проверка Отключенного swap в LXC контейнерах
+for f in {1..5}; do
+echo "Проверка Отключенного swap на .1$f"
+ssh -t -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+"free -h | grep Swap"
+done
+```
+
+<details>
+<summary>
+Вывод Скрипта проверки swap в LXC контейнерах
+</summary>
+
+```log
+swapoff /dev/zram0
+
+Проверка Отключенного swap на .11
+Swap:             0B          0B          0B
+Connection to 192.168.89.11 closed.
+Проверка Отключенного swap на .12
+Swap:             0B          0B          0B
+Connection to 192.168.89.12 closed.
+Проверка Отключенного swap на .13
+Swap:             0B          0B          0B
+Connection to 192.168.89.13 closed.
+Проверка Отключенного swap на .14
+Swap:             0B          0B          0B
+Connection to 192.168.89.14 closed.
+Проверка Отключенного swap на .15
+Swap:             0B          0B          0B
+Connection to 192.168.89.15 closed.
+```
+
+</details>
+
+### Обновление Приложений в LXC контейнерах и установка kubeadm, kubelet, crio и cri-tools
+
+```bash
+# Поиск доступных версий kubernetes1.3 (на момент Августа 2026 года)
+ssh -t -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host root@192.168.89.11 \
+"apt-get update && \
+apt-cache search kubernetes1.3"
+```
+
+<details>
+<summary>
+Вывод Скрипта поиска доступных версий kubernetes1.3
+</summary>
+
+```log
+Get:1 http://ftp.altlinux.org p11/branch/x86_64 release [4210B]
+Get:2 http://ftp.altlinux.org p11/branch/x86_64-i586 release [1665B]
+Get:3 http://ftp.altlinux.org p11/branch/noarch release [2831B]
+Fetched 8706B in 0s (267kB/s)
+Hit http://ftp.altlinux.org p11/branch/x86_64/classic pkglist
+Hit http://ftp.altlinux.org p11/branch/x86_64/classic release
+Hit http://ftp.altlinux.org p11/branch/x86_64-i586/classic pkglist
+Hit http://ftp.altlinux.org p11/branch/x86_64-i586/classic release
+Hit http://ftp.altlinux.org p11/branch/noarch/classic pkglist
+Hit http://ftp.altlinux.org p11/branch/noarch/classic release
+Reading Package Lists... Done
+Building Dependency Tree... Done
+coredns-for-kubernetes1.33 - CoreDNS is a DNS server that chains plugins
+coredns-for-kubernetes1.34 - CoreDNS is a DNS server that chains plugins
+coredns-for-kubernetes1.35 - CoreDNS is a DNS server that chains plugins
+coredns-for-kubernetes1.36 - CoreDNS is a DNS server that chains plugins
+etcd-for-kubernetes1.31 - A highly-available key value store for shared configuration
+etcd-for-kubernetes1.32 - A highly-available key value store for shared configuration
+etcd-for-kubernetes1.33 - A highly-available key value store for shared configuration
+etcd-for-kubernetes1.34 - A highly-available key value store for shared configuration
+etcd-for-kubernetes1.35 - A highly-available key value store for shared configuration
+etcd-for-kubernetes1.36 - A highly-available key value store for shared configuration
+kubernetes1.30-client - Kubernetes client tools
+kubernetes1.30-kubeadm - Kubernetes tool for standing up clusters
+kubernetes1.30-kubelet - Kubernetes kubelet daemon
+kubernetes1.30-master - Kubernetes services for master host
+kubernetes1.30-node - Kubernetes services for node host
+kubernetes1.31-client - Kubernetes client tools
+kubernetes1.31-kubeadm - Kubernetes tool for standing up clusters
+kubernetes1.31-kubelet - Kubernetes kubelet daemon
+kubernetes1.31-master - Kubernetes services for master host
+kubernetes1.31-node - Kubernetes services for node host
+kubernetes1.32-client - Kubernetes client tools
+kubernetes1.32-kubeadm - Kubernetes tool for standing up clusters
+kubernetes1.32-kubelet - Kubernetes kubelet daemon
+kubernetes1.32-master - Kubernetes services for master host
+kubernetes1.32-node - Kubernetes services for node host
+kubernetes1.33-client - Kubernetes client tools
+kubernetes1.33-kubeadm - Kubernetes tool for standing up clusters
+kubernetes1.33-kubelet - Kubernetes kubelet daemon
+kubernetes1.33-master - Kubernetes services for master host
+kubernetes1.33-node - Kubernetes services for node host
+kubernetes1.34-client - Kubernetes client tools
+kubernetes1.34-kubeadm - Kubernetes tool for standing up clusters
+kubernetes1.34-kubelet - Kubernetes kubelet daemon
+kubernetes1.34-master - Kubernetes services for master host
+kubernetes1.34-node - Kubernetes services for node host
+kubernetes1.35-client - Kubernetes client tools
+kubernetes1.35-kubeadm - Kubernetes tool for standing up clusters
+kubernetes1.35-kubelet - Kubernetes kubelet daemon
+kubernetes1.35-master - Kubernetes services for master host
+kubernetes1.35-node - Kubernetes services for node host
+kubernetes1.36-client - Kubernetes client tools
+kubernetes1.36-kubeadm - Kubernetes tool for standing up clusters
+kubernetes1.36-kubelet - Kubernetes kubelet daemon
+kubernetes1.36-master - Kubernetes services for master host
+kubernetes1.36-node - Kubernetes services for node host
+kubernetes1.30-common - Kubernetes common files
+kubernetes1.30-crio - Kubernetes crio files
+kubernetes1.31-common - Kubernetes common files
+kubernetes1.31-crio - Kubernetes crio files
+kubernetes1.32-common - Kubernetes common files
+kubernetes1.32-crio - Kubernetes crio files
+kubernetes1.33-common - Kubernetes common files
+kubernetes1.33-crio - Kubernetes crio files
+kubernetes1.34-common - Kubernetes common files
+kubernetes1.34-crio - Kubernetes crio files
+kubernetes1.35-common - Kubernetes common files
+kubernetes1.35-crio - Kubernetes crio files
+kubernetes1.36-common - Kubernetes common files
+kubernetes1.36-crio - Kubernetes crio files
+Connection to 192.168.89.11 closed.
+```
+
+</details>
+
+```bash
+# Обновление пакетов контейнера и установка пакетов для функционирования nod
+for f in {1..5}; do
+echo "Обновление пакетов контейнера и установка пакетов для функционирования node на .1$f"
+ssh -t -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+"apt-get update \
+&& apt-get dist-upgrade -y \
+&& apt-get install -y \
+kubernetes1.36-kubeadm \
+kubernetes1.36-kubelet \
+kubernetes1.36-crio \
+cri-tools1.36"
+done
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+Обновление пакетов контейнера и установка пакетов для функционирования node на .11
+...
+Calculating Upgrade... Done
+The following packages will be upgraded
+  altlinux-repos   glibc-core           glibc-pthread    libaudit1    libiptables   libsasl2-3  libtinfo6        openssh-server-control  publicsuffix-list-dafsa
+  apt-conf-branch  glibc-gconv-modules  glibc-utils      libcrypto3   libncursesw6  libssh2     openssh          p11-kit-trust           rpm
+  bash-completion  glibc-locales        gnupg            libcurl      libnghttp2    libssl3     openssh-clients  pam-config              terminfo
+  ca-certificates  glibc-nss            iptables         libgcrypt20  libp11-kit    libtasn1    openssh-common   pam-config-control      termutils
+  curl             glibc-preinstall     libaudit-common  libgnutls30  librpm7       libtic6     openssh-server   perl-base               vim-minimal
+45 upgraded, 0 newly installed, 0 removed and 0 not upgraded.
+Need to get 31.7MB of archives.
+After unpacking 1491kB of additional disk space will be used.
+...
+The following extra packages will be installed:
+  cni-plugins  conntrack-tools    cri-o1.36  ebtables  glib2          kubernetes1.36-client  kubernetes1.36-node  libnetfilter_cthelper   libnetfilter_queue
+  conmon       containers-common  crun       ethtool   glib2-locales  kubernetes1.36-common  libcrun              libnetfilter_cttimeout  socat
+The following NEW packages will be installed:
+  cni-plugins      containers-common  crun      glib2                  kubernetes1.36-common   kubernetes1.36-kubelet  libnetfilter_cthelper   socat
+  conmon           cri-o1.36          ebtables  glib2-locales          kubernetes1.36-crio     kubernetes1.36-node     libnetfilter_cttimeout
+  conntrack-tools  cri-tools1.36      ethtool   kubernetes1.36-client  kubernetes1.36-kubeadm  libcrun                 libnetfilter_queue
+0 upgraded, 22 newly installed, 0 removed and 0 not upgraded.
+Need to get 95.7MB of archives.
+After unpacking 455MB of additional disk space will be used.
+Get:1 http://ftp.altlinux.org p11/branch/noarch/classic glib2-locales 2.84.4-alt1:p11+396318.100.2.1@1760211330 [1267kB]
+Get:2 http://ftp.altlinux.org p11/branch/x86_64/classic glib2 2.84.4-alt1:p11+396318.100.2.1@1760211330 [986kB]
+Get:3 http://ftp.altlinux.org p11/branch/x86_64/classic conmon 1:2.2.1-alt1:p11+420109.2100.4.1@1782726038 [45.4kB]
+Get:4 http://ftp.altlinux.org p11/branch/noarch/classic containers-common 2:0.64.0-alt1:p11+392191.500.2.1@1755673252 [84.7kB]
+Get:5 http://ftp.altlinux.org p11/branch/x86_64/classic cri-tools1.36 1.36.0-alt1:p11+420109.600.4.1@1782724276 [15.4MB]
+Get:6 http://ftp.altlinux.org p11/branch/x86_64/classic libcrun 1.27-alt1:p11+413705.100.1.1@1774957656 [252kB]                                                                                        
+Get:7 http://ftp.altlinux.org p11/branch/x86_64/classic crun 1.27-alt1:p11+413705.100.1.1@1774957656 [41.3kB]                                                                                          
+Get:8 http://ftp.altlinux.org p11/branch/x86_64/classic ebtables 2.0.11-alt3:sisyphus+344189.100.1.1@1712048586 [79.7kB]                                                                               
+Get:9 http://ftp.altlinux.org p11/branch/x86_64/classic ethtool 1:7.0-alt1:p11+418561.100.2.1@1780407918 [301kB]                                                                                       
+Get:10 http://ftp.altlinux.org p11/branch/noarch/classic kubernetes1.36-common 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [11.4kB]                                                                     
+Get:11 http://ftp.altlinux.org p11/branch/x86_64/classic kubernetes1.36-client 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [12.0MB]                                                                     
+Get:12 http://ftp.altlinux.org p11/branch/x86_64/classic libnetfilter_cthelper 1.0.1-alt1:sisyphus+300219.100.1.1@1652970568 [15.1kB]                                                                  
+Get:13 http://ftp.altlinux.org p11/branch/x86_64/classic libnetfilter_cttimeout 1.0.1-alt1:sisyphus+300219.200.2.1@1652971062 [15.3kB]                                                                 
+Get:14 http://ftp.altlinux.org p11/branch/x86_64/classic libnetfilter_queue 1.0.5-alt1:sisyphus+278100.3000.1.1@1626058809 [20.1kB]                                                                    
+Get:15 http://ftp.altlinux.org p11/branch/x86_64/classic conntrack-tools 1.4.8-alt1:sisyphus+332528.100.1.1@1698072947 [183kB]                                                                         
+Get:16 http://ftp.altlinux.org p11/branch/x86_64/classic socat 1.7.4.4-alt1:sisyphus+330215.600.3.1@1695490295 [266kB]                                                                                 
+Get:17 http://ftp.altlinux.org p11/branch/x86_64/classic kubernetes1.36-kubelet 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [13.4MB]                                                                    
+Get:18 http://ftp.altlinux.org p11/branch/x86_64/classic kubernetes1.36-node 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [9602kB]                                                                       
+Get:19 http://ftp.altlinux.org p11/branch/x86_64/classic cni-plugins 1.9.1-alt1:p11+414174.100.1.1@1775317003 [10.4MB]                                                                                 
+Get:20 http://ftp.altlinux.org p11/branch/x86_64/classic kubernetes1.36-kubeadm 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [12.7MB]                                                                    
+Get:21 http://ftp.altlinux.org p11/branch/x86_64/classic cri-o1.36 1.36.0-alt1:p11+420109.500.4.1@1782724158 [18.7MB]                                                                                  
+Get:22 http://ftp.altlinux.org p11/branch/noarch/classic kubernetes1.36-crio 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [10.8kB]                                                                       
+Fetched 95.7MB in 44s (2156kB/s)   
+Committing changes...
+Preparing...                                                                                 #################################################################################################### [100%]
+Updating / installing...
+ 1: socat-1.7.4.4-alt1                                                                       #################################################################################################### [  5%]
+ 2: cni-plugins-1.9.1-alt1                                                                   #################################################################################################### [  9%]
+ 3: kubernetes1.36-common-1.36.1-alt1                                                        #################################################################################################### [ 14%]
+ 4: ethtool-1:7.0-alt1                                                                       #################################################################################################### [ 18%]
+ 5: kubernetes1.36-client-1.36.1-alt1                                                        #################################################################################################### [ 23%]
+ 6: kubernetes1.36-kubelet-1.36.1-alt1                                                       #################################################################################################### [ 27%]
+ 7: libnetfilter_queue-1.0.5-alt1                                                            #################################################################################################### [ 32%]
+ 8: libnetfilter_cttimeout-1.0.1-alt1                                                        #################################################################################################### [ 36%]
+ 9: libnetfilter_cthelper-1.0.1-alt1                                                         #################################################################################################### [ 41%]
+10: conntrack-tools-1.4.8-alt1                                                               #################################################################################################### [ 45%]
+11: kubernetes1.36-node-1.36.1-alt1                                                          #################################################################################################### [ 50%]
+12: ebtables-2.0.11-alt3                                                                     #################################################################################################### [ 55%]
+13: libcrun-1.27-alt1                                                                        #################################################################################################### [ 59%]
+14: crun-1.27-alt1                                                                           #################################################################################################### [ 64%]
+15: containers-common-2:0.64.0-alt1                                                          #################################################################################################### [ 68%]
+16: glib2-locales-2.84.4-alt1                                                                #################################################################################################### [ 73%]
+17: glib2-2.84.4-alt1                                                                        #################################################################################################### [ 77%]
+18: conmon-1:2.2.1-alt1                                                                      #################################################################################################### [ 82%]
+19: cri-o1.36-1.36.0-alt1                                                                    #################################################################################################### [ 86%]
+20: kubernetes1.36-crio-1.36.1-alt1                                                          #################################################################################################### [ 91%]
+21: kubernetes1.36-kubeadm-1.36.1-alt1                                                       #################################################################################################### [ 95%]
+22: cri-tools1.36-1.36.0-alt1                                                                #################################################################################################### [100%]
+Done.
+Connection to 192.168.89.11 closed.
+...
+```
+
+</details>
+
 ## Скрипт удаления контейнеров через libvirt и ручную чистку
+
+<details>
+<summary>
+Скрипта удаления контейнеров
+</summary>
 
 ```bash
 # Создание скрипта удаления
@@ -738,8 +1260,12 @@ case "$answer" in
         ;;
 esac
 EOF
+```
 
-# ДЕлаем скрипт исполняемым
+</details>
+
+```bash
+# Делаем скрипт исполняемым
 chmod +x \
 scripts/delete_containers.sh
 ```
