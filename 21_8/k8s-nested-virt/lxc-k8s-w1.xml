@@ -35,10 +35,11 @@
       <target dir='/dev/kvm'/>
     </filesystem>
 
-    <!-- Сеть: DHCP (адрес выдаёт DHCP-сервер; резерв делаем по MAC 52:54:00:89:02:02) -->
+    <!-- Сеть: статический IP -->
     <interface type='bridge'>
-      <mac address='52:54:00:89:02:02'/>
       <source bridge='br0'/>
+      <ip address='192.168.89.12' family='ipv4' prefix='24'/>
+      <route family='ipv4' address='0.0.0.0' gateway='192.168.89.1'/>
       <guest dev='eth0'/>
       <link state='up'/>
     </interface>

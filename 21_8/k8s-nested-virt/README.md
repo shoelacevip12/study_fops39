@@ -27,13 +27,12 @@ tar -xvJf \
 -C /disk/VMs//k8s_rootfs
 ```
 
-
 ```bash
 ll \
 /disk/VMs/k8s_rootfs
 ```
 
-## Вариант ручного проброса имеющего ключа и пароля в файловую систему lxc контейнера ОС ubuntu
+## Вариант ручного проброса имеющего ключа и пароля в файловую систему lxc контейнера ОС
 
 ```bash
 # проброс ключа ssh на суперпользователя в эталонную ФС контейнера
@@ -43,12 +42,73 @@ mkdir -vp \
 cat  ~/.ssh/id_kvm_host.pub \
 >>/disk/VMs/k8s_rootfs/root/.ssh/authorized_keys
 
-# на всякий случай задать пароль для root "qwerty!2" в эталонный образ
+# на всякий случай задать пароль для root "qwerty!2" в эталонный образ altlinux
 sed -i 's|t:x:|t:$6$jOJaaad3$213aac5XXw7XMVrtI8dPuwyJazAeMOoaq5QOvo.uf/7V70lA3PIsV7WAiM3d1SWPyDkPiVTvizRHta1P7ZyKs/:|' \
 /disk/VMs/k8s_rootfs/etc/tcb/root/shadow
 ```
 
+## Создание файла etcnet для работы сети по static
+
+```bash
+# отключение ipv6
+echo "net.ipv6.conf.all.disable_ipv6 = 1" \
+| tee -a  /disk/VMs/k8s_rootfs/etc/sysctl.conf
+
+# создание каталога для интерфейса внутри эталонного образа
+mkdir -pv /disk/VMs/k8s_rootfs/etc/net/ifaces/eth0/
+```
+
+<details>
+<summary>
+Вывод подготовки для работы с сетью
+</summary>
+
+```log
+net.ipv6.conf.all.disable_ipv6 = 1
+
+mkdir: создан каталог '/disk/VMs/k8s_rootfs/etc/net/ifaces/eth0/'
+```
+
+</details>
+
+### Файл настроек для работы по static для интерфейса eth0
+
+<details>
+<summary>
+Файл настроек для работы по static для интерфейса eth0 lxc контейнера
+</summary>
+
+```bash
+cat > /disk/VMs/k8s_rootfs/etc/net/ifaces/eth0/options <<'EOF'
+BOOTPROTO=static
+TYPE=eth
+SYSTEMD_CONTROLLED=no
+DISABLED=no
+CONFIG_WIRELESS=no
+SYSTEMD_BOOTPROTO=static
+CONFIG_IPV4=yes
+CONFIG_IPV6=no
+NM_CONTROLLED=no
+ONBOOT=yes
+EOF
+
+echo "default via 192.168.89.1" > /disk/VMs/k8s_rootfs/etc/net/ifaces/eth0/ipv4route
+
+cat > /disk/VMs/k8s_rootfs/etc/net/ifaces/eth0/resolv.conf <<EOF
+nameserver 192.168.89.1
+search den.skv
+EOF
+
+cat > /disk/VMs/k8s_rootfs/etc/resolv.conf <<EOF
+nameserver 192.168.89.1
+search den.skv
+EOF
+```
+
+</details>
+
 ## Пулы на Физической Хостовой машине
+
 ```bash
 # Список пулов физического хоста
 virsh pool-list \
@@ -82,69 +142,56 @@ cat > scripts/clone_rootfs.sh<<'EOF'
 #!/bin/bash
 # Скрипт подготовки отдельных rootfs для каждой k8s-ноды.
 #
-# Проблема, которую решает: все контейнеры НЕ должны монтировать один и тот же
-# каталог rootfs как '/' — это ведёт к конфликтам (/etc/hosts, machine-id, /run,
-# /tmp, cgroup, pid-файлы). Каждой ноде нужна собственная копия.
-#
-# Использование (запускать без sudo — при необходимости сам вызовет sudo):
-#   ./clone_rootfs.sh
-#   BASE_ROOTFS=/path/to/base/rootfs ./clone_rootfs.sh k8s-cp k8s-w1 k8s-w2 k8s-w3 k8s-w4
+# Каждая нода получает свою копию rootfs (/disk/VMs/<нода>/rootfs),
+# уникальные machine-id/hostname и статический IP через etcnet.
 
 set -euo pipefail
 
-# Базовая (эталонная) rootfs, из которой клонируем
 BASE_ROOTFS="${BASE_ROOTFS:-/disk/VMs/k8s_rootfs}"
-# Корневой каталог, куда раскладываем per-node rootfs
 LXC_ROOT="${LXC_ROOT:-/disk/VMs}"
 
-# Ноды по умолчанию (корректно как массив из нескольких элементов)
-if [ "$#" -gt 0 ]; then
-    NODES=("$@")
-else
-    NODES=(k8s-cp k8s-w1 k8s-w2 k8s-w3 k8s-w4)
-fi
-
-# Привилегии: нужны root, т.к. файлы внутри rootfs принадлежат root (контейнер работает под root)
 SUDO=""
-if [ "$(id -u)" -ne 0 ]; then
-    SUDO="sudo"
-fi
+[ "$(id -u)" -eq 0 ] || SUDO="sudo"
 
-if [ ! -d "$BASE_ROOTFS" ]; then
-    echo "ОШИБКА: базовая rootfs не найдена: $BASE_ROOTFS" >&2
-    exit 1
-fi
+clone_node() {
+    local node="$1" octet="$2"
+    local dest="$LXC_ROOT/$node/rootfs"
 
-for node in "${NODES[@]}"; do
-    dest="$LXC_ROOT/$node/rootfs"
     if [ -d "$dest" ]; then
         echo "  пропускаю (уже существует): $dest"
-        continue
+        return
     fi
-    echo "Клонирование $BASE_ROOTFS -> $dest"
-    $SUDO mkdir -p "$(dirname "$dest")"
-    # cp -a сохраняет права/владельцев/симлинки
-    $SUDO cp -a "$BASE_ROOTFS" "$dest"
 
-    # Внутри контейнера процессы идут под uid=0, поэтому rootfs должен принадлежать root
+    echo "Клонирование $BASE_ROOTFS -> $dest"
+    $SUDO mkdir -p "$dest"
+    $SUDO cp -a "$BASE_ROOTFS/." "$dest/"
     $SUDO chown -R 0:0 "$dest"
 
-    # Каждая нода должна иметь уникальный machine-id и hostname
     $SUDO sh -c ": > \"$dest/etc/machine-id\""
     $SUDO rm -f "$dest/var/lib/dbus/machine-id"
     $SUDO ln -sf /etc/machine-id "$dest/var/lib/dbus/machine-id" 2>/dev/null || true
+
     echo "$node" | $SUDO tee "$dest/etc/hostname" >/dev/null
-done
+
+    # Статический IP через etcnet
+    $SUDO mkdir -p "$dest/etc/net/ifaces/eth0"
+    echo "192.168.89.$octet/24" \
+    | $SUDO tee "$dest/etc/net/ifaces/eth0/ipv4address" >/dev/null
+    echo "  $node -> IP 192.168.89.$octet/24"
+}
+
+clone_node k8s-cp 11
+clone_node k8s-w1 12
+clone_node k8s-w2 13
+clone_node k8s-w3 14
+clone_node k8s-w4 15
 
 echo
-echo "Готово. Проверить, что пути в XML-конфигах указывают на:"
-for node in "${NODES[@]}"; do
-    echo "  $LXC_ROOT/$node/rootfs  (нода: $node)"
-done
+echo "Готово."
+echo "Пути rootfs: $LXC_ROOT/{k8s-cp,k8s-w1,k8s-w2,k8s-w3,k8s-w4}/rootfs"
 EOF
 
 chmod -v +x scripts/clone_rootfs.sh
-
 
 BASE_ROOTFS=/disk/VMs/k8s_rootfs \
 ./scripts/clone_rootfs.sh
@@ -156,17 +203,21 @@ BASE_ROOTFS=/disk/VMs/k8s_rootfs \
 </summary>
 
 ```log
+права доступа 'scripts/clone_rootfs.sh' оставлены в виде 0777 (rwxrwxrwx)
 Клонирование /disk/VMs/k8s_rootfs -> /disk/VMs/k8s-cp/rootfs
+[sudo] пароль для shoel: 
+  k8s-cp -> IP 192.168.89.11/24
 Клонирование /disk/VMs/k8s_rootfs -> /disk/VMs/k8s-w1/rootfs
+  k8s-w1 -> IP 192.168.89.12/24
 Клонирование /disk/VMs/k8s_rootfs -> /disk/VMs/k8s-w2/rootfs
+  k8s-w2 -> IP 192.168.89.13/24
 Клонирование /disk/VMs/k8s_rootfs -> /disk/VMs/k8s-w3/rootfs
+  k8s-w3 -> IP 192.168.89.14/24
 Клонирование /disk/VMs/k8s_rootfs -> /disk/VMs/k8s-w4/rootfs
+  k8s-w4 -> IP 192.168.89.15/24
 
-Готово. Проверить, что пути в XML-конфигах указывают на:
-  /disk/VMs/k8s-cp/rootfs  (нода: k8s-cp)
-  /disk/VMs/k8s-w1/rootfs  (нода: k8s-w1)
-  /disk/VMs/k8s-w2/rootfs  (нода: k8s-w2)
-  /disk/VMs/k8s-w3/rootfs  (нода: k8s-w3)
+Готово.
+Пути rootfs: /disk/VMs/{k8s-cp,k8s-w1,k8s-w2,k8s-w3,k8s-w4}/rootfs
 ```
 
 </details>
@@ -253,10 +304,11 @@ cat > ./templates/lxc-k8s.xml.j2 <<'EOF'
       <target dir='/dev/kvm'/>
     </filesystem>
 
-    <!-- Сеть: DHCP (адрес выдаёт DHCP-сервер; резерв делаем по MAC) -->
+    <!-- Сеть: статический IP -->
     <interface type='bridge'>
-      <mac address='{{ mac_address }}'/>
       <source bridge='br0'/>
+      <ip address='{{ ip_address }}' family='ipv4' prefix='24'/>
+      <route family='ipv4' address='0.0.0.0' gateway='192.168.89.1'/>
       <guest dev='eth0'/>
       <link state='up'/>
     </interface>
@@ -317,8 +369,9 @@ cat > ./lxc-k8s-cp.xml <<'EOF'
     </filesystem>
 
     <interface type='bridge'>
-      <mac address='52:54:00:89:02:01'/>
       <source bridge='br0'/>
+      <ip address='192.168.89.11' family='ipv4' prefix='24'/>
+      <route family='ipv4' address='0.0.0.0' gateway='192.168.89.1'/>
       <guest dev='eth0'/>
       <link state='up'/>
     </interface>
@@ -379,8 +432,9 @@ cat > ./lxc-k8s-w1.xml <<'EOF'
     </filesystem>
 
     <interface type='bridge'>
-      <mac address='52:54:00:89:02:02'/>
       <source bridge='br0'/>
+      <ip address='192.168.89.12' family='ipv4' prefix='24'/>
+      <route family='ipv4' address='0.0.0.0' gateway='192.168.89.1'/>
       <guest dev='eth0'/>
       <link state='up'/>
     </interface>
@@ -441,8 +495,9 @@ cat > ./lxc-k8s-w2.xml <<'EOF'
     </filesystem>
 
     <interface type='bridge'>
-      <mac address='52:54:00:89:02:03'/>
       <source bridge='br0'/>
+      <ip address='192.168.89.13' family='ipv4' prefix='24'/>
+      <route family='ipv4' address='0.0.0.0' gateway='192.168.89.1'/>
       <guest dev='eth0'/>
       <link state='up'/>
     </interface>
@@ -503,8 +558,9 @@ cat > ./lxc-k8s-w3.xml <<'EOF'
     </filesystem>
 
     <interface type='bridge'>
-      <mac address='52:54:00:89:02:04'/>
       <source bridge='br0'/>
+      <ip address='192.168.89.14' family='ipv4' prefix='24'/>
+      <route family='ipv4' address='0.0.0.0' gateway='192.168.89.1'/>
       <guest dev='eth0'/>
       <link state='up'/>
     </interface>
@@ -565,8 +621,9 @@ cat > ./lxc-k8s-w4.xml <<'EOF'
     </filesystem>
 
     <interface type='bridge'>
-      <mac address='52:54:00:89:02:05'/>
       <source bridge='br0'/>
+      <ip address='192.168.89.15' family='ipv4' prefix='24'/>
+      <route family='ipv4' address='0.0.0.0' gateway='192.168.89.1'/>
       <guest dev='eth0'/>
       <link state='up'/>
     </interface>
@@ -585,31 +642,101 @@ EOF
 ### Запуск контейнеров
 
 ```bash
+# Регистрирование конфигов
 for f in lxc-k8s-*.xml; do
-echo "Определяю $f"
+echo "Определено $f"
 virsh -c lxc:/// define "$f"
 done
 ```
+
+<details>
+<summary>
+Вывод регистрации lxc контейнеров под k8s
+</summary>
+
+```log
+Определено lxc-k8s-cp.xml
+Domain 'k8s-cp' defined from lxc-k8s-cp.xml
+
+Определено lxc-k8s-w1.xml
+Domain 'k8s-w1' defined from lxc-k8s-w1.xml
+
+Определено lxc-k8s-w2.xml
+Domain 'k8s-w2' defined from lxc-k8s-w2.xml
+
+Определено lxc-k8s-w3.xml
+Domain 'k8s-w3' defined from lxc-k8s-w3.xml
+
+Определено lxc-k8s-w4.xml
+Domain 'k8s-w4' defined from lxc-k8s-w4.xml
+```
+
+</details>
+
+```bash
+# Запуск контейнеров
+for f in $(virsh -c lxc:/// list --all --name); do
+echo "Запуск $f"
+virsh -c lxc:/// start "$f"
+done
+```
+
+<details>
+<summary>
+Вывод запуска контейнеров
+</summary>
+
+```log
+Запуск k8s-cp
+Domain 'k8s-cp' started
+
+Запуск k8s-w1
+Domain 'k8s-w1' started
+
+Запуск k8s-w2
+Domain 'k8s-w2' started
+
+Запуск k8s-w3
+Domain 'k8s-w3' started
+
+Запуск k8s-w4
+Domain 'k8s-w4' started
+```
+
+</details>
 
 ## Скрипт удаления контейнеров через libvirt и ручную чистку
 
 ```bash
 # Создание скрипта удаления
 cat > scripts/delete_containers.sh <<'EOF'
-virsh -c lxc:/// list --all \
-| awk 'NR > 1 {print $2}' \
+#!/bin/bash
+# Остановка и удаление всех LXC-контейнеров k8s + очистка их rootfs.
+
+virsh -c lxc:/// list --all --name \
 | xargs -I {} virsh -c lxc:/// shutdown {}
 
-virsh -c lxc:/// list --all \
-| awk 'NR > 1 {print $2}' \
+virsh -c lxc:/// list --all --name \
 | xargs -I {} virsh -c lxc:/// undefine --remove-all-storage {}
 
 sudo bash -c \
 "umount /disk/VMs/overlays/*/merged 2>/dev/null || true \
-&& rm -rf /disk/VMs/overlays"
+&& rm -vrf /disk/VMs/k8s-*"
 
-sudo rm -rf \
-/disk/VMs/k8s_rootfs
+echo
+echo "ВНИМАНИЕ: далее будет удалена базовая эталонная rootfs:"
+echo "  /disk/VMs/k8s_rootfs"
+read -r -p "Удалить базовую rootfs /disk/VMs/k8s_rootfs? [y/N]: " answer
+case "$answer" in
+    y|Y|yes|Yes|YES)
+        sudo rm -vrf \
+        /disk/VMs/k8s_rootfs
+        echo "Базовая rootfs удалена."
+        ;;
+    *)
+        echo "Отменено. Базовая rootfs НЕ удалена."
+        ;;
+esac
 EOF
 
 # ДЕлаем скрипт исполняемым
