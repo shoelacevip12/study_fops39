@@ -137,62 +137,61 @@ virsh pool-list \
 
 ### Скрипт копирования с эталонного образа `/disk/VMs/k8s_rootfs`
 
+<details>
+<summary>
+Скрипт копирования с эталонного образа `/disk/VMs/k8s_rootfs`
+</summary>
+
 ```bash
 mkdir -pv scripts
 
 cat > scripts/clone_rootfs.sh<<'EOF'
 #!/bin/bash
 # Скрипт подготовки отдельных rootfs для каждой k8s-ноды.
-#
 # Каждая нода получает свою копию rootfs (/disk/VMs/<нода>/rootfs),
 # уникальные machine-id/hostname и статический IP через etcnet.
+# Запускать на ХОСТЕ.
 
-set -euo pipefail
+BASE_ROOTFS=/disk/VMs/k8s_rootfs
+LXC_ROOT=/disk/VMs
 
-BASE_ROOTFS="${BASE_ROOTFS:-/disk/VMs/k8s_rootfs}"
-LXC_ROOT="${LXC_ROOT:-/disk/VMs}"
+for f in {1..5}; do
+  case $f in
+    1) node=k8s-cp;; 2) node=k8s-w1;; 3) node=k8s-w2;; 4) node=k8s-w3;; 5) node=k8s-w4;;
+  esac
+  octet=$((10+f))
+  dest="$LXC_ROOT/$node/rootfs"
 
-SUDO=""
-[ "$(id -u)" -eq 0 ] || SUDO="sudo"
+  if [ -d "$dest" ]; then
+    echo "  пропускаю (уже существует): $dest"
+    continue
+  fi
 
-clone_node() {
-    local node="$1" octet="$2"
-    local dest="$LXC_ROOT/$node/rootfs"
+  echo "Клонирование $BASE_ROOTFS -> $dest"
+  sudo mkdir -p "$dest"
+  sudo cp -a "$BASE_ROOTFS/." "$dest/"
+  sudo chown -R 0:0 "$dest"
 
-    if [ -d "$dest" ]; then
-        echo "  пропускаю (уже существует): $dest"
-        return
-    fi
+  # уникальный machine-id + hostname
+  sudo sh -c ": > \"$dest/etc/machine-id\""
+  sudo rm -f "$dest/var/lib/dbus/machine-id"
+  sudo ln -sf /etc/machine-id "$dest/var/lib/dbus/machine-id" 2>/dev/null || true
+  echo "$node" | sudo tee "$dest/etc/hostname" >/dev/null
 
-    echo "Клонирование $BASE_ROOTFS -> $dest"
-    $SUDO mkdir -p "$dest"
-    $SUDO cp -a "$BASE_ROOTFS/." "$dest/"
-    $SUDO chown -R 0:0 "$dest"
-
-    $SUDO sh -c ": > \"$dest/etc/machine-id\""
-    $SUDO rm -f "$dest/var/lib/dbus/machine-id"
-    $SUDO ln -sf /etc/machine-id "$dest/var/lib/dbus/machine-id" 2>/dev/null || true
-
-    echo "$node" | $SUDO tee "$dest/etc/hostname" >/dev/null
-
-    # Статический IP через etcnet
-    $SUDO mkdir -p "$dest/etc/net/ifaces/eth0"
-    echo "192.168.89.$octet/24" \
-    | $SUDO tee "$dest/etc/net/ifaces/eth0/ipv4address" >/dev/null
-    echo "  $node -> IP 192.168.89.$octet/24"
-}
-
-clone_node k8s-cp 11
-clone_node k8s-w1 12
-clone_node k8s-w2 13
-clone_node k8s-w3 14
-clone_node k8s-w4 15
+  # статический IP через etcnet
+  sudo mkdir -p "$dest/etc/net/ifaces/eth0"
+  echo "192.168.89.$octet/24" \
+  | sudo tee "$dest/etc/net/ifaces/eth0/ipv4address" >/dev/null
+  echo "  $node -> IP 192.168.89.$octet/24"
+done
 
 echo
 echo "Готово."
 echo "Пути rootfs: $LXC_ROOT/{k8s-cp,k8s-w1,k8s-w2,k8s-w3,k8s-w4}/rootfs"
 EOF
 ```
+
+</details>
 
 ```bash
 # Делаем скрипт исполняемым
@@ -275,7 +274,7 @@ templates/
 cat > ./templates/lxc-k8s.xml.j2 <<'EOF'
 <domain type='lxc'>
   <name>{{ node_name }}</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>{{ memory_kib | default(14680064) }}</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -283,7 +282,6 @@ cat > ./templates/lxc-k8s.xml.j2 <<'EOF'
     <init>/sbin/init</init>
   </os>
 
-  <!-- NESTED VIRTUALIZATION: проброс CPU-флагов хоста (vmx/svm) -->
   <cpu mode='host-passthrough'/>
 
   <features>
@@ -292,25 +290,35 @@ cat > ./templates/lxc-k8s.xml.j2 <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
   <clock offset="timezone" timezone="Europe/Moscow"/>
 
   <devices>
-    <!-- Корневая ФС (отдельная для каждой ноды, чтобы контейнеры не мешали друг другу) -->
     <filesystem type='mount'>
       <source dir='/disk/VMs/{{ node_name }}/rootfs'/>
       <target dir='/'/>
     </filesystem>
 
-    <!-- NESTED VIRTUALIZATION: проброс /dev/kvm -->
     <filesystem type='mount'>
       <source dir='/dev/kvm'/>
       <target dir='/dev/kvm'/>
     </filesystem>
 
-    <!-- Сеть: статический IP -->
     <interface type='bridge'>
       <source bridge='br0'/>
       <ip address='{{ ip_address }}' family='ipv4' prefix='24'/>
@@ -341,7 +349,7 @@ Xml шаблон lxc под control-plane
 cat > ./lxc-k8s-cp.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-cp</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -357,6 +365,19 @@ cat > ./lxc-k8s-cp.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
@@ -404,7 +425,7 @@ Xml шаблон lxc под под рабочую ноду 1
 cat > ./lxc-k8s-w1.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-w1</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -420,6 +441,19 @@ cat > ./lxc-k8s-w1.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
@@ -467,7 +501,7 @@ Xml шаблон lxc под под рабочую ноду 2
 cat > ./lxc-k8s-w2.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-w2</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -483,6 +517,19 @@ cat > ./lxc-k8s-w2.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
@@ -530,7 +577,7 @@ Xml шаблон lxc под под рабочую ноду 3
 cat > ./lxc-k8s-w3.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-w3</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -546,6 +593,19 @@ cat > ./lxc-k8s-w3.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
@@ -593,7 +653,7 @@ Xml шаблон lxc под под рабочую ноду 4
 cat > ./lxc-k8s-w4.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-w4</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -609,6 +669,19 @@ cat > ./lxc-k8s-w4.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
@@ -1134,13 +1207,19 @@ ssh -t -o StrictHostKeyChecking=accept-new \
 kubernetes1.36-kubeadm \
 kubernetes1.36-kubelet \
 kubernetes1.36-crio \
-cri-tools1.36"
+cri-tools1.36 \
+iptables \
+iptables-nft \
+nftables \
+skopeo \
+&& systemctl enable --now crio \
+&& systemctl enable kubelet"
 done
 ```
 
 <details>
 <summary>
-
+Вывод установки и запуска служб
 </summary>
 
 ```log
@@ -1164,60 +1243,466 @@ The following NEW packages will be installed:
   cni-plugins      containers-common  crun      glib2                  kubernetes1.36-common   kubernetes1.36-kubelet  libnetfilter_cthelper   socat
   conmon           cri-o1.36          ebtables  glib2-locales          kubernetes1.36-crio     kubernetes1.36-node     libnetfilter_cttimeout
   conntrack-tools  cri-tools1.36      ethtool   kubernetes1.36-client  kubernetes1.36-kubeadm  libcrun                 libnetfilter_queue
-0 upgraded, 22 newly installed, 0 removed and 0 not upgraded.
-Need to get 95.7MB of archives.
-After unpacking 455MB of additional disk space will be used.
-Get:1 http://ftp.altlinux.org p11/branch/noarch/classic glib2-locales 2.84.4-alt1:p11+396318.100.2.1@1760211330 [1267kB]
-Get:2 http://ftp.altlinux.org p11/branch/x86_64/classic glib2 2.84.4-alt1:p11+396318.100.2.1@1760211330 [986kB]
-Get:3 http://ftp.altlinux.org p11/branch/x86_64/classic conmon 1:2.2.1-alt1:p11+420109.2100.4.1@1782726038 [45.4kB]
-Get:4 http://ftp.altlinux.org p11/branch/noarch/classic containers-common 2:0.64.0-alt1:p11+392191.500.2.1@1755673252 [84.7kB]
-Get:5 http://ftp.altlinux.org p11/branch/x86_64/classic cri-tools1.36 1.36.0-alt1:p11+420109.600.4.1@1782724276 [15.4MB]
-Get:6 http://ftp.altlinux.org p11/branch/x86_64/classic libcrun 1.27-alt1:p11+413705.100.1.1@1774957656 [252kB]                                                                                        
-Get:7 http://ftp.altlinux.org p11/branch/x86_64/classic crun 1.27-alt1:p11+413705.100.1.1@1774957656 [41.3kB]                                                                                          
-Get:8 http://ftp.altlinux.org p11/branch/x86_64/classic ebtables 2.0.11-alt3:sisyphus+344189.100.1.1@1712048586 [79.7kB]                                                                               
-Get:9 http://ftp.altlinux.org p11/branch/x86_64/classic ethtool 1:7.0-alt1:p11+418561.100.2.1@1780407918 [301kB]                                                                                       
-Get:10 http://ftp.altlinux.org p11/branch/noarch/classic kubernetes1.36-common 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [11.4kB]                                                                     
-Get:11 http://ftp.altlinux.org p11/branch/x86_64/classic kubernetes1.36-client 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [12.0MB]                                                                     
-Get:12 http://ftp.altlinux.org p11/branch/x86_64/classic libnetfilter_cthelper 1.0.1-alt1:sisyphus+300219.100.1.1@1652970568 [15.1kB]                                                                  
-Get:13 http://ftp.altlinux.org p11/branch/x86_64/classic libnetfilter_cttimeout 1.0.1-alt1:sisyphus+300219.200.2.1@1652971062 [15.3kB]                                                                 
-Get:14 http://ftp.altlinux.org p11/branch/x86_64/classic libnetfilter_queue 1.0.5-alt1:sisyphus+278100.3000.1.1@1626058809 [20.1kB]                                                                    
-Get:15 http://ftp.altlinux.org p11/branch/x86_64/classic conntrack-tools 1.4.8-alt1:sisyphus+332528.100.1.1@1698072947 [183kB]                                                                         
-Get:16 http://ftp.altlinux.org p11/branch/x86_64/classic socat 1.7.4.4-alt1:sisyphus+330215.600.3.1@1695490295 [266kB]                                                                                 
-Get:17 http://ftp.altlinux.org p11/branch/x86_64/classic kubernetes1.36-kubelet 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [13.4MB]                                                                    
-Get:18 http://ftp.altlinux.org p11/branch/x86_64/classic kubernetes1.36-node 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [9602kB]                                                                       
-Get:19 http://ftp.altlinux.org p11/branch/x86_64/classic cni-plugins 1.9.1-alt1:p11+414174.100.1.1@1775317003 [10.4MB]                                                                                 
-Get:20 http://ftp.altlinux.org p11/branch/x86_64/classic kubernetes1.36-kubeadm 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [12.7MB]                                                                    
-Get:21 http://ftp.altlinux.org p11/branch/x86_64/classic cri-o1.36 1.36.0-alt1:p11+420109.500.4.1@1782724158 [18.7MB]                                                                                  
-Get:22 http://ftp.altlinux.org p11/branch/noarch/classic kubernetes1.36-crio 1.36.1-alt1:p11+420109.1300.4.1@1782725573 [10.8kB]                                                                       
-Fetched 95.7MB in 44s (2156kB/s)   
-Committing changes...
-Preparing...                                                                                 #################################################################################################### [100%]
-Updating / installing...
- 1: socat-1.7.4.4-alt1                                                                       #################################################################################################### [  5%]
- 2: cni-plugins-1.9.1-alt1                                                                   #################################################################################################### [  9%]
- 3: kubernetes1.36-common-1.36.1-alt1                                                        #################################################################################################### [ 14%]
- 4: ethtool-1:7.0-alt1                                                                       #################################################################################################### [ 18%]
- 5: kubernetes1.36-client-1.36.1-alt1                                                        #################################################################################################### [ 23%]
- 6: kubernetes1.36-kubelet-1.36.1-alt1                                                       #################################################################################################### [ 27%]
- 7: libnetfilter_queue-1.0.5-alt1                                                            #################################################################################################### [ 32%]
- 8: libnetfilter_cttimeout-1.0.1-alt1                                                        #################################################################################################### [ 36%]
- 9: libnetfilter_cthelper-1.0.1-alt1                                                         #################################################################################################### [ 41%]
-10: conntrack-tools-1.4.8-alt1                                                               #################################################################################################### [ 45%]
-11: kubernetes1.36-node-1.36.1-alt1                                                          #################################################################################################### [ 50%]
-12: ebtables-2.0.11-alt3                                                                     #################################################################################################### [ 55%]
-13: libcrun-1.27-alt1                                                                        #################################################################################################### [ 59%]
-14: crun-1.27-alt1                                                                           #################################################################################################### [ 64%]
-15: containers-common-2:0.64.0-alt1                                                          #################################################################################################### [ 68%]
-16: glib2-locales-2.84.4-alt1                                                                #################################################################################################### [ 73%]
-17: glib2-2.84.4-alt1                                                                        #################################################################################################### [ 77%]
-18: conmon-1:2.2.1-alt1                                                                      #################################################################################################### [ 82%]
-19: cri-o1.36-1.36.0-alt1                                                                    #################################################################################################### [ 86%]
-20: kubernetes1.36-crio-1.36.1-alt1                                                          #################################################################################################### [ 91%]
-21: kubernetes1.36-kubeadm-1.36.1-alt1                                                       #################################################################################################### [ 95%]
-22: cri-tools1.36-1.36.0-alt1                                                                #################################################################################################### [100%]
-Done.
+...
+Created symlink '/etc/systemd/system/cri-o.service' → '/usr/lib/systemd/system/crio.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/crio.service' → '/usr/lib/systemd/system/crio.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/kubelet.service' → '/usr/lib/systemd/system/kubelet.service'.
+...
 Connection to 192.168.89.11 closed.
 ...
+```
+
+</details>
+
+```bash
+# проверка статуса CRI и версии kubectl на нодах на нодах 
+for f in {1..5}; do
+echo -e "\n---===проверка статуса CRI на ноде .1$f===---"
+ssh -t -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+"systemctl status crio | head -n8 && echo \
+&& kubectl version 2> /dev/null"
+done
+```
+
+<details>
+<summary>
+Вывод статуса службы CRI и версии kubectl на нодах
+</summary>
+
+```log
+---===проверка статуса CRI на ноде .11===---
+● crio.service - Container Runtime Interface for OCI (CRI-O)
+     Loaded: loaded (/usr/lib/systemd/system/crio.service; enabled; preset: disabled)
+     Active: active (running) since Wed 2026-08-26 14:01:22 UTC; 43min ago
+ Invocation: 0696980072f645cabab38dbc7d450f72
+       Docs: https://github.com/cri-o/cri-o
+   Main PID: 3690 (crio)
+        CPU: 995ms
+     CGroup: /machine.slice/machine-lxc\x2d50642\x2dk8s\x2dcp.scope/libvirt/system.slice/crio.service
+
+Client Version: v1.36.1
+Kustomize Version: v5.8.1
+Connection to 192.168.89.11 closed.
+
+---===проверка статуса CRI на ноде .12===---
+● crio.service - Container Runtime Interface for OCI (CRI-O)
+     Loaded: loaded (/usr/lib/systemd/system/crio.service; enabled; preset: disabled)
+     Active: active (running) since Wed 2026-08-26 14:01:22 UTC; 43min ago
+ Invocation: 8a637d213a0148aab76acb186889b289
+       Docs: https://github.com/cri-o/cri-o
+   Main PID: 3507 (crio)
+        CPU: 1.020s
+     CGroup: /machine.slice/machine-lxc\x2d50702\x2dk8s\x2dw1.scope/libvirt/system.slice/crio.service
+
+Client Version: v1.36.1
+Kustomize Version: v5.8.1
+Connection to 192.168.89.12 closed.
+
+---===проверка статуса CRI на ноде .13===---
+● crio.service - Container Runtime Interface for OCI (CRI-O)
+     Loaded: loaded (/usr/lib/systemd/system/crio.service; enabled; preset: disabled)
+     Active: active (running) since Wed 2026-08-26 14:01:23 UTC; 43min ago
+ Invocation: 16a12d000f4f4ff2ad1b5b0dd1f09703
+       Docs: https://github.com/cri-o/cri-o
+   Main PID: 3448 (crio)
+        CPU: 1.031s
+     CGroup: /machine.slice/machine-lxc\x2d50763\x2dk8s\x2dw2.scope/libvirt/system.slice/crio.service
+
+Client Version: v1.36.1
+Kustomize Version: v5.8.1
+Connection to 192.168.89.13 closed.
+
+---===проверка статуса CRI на ноде .14===---
+● crio.service - Container Runtime Interface for OCI (CRI-O)
+     Loaded: loaded (/usr/lib/systemd/system/crio.service; enabled; preset: disabled)
+     Active: active (running) since Wed 2026-08-26 14:01:23 UTC; 43min ago
+ Invocation: 628c95962f2e435a8004289749d0c81a
+       Docs: https://github.com/cri-o/cri-o
+   Main PID: 3417 (crio)
+        CPU: 1.081s
+     CGroup: /machine.slice/machine-lxc\x2d50891\x2dk8s\x2dw3.scope/libvirt/system.slice/crio.service
+
+Client Version: v1.36.1
+Kustomize Version: v5.8.1
+Connection to 192.168.89.14 closed.
+
+---===проверка статуса CRI на ноде .15===---
+● crio.service - Container Runtime Interface for OCI (CRI-O)
+     Loaded: loaded (/usr/lib/systemd/system/crio.service; enabled; preset: disabled)
+     Active: active (running) since Wed 2026-08-26 14:01:24 UTC; 43min ago
+ Invocation: 1cbdb80760f54602809d4160748a0fef
+       Docs: https://github.com/cri-o/cri-o
+   Main PID: 3377 (crio)
+        CPU: 1.098s
+     CGroup: /machine.slice/machine-lxc\x2d51116\x2dk8s\x2dw4.scope/libvirt/system.slice/crio.service
+
+Client Version: v1.36.1
+Kustomize Version: v5.8.1
+Connection to 192.168.89.15 closed.
+```
+
+</details>
+
+### фиксы под работу с версией kubernetes 1.36.1 на altlinux
+
+```bash
+# Указываем конкретный pause-контейнер для работы CRI
+for f in {1..5}; do
+echo "---=== Настройка pause-контейнер на ноде 192.168.89.1${f} ===---"
+ssh -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host \
+root@192.168.89.1"${f}" \
+'crictl pull registry.altlinux.org/p11/pause:3.10.1 && \
+sed -i '\''s|^#* *pause_image *=.*|pause_image = "registry.altlinux.org/p11/pause:3.10.1"|'\'' \
+/etc/crio/crio.conf \
+&& systemctl restart crio \
+&& crictl info | grep -i pause \
+&& skopeo copy docker://registry.altlinux.org/p11/pause:3.10.1 \
+containers-storage:registry.altlinux.org/p11/pause:3.10.2'
+done
+```
+
+<details>
+<summary>
+вывод перетэгирования pause-контейнера в CRI
+</summary>
+
+```log
+---=== Настройка pause-контейнер на ноде 192.168.89.11 ===---
+Image is up to date for 4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+    "sandboxImage": "registry.altlinux.org/p11/pause:3.10.1"
+time="2026-08-26T16:58:18Z" level=info msg="Not using native diff for overlay, this may cause degraded performance for building images: kernel has CONFIG_OVERLAY_FS_REDIRECT_DIR enabled"
+Getting image source signatures
+Copying blob sha256:e8fd17787cb801cf887ec29c4c8716b2038cd819e55fffaabee59ae87005be7c
+Copying config sha256:4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+Writing manifest to image destination
+---=== Настройка pause-контейнер на ноде 192.168.89.12 ===---
+Image is up to date for 4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+    "sandboxImage": "registry.altlinux.org/p11/pause:3.10.1"
+time="2026-08-26T16:58:20Z" level=info msg="Not using native diff for overlay, this may cause degraded performance for building images: kernel has CONFIG_OVERLAY_FS_REDIRECT_DIR enabled"
+Getting image source signatures
+Copying blob sha256:e8fd17787cb801cf887ec29c4c8716b2038cd819e55fffaabee59ae87005be7c
+Copying config sha256:4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+Writing manifest to image destination
+---=== Настройка pause-контейнер на ноде 192.168.89.13 ===---
+Image is up to date for 4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+    "sandboxImage": "registry.altlinux.org/p11/pause:3.10.1"
+time="2026-08-26T16:58:21Z" level=info msg="Not using native diff for overlay, this may cause degraded performance for building images: kernel has CONFIG_OVERLAY_FS_REDIRECT_DIR enabled"
+Getting image source signatures
+Copying blob sha256:e8fd17787cb801cf887ec29c4c8716b2038cd819e55fffaabee59ae87005be7c
+Copying config sha256:4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+Writing manifest to image destination
+---=== Настройка pause-контейнер на ноде 192.168.89.14 ===---
+Image is up to date for 4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+    "sandboxImage": "registry.altlinux.org/p11/pause:3.10.1"
+time="2026-08-26T16:58:22Z" level=info msg="Not using native diff for overlay, this may cause degraded performance for building images: kernel has CONFIG_OVERLAY_FS_REDIRECT_DIR enabled"
+Getting image source signatures
+Copying blob sha256:e8fd17787cb801cf887ec29c4c8716b2038cd819e55fffaabee59ae87005be7c
+Copying config sha256:4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+Writing manifest to image destination
+---=== Настройка pause-контейнер на ноде 192.168.89.15 ===---
+Image is up to date for 4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+    "sandboxImage": "registry.altlinux.org/p11/pause:3.10.1"
+time="2026-08-26T16:58:23Z" level=info msg="Not using native diff for overlay, this may cause degraded performance for building images: kernel has CONFIG_OVERLAY_FS_REDIRECT_DIR enabled"
+Getting image source signatures
+Copying blob sha256:e8fd17787cb801cf887ec29c4c8716b2038cd819e55fffaabee59ae87005be7c
+Copying config sha256:4d9a3ab7ef4069d1ed71610609c3fd9684d6ad28e9db21b5c24f5001364dadfa
+Writing manifest to image destination
+```
+
+</details>
+
+### Инициализация control-plane и развёртывание кластера (Задание 1)
+
+#### Этап 0. Обязательные фиксы вложенной виртуализации (до `kubeadm init`)
+
+Внутри LXC (libvirt, cgroup v2) `kubeadm init`/`kubelet` падают без ряда обходов.
+Три скрипта применяются **в строгом порядке до** инициализации:
+
+| Скрипт | Где запускать | Что делает |
+|--------|---------------|------------|
+| `scripts/fix_sysctl_host.sh` | **ХОСТ** (там, где `virsh -c lxc:///`) | выставляет глобальные sysctl (`vm.overcommit_memory`, `kernel.panic*`), чтобы kubelet в нодах не пытался писать в read-only `/proc/sys` |
+| `scripts/fix_kmsg_node.sh` | **КАЖДАЯ нода** | симлинк `/dev/kmsg -> /dev/null` (device-cgroup блокирует открытие реального `/dev/kmsg`) |
+| `scripts/fix_runtime_nested.sh` | **КАЖДАЯ нода** | crun-wrapper без device-BPF, cgroup-драйвер `cgroupfs`, перемонтирование `/proc/sys` в rw |
+
+##### 1. fix_sysctl_host.sh - на ХОСТЕ
+
+```bash
+# на ХОСТЕ, где libvirt (virsh -c lxc:///) - глобальные sysctl для kubelet
+sudo ./scripts/fix_sysctl_host.sh
+```
+
+<details>
+<summary>
+контроль применённых sysctl на хосте (повторный замер)
+</summary>
+
+```log
+$ ls -l /etc/sysctl.d/99-kubelet-lxc.conf
+-rw-r--r-- 1 root root 389 Aug 26 21:10 /etc/sysctl.d/99-kubelet-lxc.conf
+
+$ sysctl vm.overcommit_memory kernel.panic kernel.panic_on_oops
+vm.overcommit_memory = 1
+kernel.panic = 10
+kernel.panic_on_oops = 1
+```
+
+</details>
+
+##### 2. fix_kmsg_node.sh - на КАЖДОЙ ноде
+
+```bash
+# на каждой ноде (192.168.89.11..15): /dev/kmsg -> /dev/null
+for f in {1..5}; do
+  ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_kvm_host \
+    root@192.168.89.1"$f" './scripts/fix_kmsg_node.sh'
+done
+```
+
+<details>
+<summary>
+контроль /dev/kmsg на ноде (симлинк на /dev/null)
+</summary>
+
+```log
+$ ls -l /dev/kmsg
+lrwxrwxrwx 1 root root 9 Aug 26 19:32 /dev/kmsg -> /dev/null
+```
+
+</details>
+
+##### 3. fix_runtime_nested.sh - на КАЖДОЙ ноде
+
+```bash
+# на каждой ноде: crun-wrapper без device-BPF + cgroupfs + /proc/sys rw
+for f in {1..5}; do
+  ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_kvm_host \
+    root@192.168.89.1"$f" './scripts/fix_runtime_nested.sh'
+done
+```
+
+<details>
+<summary>
+контроль runtime-фиксов на ноде (crun-nobpf, cgroupfs, /proc/sys rw)
+</summary>
+
+```log
+$ ls -l /usr/local/bin/crun-nobpf
+-rwxr-xr-x 1 root root 632 Aug 26 19:14 /usr/local/bin/crun-nobpf
+
+$ grep -E 'cgroup_manager|runtime_path' /etc/crio/crio.conf | grep -v '^#'
+cgroup_manager = "cgroupfs"
+runtime_path = "/usr/local/bin/crun-nobpf"
+
+$ grep -i cgroup /var/lib/kubelet/config.yaml
+cgroupDriver: cgroupfs
+
+$ mount | grep -E '/proc/sys '
+proc on /proc/sys type proc (rw,nosuid,nodev,noexec,relatime,gid=19)
+
+$ test -w /proc/sys/net/ipv4/ip_forward && echo "/proc/sys writable: yes"
+/proc/sys writable: yes
+```
+
+</details>
+
+После «Этапа 0» обе службы на всех нодах активны и можно переходить к инициализации:
+
+```bash
+ssh -t -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host root@192.168.89.11 \
+"kubeadm init \
+--pod-network-cidr=10.10.0.0/16 \
+--kubernetes-version=1.36.1 \
+--image-repository=registry.altlinux.org/p11 \
+--cri-socket=unix:///var/run/crio/crio.sock \
+--ignore-preflight-errors=Swap"
+```
+
+<details>
+<summary>
+Лог успешного kubeadm init на control-plane готов
+</summary>
+
+```log
+[control-plane-check] kube-apiserver is healthy after 2.001232118s
+[upload-config] Storing the configuration used in ConfigMap "kubeadm-config"
+[mark-control-plane] Marking the node k8s-cp as control-plane
+[bootstrap-token] Using token: qhepku.g4i5627odrxm02by
+[addons] Applied essential addon: CoreDNS
+[addons] Applied essential addon: kube-proxy
+
+Your Kubernetes control-plane has initialized successfully!
+Then you can join any number of worker nodes by running the following on each as root:
+kubeadm join 192.168.89.11:6443 --token qhepku.g4i5627odrxm02by \
+	--discovery-token-ca-cert-hash sha256:4779932cd0ec3e1708f4dfb9b98f3fbef1923877226b349797ad407e259b39e6
+```
+
+</details>
+
+#### kubectl: контекст кластера на ХОСТЕ для пользователя
+
+```bash
+cp -v ~/.kube/config ~/.kube/config.bak
+scp -O -i ~/.ssh/id_kvm_host root@192.168.89.11:/etc/kubernetes/admin.conf ~/.kube/config
+chmod 600 ~/.kube/config
+```
+
+Теперь контекст доступен для текущего пользователя на хосте:
+
+```bash
+kubectl config get-contexts
+kubectl config current-context
+kubectl config get-clusters
+kubectl get nodes
+```
+
+<details>
+<summary>
+контекст kubernetes-admin@kubernetes (server https://192.168.89.11:6443), кластер рабочий
+</summary>
+
+```log
+$ kubectl config get-contexts
+CURRENT   NAME                          CLUSTER      AUTHINFO           NAMESPACE
+*         kubernetes-admin@kubernetes   kubernetes   kubernetes-admin
+
+$ kubectl config current-context
+kubernetes-admin@kubernetes
+
+$ kubectl config get-clusters
+NAME
+kubernetes
+
+$ kubectl get nodes
+NAME     STATUS   ROLES           AGE    VERSION
+k8s-cp   Ready    control-plane   137m   v1.36.1
+k8s-w1   Ready    <none>          100m   v1.36.1
+k8s-w2   Ready    <none>          100m   v1.36.1
+k8s-w3   Ready    <none>          100m   v1.36.1
+k8s-w4   Ready    <none>          100m   v1.36.1
+```
+
+</details>
+
+#### kube-proxy: отключение conntrack-систклтов
+
+```bash
+# Правка ConfigMap kube-proxy: conntrack.maxPerCore/min=0, таймауты=0s
+kubectl -n kube-system patch cm kube-proxy --type=json \
+-p "$(jq -n --arg v "$(sed 's/^  maxPerCore: null/  maxPerCore: 0/;s/^  min: null/  min: 0/;\
+s/^  tcpCloseWaitTimeout: null/  tcpCloseWaitTimeout: 0s/;\
+s/^  tcpEstablishedTimeout: null/  tcpEstablishedTimeout: 0s/' <(kubectl -n kube-system get cm kube-proxy -o jsonpath='{.data.config\.conf}'))" \
+'[{"op":"replace","path":"/data/config.conf","value":$v}]')"
+kubectl -n kube-system rollout restart ds/kube-proxy
+```
+
+#### Установка CNI Calico
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/calico.yaml -o /tmp/calico.yaml
+kubectl apply -f /tmp/calico.yaml
+kubectl get ippool default-ipv4-ippool -o jsonpath='{.spec.cidr}'
+```
+
+#### Присоединение рабочих нод (w1..w4)
+
+```bash
+for f in {2..5}; do
+ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+"kubeadm join 192.168.89.11:6443 --token qhepku.g4i5627odrxm02by \
+--discovery-token-ca-cert-hash sha256:4779932cd0ec3e1708f4dfb9b98f3fbef1923877226b349797ad407e259b39e6 \
+--cri-socket=unix:///var/run/crio/crio.sock"
+done
+```
+
+#### Тестовый запуск nginx и проверка
+
+```bash
+kubectl create deployment nginx-test --image=docker.io/library/nginx:alpine --replicas=3
+kubectl expose deployment nginx-test --port=80 --type=NodePort
+kubectl get nodes -o wide
+kubectl get pods -A -o wide
+curl -s http://192.168.89.11:$(kubectl get svc nginx-test -o jsonpath='{.spec.ports[0].nodePort}')/ -o /dev/null -w 'HTTP %{http_code}\n'
+```
+
+<details>
+<summary>
+состояния кластера
+</summary>
+
+```log
+$ kubectl get nodes -o wide
+NAME     STATUS   ROLES           AGE    VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE        KERNEL-VERSION             CONTAINER-RUNTIME
+k8s-cp   Ready    control-plane   101m   v1.36.1   10.10.62.128   <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+k8s-w1   Ready    <none>          65m    v1.36.1   10.10.228.64   <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+k8s-w2   Ready    <none>          65m    v1.36.1   10.10.46.0     <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+k8s-w3   Ready    <none>          65m    v1.36.1   10.10.197.0    <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+k8s-w4   Ready    <none>          65m    v1.36.1   10.10.23.64    <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+
+$ kubectl get pods -A -o wide
+NAMESPACE     NAME                                       READY   STATUS    RESTARTS      AGE    IP              NODE
+default       nginx-test-676977dfff-4n4n9                1/1     Running   0             43m    10.10.228.67    k8s-w1
+default       nginx-test-676977dfff-bpbnb                1/1     Running   0             43m    10.10.197.2     k8s-w3
+default       nginx-test-676977dfff-dmdcd                1/1     Running   0             43m    10.10.23.67     k8s-w4
+kube-system   calico-kube-controllers-7bc9dccf69-qs8rw   1/1     Running   2 (66m ago)   68m    10.10.62.180    k8s-cp
+kube-system   calico-node-4gpz6                          1/1     Running   4 (66m ago)   88m    192.168.89.11   k8s-cp
+kube-system   calico-node-986kh                          1/1     Running   1             65m    192.168.89.15   k8s-w4
+kube-system   calico-node-fcldt                          1/1     Running   1             65m    192.168.89.13   k8s-w2
+kube-system   calico-node-pxtmg                          1/1     Running   1             65m    192.168.89.12   k8s-w1
+kube-system   calico-node-v6p7l                          1/1     Running   1             65m    192.168.89.14   k8s-w3
+kube-system   coredns-5fc84b665c-lqmzg                   1/1     Running   2 (66m ago)   68m    10.10.62.179    k8s-cp
+kube-system   coredns-5fc84b665c-vk9vl                   1/1     Running   2 (66m ago)   68m    10.10.62.178    k8s-cp
+kube-system   etcd-k8s-cp                                1/1     Running   6             101m   192.168.89.11   k8s-cp
+kube-system   kube-apiserver-k8s-cp                      1/1     Running   6             101m   192.168.89.11   k8s-cp
+kube-system   kube-controller-manager-k8s-cp             1/1     Running   6             101m   192.168.89.11   k8s-cp
+kube-system   kube-proxy-c4pxk                           1/1     Running   1             65m    192.168.89.12   k8s-w1
+kube-system   kube-proxy-hnkmk                           1/1     Running   4 (66m ago)   92m    192.168.89.11   k8s-cp
+kube-system   kube-proxy-ll9nr                           1/1     Running   1             65m    192.168.89.14   k8s-w3
+kube-system   kube-proxy-m6ds5                           1/1     Running   1             65m    192.168.89.15   k8s-w4
+kube-system   kube-proxy-n7vdn                           1/1     Running   1             65m    192.168.89.13   k8s-w2
+kube-system   kube-scheduler-k8s-cp                      1/1     Running   6             101m   192.168.89.11   k8s-cp
+
+$ kubectl get svc nginx-test
+NAME         TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
+nginx-test   NodePort   10.97.57.77   <none>        80:32493/TCP   44m
+
+# доступ извне по NodePort (с хоста) и внутри кластера по ClusterIP
+$ curl -s http://192.168.89.11:32493/ -o /dev/null -w 'HTTP %{http_code}\n'
+HTTP 200
+$ curl -s http://10.97.57.77/ -o /dev/null -w 'HTTP %{http_code}\n'
+HTTP 200
+
+# условия всех нод - давления сняты (ложный MemoryPressure устранён поднятием памяти до 14 GiB)
+$ kubectl get nodes -o json | jq -r '.items[] | .metadata.name as $n | .status.conditions[] |
+  select(.type=="Ready" or .type=="MemoryPressure" or .type=="DiskPressure" or .type=="PIDPressure" or .type=="NetworkUnavailable") |
+  "\($n): \(.type)=\(.status)"'
+k8s-cp: NetworkUnavailable=False
+k8s-cp: MemoryPressure=False
+k8s-cp: DiskPressure=False
+k8s-cp: PIDPressure=False
+k8s-cp: Ready=True
+k8s-w1: NetworkUnavailable=False
+k8s-w1: MemoryPressure=False
+k8s-w1: DiskPressure=False
+k8s-w1: PIDPressure=False
+k8s-w1: Ready=True
+k8s-w2: NetworkUnavailable=False
+k8s-w2: MemoryPressure=False
+k8s-w2: DiskPressure=False
+k8s-w2: PIDPressure=False
+k8s-w2: Ready=True
+k8s-w3: NetworkUnavailable=False
+k8s-w3: MemoryPressure=False
+k8s-w3: DiskPressure=False
+k8s-w3: PIDPressure=False
+k8s-w3: Ready=True
+k8s-w4: NetworkUnavailable=False
+k8s-w4: MemoryPressure=False
+k8s-w4: DiskPressure=False
+k8s-w4: PIDPressure=False
+k8s-w4: Ready=True
 ```
 
 </details>
@@ -1234,30 +1719,25 @@ Connection to 192.168.89.11 closed.
 cat > scripts/delete_containers.sh <<'EOF'
 #!/bin/bash
 # Остановка и удаление всех LXC-контейнеров k8s + очистка их rootfs.
+# Запускать на ХОСТЕ.
 
-virsh -c lxc:/// list --all --name \
-| xargs -I {} virsh -c lxc:/// shutdown {}
+virsh -c lxc:/// list --all --name | xargs -I {} virsh -c lxc:/// shutdown {}
+virsh -c lxc:/// list --all --name | xargs -I {} virsh -c lxc:/// undefine --remove-all-storage {}
 
-virsh -c lxc:/// list --all --name \
-| xargs -I {} virsh -c lxc:/// undefine --remove-all-storage {}
-
-sudo bash -c \
-"umount /disk/VMs/overlays/*/merged 2>/dev/null || true \
-&& rm -vrf /disk/VMs/k8s-*"
+sudo bash -c "umount /disk/VMs/overlays/*/merged 2>/dev/null || true; rm -vrf /disk/VMs/k8s-*"
 
 echo
 echo "ВНИМАНИЕ: далее будет удалена базовая эталонная rootfs:"
 echo "  /disk/VMs/k8s_rootfs"
 read -r -p "Удалить базовую rootfs /disk/VMs/k8s_rootfs? [y/N]: " answer
 case "$answer" in
-    y|Y|yes|Yes|YES)
-        sudo rm -vrf \
-        /disk/VMs/k8s_rootfs
-        echo "Базовая rootfs удалена."
-        ;;
-    *)
-        echo "Отменено. Базовая rootfs НЕ удалена."
-        ;;
+  y|Y|yes|Yes|YES)
+    sudo rm -vrf /disk/VMs/k8s_rootfs
+    echo "Базовая rootfs удалена."
+    ;;
+  *)
+    echo "Отменено. Базовая rootfs НЕ удалена."
+    ;;
 esac
 EOF
 ```

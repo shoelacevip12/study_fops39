@@ -436,7 +436,6 @@ tar -xvJf \
 -C /disk/VMs//k8s_rootfs
 ```
 
-
 ```bash
 ll \
 /disk/VMs/k8s_rootfs
@@ -1665,34 +1664,328 @@ study-fops39_sc \
 
 ## commit_5,`21_8-kubeadm-inst`
 
+Развёртывание кластера Kubernetes 1.36.1 (1 master + 4 worker) на 5 LXC-контейнерах
+(Alt Linux p11, libvirt, host cgroup v2). Внутри LXC пришлось последовательно обойти
+цепочку ограничений вложенной виртуализации: `/dev/kmsg`, read-only `/proc/sys`,
+device-BPF crun (`bpf attach EPERM`), контроллер `pids`, kube-proxy conntrack,
+Calico CNI sysctl, ложный MemoryPressure.
 
 ```bash
-
-
+# 1. Обход device-cgroup: /dev/kmsg -> симлинк на /dev/null внутри каждой ноды
+for f in {1..5}; do
+scp -O -i ~/.ssh/id_kvm_host \
+./scripts/fix_kmsg_node.sh root@192.168.89.1$f:~/
+done
+for f in {1..5}; do
+ssh -t -o StrictHostKeyChecking=accept-new \
+-i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+"chmod +x ./fix_kmsg_node.sh && ./fix_kmsg_node.sh"
+done
 ```
 
 <details>
 <summary>
-
+вывод fix_kmsg_node.sh (k8s-cp): /dev/kmsg -> /dev/null + перезапуск kubelet
 </summary>
 
 ```log
-
+>>> /dev/kmsg -> /dev/null (симлинк)
+>>> постоянство при пересоздании /dev (tmpfiles.d)
+>>> применение tmpfiles
+>>> перезапуск kubelet
+● kubelet.service - Kubernetes Kubelet Server
+     Active: active (running) since Wed 2026-08-26 17:55:33 UTC; 15ms ago
+   Main PID: 1612 (kubelet)
+Готово. Проверка:
+  ls -l /dev/kmsg      # должен быть симлинк на /dev/null
+  systemctl is-active kubelet   # active
 ```
 
 </details>
 
 ```bash
-
+# 2. Глобальные sysctl на ХОСТЕ (kubelet пишет только если значение не совпадает)
+sudo ./scripts/fix_sysctl_host.sh
+# 3. Runtime-wrapper (crun без device-BPF) + cgroupfs + /proc/sys rw на ВСЕХ нодах
+for f in {1..5}; do
+scp -O -i ~/.ssh/id_kvm_host \
+./scripts/fix_runtime_nested.sh root@192.168.89.1$f:/root/
+ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_kvm_host \
+root@192.168.89.1$f "chmod +x /root/fix_runtime_nested.sh && /root/fix_runtime_nested.sh"
+done
 ```
 
 <details>
 <summary>
-
+вывод fix_runtime_nested.sh: crun-nobpf wrapper, cgroupfs, /proc/sys writable
 </summary>
 
 ```log
-
+Created symlink '/etc/systemd/system/multi-user.target.wants/proc-sys-rw.service' \
+  → '/etc/systemd/system/proc-sys-rw.service'.
+  /proc/sys writable: yes
+  crio:    active
+  kubelet: active
+Готово.
 ```
 
 </details>
+
+```bash
+# 4. Чистый kubeadm init на k8s-cp (CRI socket + Calico 10.10.0.0/16)
+ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_kvm_host root@192.168.89.11 \
+"kubeadm reset -f >/dev/null 2>&1; rm -rf /etc/kubernetes /var/lib/etcd /var/lib/kubelet; mkdir -p /var/lib/kubelet; \
+ kubeadm init --pod-network-cidr=10.10.0.0/16 --kubernetes-version=1.36.1 \
+ --image-repository=registry.altlinux.org/p11 --cri-socket=unix:///var/run/crio/crio.sock \
+ --ignore-preflight-errors=Swap"
+```
+
+<details>
+<summary>
+Лог успешного kubeadm init (control-plane готов)
+</summary>
+
+```log
+[control-plane-check] kube-apiserver is healthy after 2.001232118s
+[upload-config] Storing the configuration used in ConfigMap "kubeadm-config"
+[mark-control-plane] Marking the node k8s-cp as control-plane
+[bootstrap-token] Using token: qhepku.g4i5627odrxm02by
+[addons] Applied essential addon: CoreDNS
+[addons] Applied essential addon: kube-proxy
+
+Your Kubernetes control-plane has initialized successfully!
+Then you can join any number of worker nodes by running the following on each as root:
+kubeadm join 192.168.89.11:6443 --token qhepku.g4i5627odrxm02by \
+	--discovery-token-ca-cert-hash sha256:4779932cd0ec3e1708f4dfb9b98f3fbef1923877226b349797ad407e259b39e6
+```
+
+</details>
+
+```bash
+# контекст kubectl на ХОСТЕ LXC для пользователя shoel
+# (в ~/.kube/config был только developer без кластера/контекста; кладём admin.conf)
+cp -v ~/.kube/config ~/.kube/config.bak
+scp -O -i ~/.ssh/id_kvm_host root@192.168.89.11:/etc/kubernetes/admin.conf ~/.kube/config
+chmod 600 ~/.kube/config
+kubectl config get-contexts && kubectl config current-context && kubectl config get-clusters
+kubectl get nodes
+```
+
+<details>
+<summary>
+вывод: контекст kubernetes-admin@kubernetes (server https://192.168.89.11:6443), кластер рабочий
+</summary>
+
+```log
+CURRENT   NAME                          CLUSTER      AUTHINFO           NAMESPACE
+*         kubernetes-admin@kubernetes   kubernetes   kubernetes-admin
+
+kubernetes-admin@kubernetes
+NAME
+kubernetes
+
+NAME     STATUS   ROLES           AGE    VERSION
+k8s-cp   Ready    control-plane   137m   v1.36.1
+k8s-w1   Ready    <none>          100m   v1.36.1
+k8s-w2   Ready    <none>          100m   v1.36.1
+k8s-w3   Ready    <none>          100m   v1.36.1
+k8s-w4   Ready    <none>          100m   v1.36.1
+```
+
+</details>
+
+```bash
+# 5. kube-proxy: отключить conntrack-систклты (нет nf_conntrack в LXC) + Calico CNI
+kubectl -n kube-system patch cm kube-proxy --type=json \
+  -p "$(jq -n --arg v "$(sed 's/^  maxPerCore: null/  maxPerCore: 0/;s/^  min: null/  min: 0/;\
+  s/^  tcpCloseWaitTimeout: null/  tcpCloseWaitTimeout: 0s/;\
+  s/^  tcpEstablishedTimeout: null/  tcpEstablishedTimeout: 0s/' <(kubectl -n kube-system get cm kube-proxy -o jsonpath='{.data.config\.conf}'))" \
+  '[{"op":"replace","path":"/data/config.conf","value":$v}]')"
+kubectl -n kube-system rollout restart ds/kube-proxy
+curl -fsSL https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/calico.yaml -o /tmp/calico.yaml
+kubectl apply -f /tmp/calico.yaml
+# IPPool уже 10.10.0.0/16 (под-сеть инициализации)
+kubectl get ippool default-ipv4-ippool -o jsonpath='{.spec.cidr}'
+```
+
+<details>
+<summary>
+вывод: kube-proxy Running, Calico установлен, IPPool 10.10.0.0/16
+</summary>
+
+```log
+configmap/kube-proxy patched
+daemonset.apps/kube-proxy restarted
+kube-proxy-hnkmk   1/1     Running   0   29s
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.projectcalico.org created
+daemonset.apps/calico-node created
+deployment.apps/calico-kube-controllers created
+10.10.0.0/16
+```
+
+</details>
+
+```bash
+# 6. Join 4 рабочих нод (w1..w4)
+for f in {2..5}; do
+ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_kvm_host root@192.168.89.1$f \
+ "kubeadm join 192.168.89.11:6443 --token qhepku.g4i5627odrxm02by \
+  --discovery-token-ca-cert-hash sha256:4779932cd0ec3e1708f4dfb9b98f3fbef1923877226b349797ad407e259b39e6 \
+  --cri-socket=unix:///var/run/crio/crio.sock"
+done
+```
+
+<details>
+<summary>
+Лог join (k8s-w1)
+</summary>
+
+```log
+[kubelet-start] Waiting for the kubelet to perform the TLS Bootstrap
+
+This node has joined the cluster:
+* Certificate signing request was sent to apiserver and a response was received.
+* The Kubelet was informed of the new secure connection details.
+
+Run 'kubectl get nodes' on the control-plane to see this node join the cluster.
+```
+
+</details>
+
+```bash
+# 7. Тест: deployment nginx + Service NodePort
+kubectl create deployment nginx-test --image=docker.io/library/nginx:alpine --replicas=3
+kubectl expose deployment nginx-test --port=80 --type=NodePort
+kubectl get nodes -o wide
+kubectl get pods -A -o wide
+# NodePort доступен с ХОСТА; ClusterIP доступен только ИЗНУТРИ кластера (с ноды)
+curl -s http://192.168.89.11:$(kubectl get svc nginx-test -o jsonpath='{.spec.ports[0].nodePort}')/ -o /dev/null -w 'NodePort HTTP %{http_code}\n'
+ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_kvm_host root@192.168.89.11 \
+"curl -s http://$(kubectl get svc nginx-test -o jsonpath='{.spec.clusterIP}')/ -o /dev/null -w 'ClusterIP HTTP %{http_code}\n'"
+# условия всех нод (давления сняты)
+kubectl get nodes -o json | jq -r '.items[] | .metadata.name as $n | .status.conditions[] | select(.type=="Ready" or .type=="MemoryPressure" or .type=="DiskPressure" or .type=="PIDPressure" or .type=="NetworkUnavailable") | "\($n): \(.type)=\(.status)"'
+```
+
+<details>
+<summary>
+Финальная проверка кластера (5 нод Ready, 3 nginx-пода, Service HTTP 200)
+</summary>
+
+```log
+NAME     STATUS   ROLES           VERSION   INTERNAL-IP
+k8s-cp   Ready    control-plane   v1.36.1   10.10.62.128
+k8s-w1   Ready    <none>          v1.36.1   10.10.228.64
+k8s-w2   Ready    <none>          v1.36.1   10.10.46.0
+k8s-w3   Ready    <none>          v1.36.1   10.10.197.0
+k8s-w4   Ready    <none>          v1.36.1   10.10.23.64
+
+default       nginx-test-676977dfff-4n4n9   1/1  Running  10.10.228.67  k8s-w1
+default       nginx-test-676977dfff-bpbnb   1/1  Running  10.10.197.2   k8s-w3
+default       nginx-test-676977dfff-dmdcd   1/1  Running  10.10.23.67   k8s-w4
+kube-system   coredns/calico-node/kube-proxy (на всех нодах) 1/1 Running
+
+NAME         TYPE      CLUSTER-IP    PORT(S)        AGE
+nginx-test   NodePort  10.97.57.77   80:32493/TCP   12m
+HTTP 200
+```
+
+</details>
+
+<details>
+<summary>
+Контрольный замер состояния кластера (фактические выводы на момент актуализации)
+</summary>
+
+```log
+$ kubectl get nodes -o wide
+NAME     STATUS   ROLES           AGE    VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE        KERNEL-VERSION             CONTAINER-RUNTIME
+k8s-cp   Ready    control-plane   156m   v1.36.1   10.10.62.128   <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+k8s-w1   Ready    <none>          119m   v1.36.1   10.10.228.64   <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+k8s-w2   Ready    <none>          119m   v1.36.1   10.10.46.0     <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+k8s-w3   Ready    <none>          119m   v1.36.1   10.10.197.0    <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+k8s-w4   Ready    <none>          119m   v1.36.1   10.10.23.64    <none>        ALT Container   7.1.9-zen1-2-zen (amd64)   cri-o://1.36.0
+
+$ kubectl get pods -A -o wide
+NAMESPACE     NAME                                       READY   STATUS    RESTARTS       AGE    IP              NODE
+default       nginx-test-676977dfff-4n4n9                1/1     Running   0              97m    10.10.228.67    k8s-w1
+default       nginx-test-676977dfff-bpbnb                1/1     Running   0              97m    10.10.197.2     k8s-w3
+default       nginx-test-676977dfff-dmdcd                1/1     Running   0              97m    10.10.23.67     k8s-w4
+kube-system   calico-kube-controllers-7bc9dccf69-qs8rw   1/1     Running   2 (120m ago)   122m   10.10.62.180    k8s-cp
+kube-system   calico-node-4gpz6                          1/1     Running   4 (120m ago)   142m   192.168.89.11   k8s-cp
+kube-system   calico-node-986kh                          1/1     Running   1              119m   192.168.89.15   k8s-w4
+kube-system   calico-node-fcldt                          1/1     Running   1              119m   192.168.89.13   k8s-w2
+kube-system   calico-node-pxtmg                          1/1     Running   1              119m   192.168.89.12   k8s-w1
+kube-system   calico-node-v6p7l                          1/1     Running   1              119m   192.168.89.14   k8s-w3
+kube-system   coredns-5fc84b665c-lqmzg                   1/1     Running   2 (120m ago)   122m   10.10.62.179    k8s-cp
+kube-system   coredns-5fc84b665c-vk9vl                   1/1     Running   2 (120m ago)   122m   10.10.62.178    k8s-cp
+kube-system   etcd-k8s-cp                                1/1     Running   6              156m   192.168.89.11   k8s-cp
+kube-system   kube-apiserver-k8s-cp                      1/1     Running   6              156m   192.168.89.11   k8s-cp
+kube-system   kube-controller-manager-k8s-cp             1/1     Running   6              156m   192.168.89.11   k8s-cp
+kube-system   kube-proxy-c4pxk                           1/1     Running   1              119m   192.168.89.12   k8s-w1
+kube-system   kube-proxy-hnkmk                           1/1     Running   4 (120m ago)   146m   192.168.89.11   k8s-cp
+kube-system   kube-proxy-ll9nr                           1/1     Running   1              119m   192.168.89.14   k8s-w3
+kube-system   kube-proxy-m6ds5                           1/1     Running   1              119m   192.168.89.15   k8s-w4
+kube-system   kube-proxy-n7vdn                           1/1     Running   1              119m   192.168.89.13   k8s-w2
+kube-system   kube-scheduler-k8s-cp                      1/1     Running   6              156m   192.168.89.11   k8s-cp
+
+$ kubectl get svc nginx-test
+NAME         TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
+nginx-test   NodePort   10.97.57.77   <none>        80:32493/TCP   98m
+
+# NodePort — с ХОСТА
+$ curl -s http://192.168.89.11:32493/ -o /dev/null -w 'NodePort HTTP %{http_code}\n'
+NodePort HTTP 200
+# ClusterIP — ИЗНУТРИ кластера (с ноды k8s-cp); с хоста не маршрутизируется (000)
+$ ssh -i ~/.ssh/id_kvm_host root@192.168.89.11 "curl -s http://10.97.57.77/ -o /dev/null -w 'ClusterIP HTTP %{http_code}\n'"
+ClusterIP HTTP 200
+
+# условия всех нод
+k8s-cp: NetworkUnavailable=False
+k8s-cp: MemoryPressure=False
+k8s-cp: DiskPressure=False
+k8s-cp: PIDPressure=False
+k8s-cp: Ready=True
+k8s-w1: NetworkUnavailable=False
+k8s-w1: MemoryPressure=False
+k8s-w1: DiskPressure=False
+k8s-w1: PIDPressure=False
+k8s-w1: Ready=True
+k8s-w2: NetworkUnavailable=False
+k8s-w2: MemoryPressure=False
+k8s-w2: DiskPressure=False
+k8s-w2: PIDPressure=False
+k8s-w2: Ready=True
+k8s-w3: NetworkUnavailable=False
+k8s-w3: MemoryPressure=False
+k8s-w3: DiskPressure=False
+k8s-w3: PIDPressure=False
+k8s-w3: Ready=True
+k8s-w4: NetworkUnavailable=False
+k8s-w4: MemoryPressure=False
+k8s-w4: DiskPressure=False
+k8s-w4: PIDPressure=False
+k8s-w4: Ready=True
+```
+
+</details>
+
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit5, 21_8-kubeadm-inst' \
+&& git push \
+--set-upstream \
+study_fops39 \
+21_8-kubeadm-inst \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+21_8-kubeadm-inst \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+21_8-kubeadm-inst
+```
