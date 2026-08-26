@@ -671,7 +671,7 @@ k8s-cp
 cat > ./templates/lxc-k8s.xml.j2 <<'EOF'
 <domain type='lxc'>
   <name>{{ node_name }}</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>{{ memory_kib | default(14680064) }}</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -688,6 +688,19 @@ cat > ./templates/lxc-k8s.xml.j2 <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
@@ -705,6 +718,10 @@ cat > ./templates/lxc-k8s.xml.j2 <<'EOF'
       <source dir='/dev/kvm'/>
       <target dir='/dev/kvm'/>
     </filesystem>
+
+    <!-- kubelet требует /dev/kmsg, но реальное устройство блокируется device-cgroup
+         (cgroup v2). Поэтому bind-mount НЕ используется: внутри ноды /dev/kmsg
+         заменяется симлинком на /dev/null (см. scripts/fix_kmsg_node.sh). -->
 
     <!-- Сеть: статический IP -->
     <interface type='bridge'>
@@ -737,7 +754,7 @@ Xml шаблон lxc под control-plane
 cat > ./lxc-k8s-cp.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-cp</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -745,6 +762,7 @@ cat > ./lxc-k8s-cp.xml <<'EOF'
     <init>/sbin/init</init>
   </os>
 
+  <!-- NESTED VIRTUALIZATION: проброс CPU-флагов хоста (vmx/svm) -->
   <cpu mode='host-passthrough'/>
 
   <features>
@@ -753,23 +771,42 @@ cat > ./lxc-k8s-cp.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
   <clock offset="timezone" timezone="Europe/Moscow"/>
 
   <devices>
-
+    <!-- Корневая ФС (отдельная для каждой ноды, чтобы контейнеры не мешали друг другу) -->
     <filesystem type='mount'>
       <source dir='/disk/VMs/k8s-cp/rootfs'/>
       <target dir='/'/>
     </filesystem>
 
+    <!-- NESTED VIRTUALIZATION: проброс /dev/kvm -->
     <filesystem type='mount'>
       <source dir='/dev/kvm'/>
       <target dir='/dev/kvm'/>
     </filesystem>
 
+    <!-- kubelet требует /dev/kmsg, но реальное устройство блокируется device-cgroup
+         (cgroup v2). Поэтому bind-mount НЕ используется: внутри ноды /dev/kmsg
+         заменяется симлинком на /dev/null (см. scripts/fix_kmsg_node.sh). -->
+
+    <!-- Сеть: статический IP -->
     <interface type='bridge'>
       <source bridge='br0'/>
       <ip address='192.168.89.11' family='ipv4' prefix='24'/>
@@ -800,7 +837,7 @@ Xml шаблон lxc под под рабочую ноду 1
 cat > ./lxc-k8s-w1.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-w1</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -808,6 +845,7 @@ cat > ./lxc-k8s-w1.xml <<'EOF'
     <init>/sbin/init</init>
   </os>
 
+  <!-- NESTED VIRTUALIZATION: проброс CPU-флагов хоста (vmx/svm) -->
   <cpu mode='host-passthrough'/>
 
   <features>
@@ -816,23 +854,42 @@ cat > ./lxc-k8s-w1.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
   <clock offset="timezone" timezone="Europe/Moscow"/>
 
   <devices>
-
+    <!-- Корневая ФС (отдельная для каждой ноды, чтобы контейнеры не мешали друг другу) -->
     <filesystem type='mount'>
       <source dir='/disk/VMs/k8s-w1/rootfs'/>
       <target dir='/'/>
     </filesystem>
 
+    <!-- NESTED VIRTUALIZATION: проброс /dev/kvm -->
     <filesystem type='mount'>
       <source dir='/dev/kvm'/>
       <target dir='/dev/kvm'/>
     </filesystem>
 
+    <!-- kubelet требует /dev/kmsg, но реальное устройство блокируется device-cgroup
+         (cgroup v2). Поэтому bind-mount НЕ используется: внутри ноды /dev/kmsg
+         заменяется симлинком на /dev/null (см. scripts/fix_kmsg_node.sh). -->
+
+    <!-- Сеть: статический IP -->
     <interface type='bridge'>
       <source bridge='br0'/>
       <ip address='192.168.89.12' family='ipv4' prefix='24'/>
@@ -863,7 +920,7 @@ Xml шаблон lxc под под рабочую ноду 2
 cat > ./lxc-k8s-w2.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-w2</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -871,6 +928,7 @@ cat > ./lxc-k8s-w2.xml <<'EOF'
     <init>/sbin/init</init>
   </os>
 
+  <!-- NESTED VIRTUALIZATION: проброс CPU-флагов хоста (vmx/svm) -->
   <cpu mode='host-passthrough'/>
 
   <features>
@@ -879,23 +937,42 @@ cat > ./lxc-k8s-w2.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
   <clock offset="timezone" timezone="Europe/Moscow"/>
 
   <devices>
-
+    <!-- Корневая ФС (отдельная для каждой ноды, чтобы контейнеры не мешали друг другу) -->
     <filesystem type='mount'>
       <source dir='/disk/VMs/k8s-w2/rootfs'/>
       <target dir='/'/>
     </filesystem>
 
+    <!-- NESTED VIRTUALIZATION: проброс /dev/kvm -->
     <filesystem type='mount'>
       <source dir='/dev/kvm'/>
       <target dir='/dev/kvm'/>
     </filesystem>
 
+    <!-- kubelet требует /dev/kmsg, но реальное устройство блокируется device-cgroup
+         (cgroup v2). Поэтому bind-mount НЕ используется: внутри ноды /dev/kmsg
+         заменяется симлинком на /dev/null (см. scripts/fix_kmsg_node.sh). -->
+
+    <!-- Сеть: статический IP -->
     <interface type='bridge'>
       <source bridge='br0'/>
       <ip address='192.168.89.13' family='ipv4' prefix='24'/>
@@ -926,7 +1003,7 @@ Xml шаблон lxc под под рабочую ноду 3
 cat > ./lxc-k8s-w3.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-w3</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -934,6 +1011,7 @@ cat > ./lxc-k8s-w3.xml <<'EOF'
     <init>/sbin/init</init>
   </os>
 
+  <!-- NESTED VIRTUALIZATION: проброс CPU-флагов хоста (vmx/svm) -->
   <cpu mode='host-passthrough'/>
 
   <features>
@@ -942,23 +1020,42 @@ cat > ./lxc-k8s-w3.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
   <clock offset="timezone" timezone="Europe/Moscow"/>
 
   <devices>
-
+    <!-- Корневая ФС (отдельная для каждой ноды, чтобы контейнеры не мешали друг другу) -->
     <filesystem type='mount'>
       <source dir='/disk/VMs/k8s-w3/rootfs'/>
       <target dir='/'/>
     </filesystem>
 
+    <!-- NESTED VIRTUALIZATION: проброс /dev/kvm -->
     <filesystem type='mount'>
       <source dir='/dev/kvm'/>
       <target dir='/dev/kvm'/>
     </filesystem>
 
+    <!-- kubelet требует /dev/kmsg, но реальное устройство блокируется device-cgroup
+         (cgroup v2). Поэтому bind-mount НЕ используется: внутри ноды /dev/kmsg
+         заменяется симлинком на /dev/null (см. scripts/fix_kmsg_node.sh). -->
+
+    <!-- Сеть: статический IP -->
     <interface type='bridge'>
       <source bridge='br0'/>
       <ip address='192.168.89.14' family='ipv4' prefix='24'/>
@@ -989,7 +1086,7 @@ Xml шаблон lxc под под рабочую ноду 4
 cat > ./lxc-k8s-w4.xml <<'EOF'
 <domain type='lxc'>
   <name>k8s-w4</name>
-  <memory unit='KiB'>2097152</memory>
+  <memory unit='KiB'>14680064</memory>
   <vcpu>2</vcpu>
 
   <os>
@@ -997,6 +1094,7 @@ cat > ./lxc-k8s-w4.xml <<'EOF'
     <init>/sbin/init</init>
   </os>
 
+  <!-- NESTED VIRTUALIZATION: проброс CPU-флагов хоста (vmx/svm) -->
   <cpu mode='host-passthrough'/>
 
   <features>
@@ -1005,23 +1103,42 @@ cat > ./lxc-k8s-w4.xml <<'EOF'
       <sys_admin/>
       <sys_ptrace/>
       <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
     </capabilities>
   </features>
 
   <clock offset="timezone" timezone="Europe/Moscow"/>
 
   <devices>
-
+    <!-- Корневая ФС (отдельная для каждой ноды, чтобы контейнеры не мешали друг другу) -->
     <filesystem type='mount'>
       <source dir='/disk/VMs/k8s-w4/rootfs'/>
       <target dir='/'/>
     </filesystem>
 
+    <!-- NESTED VIRTUALIZATION: проброс /dev/kvm -->
     <filesystem type='mount'>
       <source dir='/dev/kvm'/>
       <target dir='/dev/kvm'/>
     </filesystem>
 
+    <!-- kubelet требует /dev/kmsg, но реальное устройство блокируется device-cgroup
+         (cgroup v2). Поэтому bind-mount НЕ используется: внутри ноды /dev/kmsg
+         заменяется симлинком на /dev/null (см. scripts/fix_kmsg_node.sh). -->
+
+    <!-- Сеть: статический IP -->
     <interface type='bridge'>
       <source bridge='br0'/>
       <ip address='192.168.89.15' family='ipv4' prefix='24'/>
@@ -1988,4 +2105,56 @@ study_fops39_gitflic_ru \
 --set-upstream \
 study-fops39_sc \
 21_8-kubeadm-inst
+```
+
+## commit_84, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge 21_8-kubeadm-inst
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master --force
 ```
