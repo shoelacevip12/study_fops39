@@ -25,9 +25,9 @@
 
 Resource Terraform для Yandex Cloud:
 
-- [VPC subnet](https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs/resources/vpc_subnet).
-- [Route table](https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs/resources/vpc_route_table).
-- [Compute Instance](https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs/resources/compute_instance).
+- [VPC subnet](khttps://yandex.cloud/ru/docs/vpc/concepts/networ).
+- [Route table](https://yandex.cloud/ru/docs/vpc/concepts/routing).
+- [Compute Instance](https://yandex.cloud/ru/docs/compute/concepts/vm).
 
 ---
 
