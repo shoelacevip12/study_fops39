@@ -16,7 +16,7 @@
 1. Создать пустую VPC. Выбрать зону.
 2. Публичная подсеть.
     - Создать в `VPC subnet` с названием `public`, сетью `192.168.10.0/24`.
-    - Создать в этой подсети `NAT-инстанс`, присвоив ему адрес `192.168.10.254`. В качестве `image_id` использовать `fd80mrhj8fl2oe87o4e1`.
+    - Создать в этой подсети `NAT-инстанс`, присвоив ему адрес `192.168.10.254`. В качестве `family` использовать `ubuntu-2404-lts-oslogin`.
     - Создать в этой публичной подсети виртуалку с публичным IP, подключиться к ней и убедиться, что есть доступ к интернету.
 3. Приватная подсеть.
     - Создать в `VPC subnet` с названием `private`, сетью `192.168.20.0/24`.
@@ -28,6 +28,20 @@ Resource Terraform для Yandex Cloud:
 - [VPC subnet](khttps://yandex.cloud/ru/docs/vpc/concepts/networ).
 - [Route table](https://yandex.cloud/ru/docs/vpc/concepts/routing).
 - [Compute Instance](https://yandex.cloud/ru/docs/compute/concepts/vm).
+
+---
+
+### `TF-манифесты работы`
+
+- [провайдера YC](./tf/providers.tf)
+- [переменных](./tf/variables.tf)
+- [Описания сетей](./tf/network.tf)
+- [security group](./tf/security_groups.tf)
+- [вычислительных ресурсов](./tf/vms.tf)
+
+### `Скриншот проверок`
+
+![](./img/2.png)
 
 ---
 
