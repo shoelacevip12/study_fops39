@@ -726,7 +726,54 @@ study-fops39_sc \
 
 ## commit_3,`22_1-cloud-org-network`
 
+```bash
+# Создание каталога для проекта terraform
+mkdir -pv ./tf
 
+cd !$
+```
+
+<details>
+<summary>
+каталога для проекта terraform
+</summary>
+
+```log
+mkdir: создан каталог './tf'
+
+cd ./tf
+```
+
+</details>
+
+### `TF-манифест` провайдера YC и файла авторизации YC service account
+
+<details>
+<summary>
+TF-манифест провайдера YC
+</summary>
+
+```terraform
+cat > ./providers.tf <<'EOF'
+terraform {
+  required_providers {
+    yandex = {
+      source = "yandex-cloud/yandex"
+    }
+  }
+  required_version = ">= 0.13"
+}
+
+provider "yandex" {
+  service_account_key_file = file("~/.authorized_key.json")
+  cloud_id                 = var.cloud_id
+  folder_id                = var.folder_id
+  zone                     = var.default_zone
+}
+EOF
+```
+
+</details>
 
 ```bash
 #
