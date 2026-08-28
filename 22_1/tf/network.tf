@@ -1,18 +1,18 @@
-# Общая облачная сеть (пустая VPC)
 resource "yandex_vpc_network" "skv" {
-  name = "skv-fops40-${var.lab22_1}"
+  description = "Сетевой блок VPC skv-fops40-${var.lab22_1}"
+  name        = "skv-fops40-${var.lab22_1}"
 }
 
-# Публичная подсеть
 resource "yandex_vpc_subnet" "public" {
+  description    = "Подсеть с правом выхода в WAN"
   name           = "skv-fops-${var.lab22_1}-public"
   zone           = var.default_zone
   network_id     = yandex_vpc_network.skv.id
   v4_cidr_blocks = ["192.168.10.0/24"]
 }
 
-# Приватная подсеть (весь исходящий трафик направляется в NAT-инстанс)
 resource "yandex_vpc_subnet" "private" {
+  description    = "Подсеть Без права выхода в WAN напрямую"
   name           = "skv-fops-${var.lab22_1}-private"
   zone           = var.default_zone
   network_id     = yandex_vpc_network.skv.id
@@ -20,13 +20,19 @@ resource "yandex_vpc_subnet" "private" {
   route_table_id = yandex_vpc_route_table.route.id
 }
 
-# Route table: статический маршрут всего исходящего трафика private сети в NAT-инстанс
+resource "yandex_vpc_gateway" "nat-gateway" {
+  description = "NAT-шлюз для выхода в WAN из private подсети"
+  name        = "fops-gateway-${var.lab22_1}"
+  shared_egress_gateway {}
+}
+
 resource "yandex_vpc_route_table" "route" {
-  name       = "fops-route-table-${var.lab22_1}"
-  network_id = yandex_vpc_network.skv.id
+  description = "Таблица маршрутизации для skv-fops-${var.lab22_1}"
+  name        = "fops-route-table-${var.lab22_1}"
+  network_id  = yandex_vpc_network.skv.id
 
   static_route {
     destination_prefix = "0.0.0.0/0"
-    next_hop_address   = "192.168.10.254"
+    gateway_id         = yandex_vpc_gateway.nat-gateway.id
   }
 }

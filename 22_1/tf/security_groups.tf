@@ -1,4 +1,3 @@
-# Security Group для LAN (внутреннее взаимодействие между подсетями)
 resource "yandex_vpc_security_group" "LAN" {
   name       = "LAN-${var.lab22_1}"
   network_id = yandex_vpc_network.skv.id
@@ -20,7 +19,6 @@ resource "yandex_vpc_security_group" "LAN" {
   }
 }
 
-# Security Group для публичной ВМ (SSH из интернета)
 resource "yandex_vpc_security_group" "host_sg" {
   name       = "host-sg-${var.lab22_1}"
   network_id = yandex_vpc_network.skv.id
