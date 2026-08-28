@@ -1,4 +1,4 @@
-# Для домашнего задания 22.2 `Организация сети`
+# Для домашнего задания 22.2 `Вычислительные мощности. Балансировщики нагрузки`
 
 ## commit_85, master Предварительная подготовка
 
@@ -132,7 +132,7 @@ git add . .. \
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
 git commit -am 'commit1, 22_2-cloud-org-vc-balancer' \
-&& git push \
+; git push \
 --set-upstream \
 study_fops39 \
 22_2-cloud-org-vc-balancer \
@@ -148,8 +148,49 @@ study-fops39_sc \
 
 ## commit_2,`22_2-cloud-org-vc-balancer`
 
+### `TF-манифест`
 
 
+
+
+
+
+
+
+<details>
+<summary>
+TF-манифест
+</summary>
+
+```tf
+
+```
+
+</details>
+
+
+
+
+
+
+
+
+
+```bash
+#
+
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+
+```
+
+</details>
 
 
 
