@@ -509,7 +509,6 @@ EOF
 
 </details>
 
-## commit_3,`22_3-cloud-org-secur`
 
 ```bash
 # Просмотр истории коммитов в кратком формате
@@ -548,6 +547,143 @@ git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit2, 22_3-cloud-org-secur' \
+; git push \
+--set-upstream \
+study_fops39 \
+22_3-cloud-org-secur \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+22_3-cloud-org-secur \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+22_3-cloud-org-secur
+```
+
+## commit_3,`22_3-cloud-org-secur`
+
+### Добавление ssh ключа в агента-ssh
+
+```bash
+# Добавляем в ssh-agent
+eval $(ssh-agent) \
+&& ssh-add ~/.ssh/id_lab22_1_fops40_ed25519
+```
+
+<details>
+<summary>
+Вывод о добавление ssh ключа в агента-ssh
+</summary>
+
+```log
+Agent pid 50274
+Identity added: /home/shoel/.ssh/id_lab22_1_fops40_ed25519 (lab22_1_fops40)
+```
+
+</details>
+
+### Запуск terraform проекта
+
+```bash
+cd tf
+
+tree
+```
+
+<details>
+<summary>
+Вывод о содержимом каталога с проектом terraform
+</summary>
+
+```log
+.
+├── certificate.tf
+├── dns.tf
+├── files
+│   ├── index.html
+│   └── share_shdevops.png
+├── kms.tf
+├── output.tf
+├── providers.tf
+├── s3.tf
+└── variables.tf
+
+2 directories, 9 files
+```
+
+</details>
+
+```bash
+# Проверка tf файлов проекта
+terraform init --upgrade \
+&& terraform validate
+```
+
+<details>
+<summary>
+Лог об успешности проверок terraform и tf-файлов
+</summary>
+
+```log
+Initializing the backend...
+
+Initializing provider plugins...
+- Finding latest version of yandex-cloud/yandex...
+- Installing yandex-cloud/yandex v0.224.0...
+- Installed yandex-cloud/yandex v0.224.0 (unauthenticated)
+
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+
+╷
+│ Warning: Incomplete lock file information for providers
+│ 
+│ Due to your customized provider installation methods, Terraform was forced to calculate lock file checksums locally for the following providers:
+│   - yandex-cloud/yandex
+│ 
+│ The current .terraform.lock.hcl file only includes checksums for linux_amd64, so Terraform running on another platform will fail to install these providers.
+│ 
+│ To calculate additional checksums for another platform, run:
+│   terraform providers lock -platform=linux_amd64
+│ (where linux_amd64 is the platform to generate)
+╵
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+```
+
+</details>
+
+```bash
+# Авто-форматирование конфига и создание файла запуска terraform
+terraform fmt \
+&& terraform plan -out=tfplan
+```
+
+```bash
+# Запуск Создания ресурсов на YC
+terraform apply "tfplan"
+```
+
+[результат работы проекта](22_3/README.md)
+
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
 git commit -am 'commit3, 22_3-cloud-org-secur' \
 ; git push \
 --set-upstream \
@@ -563,4 +699,54 @@ study-fops39_sc \
 22_3-cloud-org-secur
 ```
 
-## commit_4,`22_3-cloud-org-secur`
+## commit_90, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge 22_3-cloud-org-secur
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master --force
+```
