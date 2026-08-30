@@ -22,6 +22,18 @@ variable "service_account_id" {
   default     = "ajen0vmdo7bfr3t4auv7"
 }
 
+variable "symmetric_key_name" {
+  description = "имя yandex_kms_symmetric_key"
+  type        = string
+  default     = "sym-kms-den-skv"
+}
+
+variable "zone_name" {
+  description = "имя Зоны dns"
+  type        = string
+  default     = "den-skv.ru."
+}
+
 variable "default_zone" {
   description = "Зона размещения по умолчанию"
   type        = string
@@ -64,7 +76,13 @@ variable "host" {
   }
 }
 
-variable "bucket_name" {
+variable "bucket_name_chipher" {
+  description = "Имя S3 бакета"
+  type        = string
+  default     = "den-skv-chiphers"
+}
+
+variable "bucket_name_html" {
   description = "Имя S3 бакета"
   type        = string
   default     = "den-skv.ru"
