@@ -1,0 +1,7 @@
+. {
+    bind 10.8.0.1                      # слушаем только на WireGuard-интерфейсе
+    file /etc/coredns/db.den-skv.ru den-skv.ru
+    forward . 192.168.89.1         # upstream для остальных имен через местный DNS-сервер
+    cache 30
+    errors
+}
