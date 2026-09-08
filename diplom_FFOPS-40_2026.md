@@ -255,6 +255,8 @@ EOF
 sudo bash -c \
 "systemctl start docker \
 && systemctl is-active docker"
+
+docker compose up -d
 ```
 
 <details>
@@ -287,9 +289,7 @@ br0              UP             192.168.89.193/24 metric 1024 fe80::f832:c0ff:fe
 
 </details>
 
-![](./FFOPS-40_diplom-skv_den/img/1.gif)
-
-![](./FFOPS-40_diplom-skv_den/img/2gif)
+### Coredns
 
 ```bash
 yay -Ss coredns
@@ -539,6 +539,163 @@ ya.ru mail is handled by 10 mx.yandex.ru.
 ```bash
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
 git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit2, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den
+```
+
+## commit_3,`FFOPS-40_diplom-skv_den`
+
+### forgejo
+
+```yaml
+# docker-compose-forgejo.yml
+cat > docker-compose-forgejo.yml << 'EOF'
+services:
+  server:
+    image: data.forgejo.org/forgejo/forgejo:16.0.3
+    container_name: forgejo
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - forgejo
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - FORGEJO__database__DB_TYPE=postgres
+      - FORGEJO__database__HOST=db:5432
+      - FORGEJO__database__NAME=forgejo
+      - FORGEJO__database__USER=forgejo
+      - FORGEJO__database__PASSWD=${DB_PASSWORD}
+      - FORGEJO__server__ROOT_URL=http://git.den-skv.ru/
+      - FORGEJO__server__SSH_DOMAIN=git.den-skv.ru
+      - FORGEJO__server__SSH_PORT=6722
+      - FORGEJO__actions__ENABLED=true
+    volumes:
+      - ./forgejo-data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "10.8.0.1:3000:3000"   # внутренний HTTP;
+      - "10.8.0.1:6722:22"      # git over ssh, только через VPN
+
+  db:
+    image: postgres:18-alpine
+    container_name: forgejo-db
+    user: "1024:100"
+    restart: unless-stopped
+    networks:
+      - forgejo
+    environment:
+      - POSTGRES_USER=forgejo
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=forgejo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ./postgres-data:/var/lib/postgresql
+networks:
+  forgejo:
+EOF
+```
+
+```bash
+echo "DB_PASSWORD=$(openssl rand -hex 24)" \
+> .env
+```
+
+```bash
+mkdir -pv ./{postgres,forgejo}-data
+
+docker-compose -f docker-compose-forgejo.yml up -d
+```
+
+<details>
+<summary>
+Docker forgejo с postgres 18
+</summary>
+
+```log
+mkdir: создан каталог './postgres-data'
+mkdir: создан каталог './forgejo-data'
+
+
+[+] up 20/20
+ ⠏ Image data.forgejo.org/forgejo/forgejo:16.0.3 [⣿⣿⣿⣿⣿⣄⣿⣿⣿] 54.81MB / 82.05MB Pulling                                                      [+] up 18/20
+ ⠋ Image data.forgejo.org/forgejo/forgejo:16.0.3 [⣿⣿⣿⣿⣿⣄⣿⣿⣿] 54.81MB / 82.05MB Pulling                              [+] up 18/20             148.1s
+ ⠙ Image data.forgejo.org/forgejo/forgejo:16.0.3 [⣿⣿⣿⣿⣿⣄⣿⣿⣿] 54.81MB / 82.05MB Pulling                     [+] up 18/20 148.2s               107.7s
+ ⠹ Image data.forgejo.org/forgejo/forgejo:16.0.3 [⣿⣿⣿⣿⣿⣄⣿⣿⣿] 54.81MB / 82.05MB Pulling                148.[+] up 18/20  107.7s
+ ⠇ Image data.forgejo.org/forgejo/forgejo:16.0.3 [⣿⣿⣿⣿⣿⣿⣿⣿⣿] 82.05MB / 82.05MB Pulling              317.9s
+[+] up 22/23tgres:18-alpine                                                    Pulled               107.7s
+ ✔ Image data.forgejo.org/forgejo/forgejo:16.0.3 Pulled                                             317.9s
+ ✔ Image postgres:18-alpine                      Pulled                                             107.7s
+ ✔ Network self-host_git_ci_cd_forgejo           Created                                              0.0s
+ ⠹ Container forgejo-db                          Starting                                             0.2s
+ ✔ Container forgejo                             Created                                              0.0s
+ ✔ Container forgejo-db                          Started                                              0.2s
+ ✔ Container forgejo                             Started                                              0.2s
+```
+
+</details>
+
+```bash
+docker-compose -f docker-compose-forgejo.yml logs -f server
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+forgejo  | Generating /data/ssh/ssh_host_ed25519_key...
+forgejo  | Generating /data/ssh/ssh_host_rsa_key...
+forgejo  | 2026/09/09 00:01:03 ...nvironment-to-ini.go:104:runEnvironmentToIni() [I] Settings saved to: "/data/gitea/conf/app.ini"
+forgejo  | Generating /data/ssh/ssh_host_ecdsa_key...
+forgejo  | Server listening on :: port 22.
+forgejo  | Server listening on 0.0.0.0 port 22.
+forgejo  | 2026/09/09 00:01:03 cmd/web.go:250:runWeb() [I] Starting Forgejo on PID: 16
+forgejo  | 2026/09/09 00:01:03 cmd/web.go:114:showWebStartupMessage() [I] Forgejo version: 16.0.3+gitea-1.22.0 built with GNU Make 4.4.1, go1.26.7 : bindata, timetzdata, sqlite, sqlite_unlock_notify
+forgejo  | 2026/09/09 00:01:03 cmd/web.go:115:showWebStartupMessage() [I] * RunMode: prod
+forgejo  | 2026/09/09 00:01:03 cmd/web.go:116:showWebStartupMessage() [I] * AppPath: /usr/local/bin/gitea
+forgejo  | 2026/09/09 00:01:03 cmd/web.go:117:showWebStartupMessage() [I] * WorkPath: /data/gitea
+forgejo  | 2026/09/09 00:01:03 cmd/web.go:118:showWebStartupMessage() [I] * CustomPath: /data/gitea
+forgejo  | 2026/09/09 00:01:03 cmd/web.go:119:showWebStartupMessage() [I] * ConfigFile: /data/gitea/conf/app.ini
+forgejo  | 2026/09/09 00:01:03 cmd/web.go:120:showWebStartupMessage() [I] Prepare to run install page
+forgejo  | 2026/09/09 00:01:04 cmd/web.go:315:listen() [I] Listen: http://0.0.0.0:3000
+forgejo  | 2026/09/09 00:01:04 cmd/web.go:319:listen() [I] AppURL(ROOT_URL): http://git.den-skv.ru/
+forgejo  | 2026/09/09 00:01:04 ...s/graceful/server.go:50:NewServer() [I] Starting new Web server: tcp:0.0.0.0:3000 on PID: 16
+```
+
+</details>>
+
+![](./FFOPS-40_diplom-skv_den/img/1.gif)
+
+![](./FFOPS-40_diplom-skv_den/img/2gif)
+
+![](./FFOPS-40_diplom-skv_den/img/3gif)
+
+![](./FFOPS-40_diplom-skv_den/img/4gif)
+
+```bash
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку

@@ -32,6 +32,10 @@ cloud-init.yml
 .terraform.*
 personal.auto.tfvars
 *_sonobuoy_*.tar.gz
+*/self-host_git_ci_cd/.env
+*/self-host_git_ci_cd/forgejo-data/gitea/*
+*/self-host_git_ci_cd/forgejo-data/ssh/ssh_host_*
+*/self-host_git_ci_cd/postgres-data/data/pgdata/*
 
 # Исключения
 !9_*/cloud-init.yml
