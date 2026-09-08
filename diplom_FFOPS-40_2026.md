@@ -684,11 +684,11 @@ forgejo  | 2026/09/09 00:01:04 ...s/graceful/server.go:50:NewServer() [I] Starti
 
 ![](./FFOPS-40_diplom-skv_den/img/1.gif)
 
-![](./FFOPS-40_diplom-skv_den/img/2gif)
+![](./FFOPS-40_diplom-skv_den/img/2.gif)
 
-![](./FFOPS-40_diplom-skv_den/img/3gif)
+![](./FFOPS-40_diplom-skv_den/img/3.gif)
 
-![](./FFOPS-40_diplom-skv_den/img/4gif)
+![](./FFOPS-40_diplom-skv_den/img/4.gif)
 
 ```bash
 git rm -r --cached \
