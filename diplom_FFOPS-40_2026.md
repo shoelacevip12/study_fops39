@@ -903,6 +903,10 @@ ssh-keygen \
 -f ~/.ssh/id_forgejo_git_ed25519 \
 -t ed25519 \
 -C "forgejo_git"
+
+
+eval $(ssh-agent -s)
+ssh-add ~/.ssh/id_forgejo_git_ed25519
 ```
 
 <details>
@@ -952,5 +956,5 @@ git commit -am 'commit3_test, FFOPS-40_diplom-skv_den' \
 ; git push \
 --set-upstream \
 ffops40-diplom \
-FFOPS-40_diplom-skv_den
+main
 ```
