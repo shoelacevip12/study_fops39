@@ -892,6 +892,10 @@ FFOPS-40_diplom-skv_den \
 && git push \
 --set-upstream \
 study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
 FFOPS-40_diplom-skv_den
 ```
 
@@ -957,3 +961,5 @@ git commit -am 'commit3_test, FFOPS-40_diplom-skv_den' \
 ffops40-diplom \
 FFOPS-40_diplom-skv_den
 ```
+
+![](./FFOPS-40_diplom-skv_den/img/6.gif)
