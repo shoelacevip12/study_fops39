@@ -782,7 +782,7 @@ forgejo  | 2026/09/09 00:01:04 cmd/web.go:319:listen() [I] AppURL(ROOT_URL): htt
 forgejo  | 2026/09/09 00:01:04 ...s/graceful/server.go:50:NewServer() [I] Starting new Web server: tcp:0.0.0.0:3000 on PID: 16
 ```
 
-</details>>
+</details>
 
 ```bash
 # Проверка готовности базы данных
@@ -857,7 +857,7 @@ forgejo-db  | 2026-09-09 17:24:48.456 UTC [61] LOG:  database system was shut do
 forgejo-db  | 2026-09-09 17:24:48.466 UTC [1] LOG:  database system is ready to accept connections
 ```
 
-</details>>
+</details>
 
 ![](./FFOPS-40_diplom-skv_den/img/1.gif)
 
@@ -866,7 +866,6 @@ forgejo-db  | 2026-09-09 17:24:48.466 UTC [1] LOG:  database system is ready to 
 ![](./FFOPS-40_diplom-skv_den/img/3.gif)
 
 ![](./FFOPS-40_diplom-skv_den/img/4.gif)
-
 
 ### Git Commit изменений
 
