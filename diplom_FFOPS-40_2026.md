@@ -145,6 +145,8 @@ FFOPS-40_diplom-skv_den
 
 ## commit_2,`FFOPS-40_diplom-skv_den`
 
+### Подготовка к работе self-hosted git сервера за VPN
+
 ```bash
 mkdir -p self-host_git_ci_cd
 cd self-host_git_ci_cd
@@ -221,7 +223,7 @@ kernel.keys.root_maxbytes = 25000000
 
 </details>
 
-### WireGuard in docker
+#### WireGuard in docker
 
 ```yaml
 # docker-compose.yml
@@ -290,14 +292,15 @@ ip -br a show br0
 </summary>
 
 ```log
-br0              UP             192.168.89.193/24 metric 1024 fe80::f832:c0ff:fe95:76f/64 
+br0   UP   192.168.89.193/24 metric 1024 fe80::f832:c0ff:fe95:76f/64 
 ```
 
 </details>
 
-### Coredns
+#### Установка локального DNS на Coredns
 
 ```bash
+# Поиск в Пользовательских репозиториях Archlinux
 yay -Ss coredns
 ```
 
@@ -328,11 +331,13 @@ aur/coredns 1.14.3-3 (+6 0.00) [137d21h]
 </details>
 
 ```bash
-# 
+# Установка Coredns и обновление системы 
 yay -Syu coredns-bin
 
+# Проверка установленной службы
 sudo systemctl status coredns
 
+# Проверка установленного Coredns
 coredns --version
 ```
 
@@ -354,7 +359,7 @@ linux/amd64, go1.26.6, 427fc80
 </details>
 
 ```bash
-# 
+# Создание зоны в локальном DNS den-skv.ru и записей прямого просмотра
 sudo tee /etc/coredns/db.den-skv.ru << 'EOF'
 ; $ORIGIN задает суффикс по умолчанию для неполных имен в этом файле
 $ORIGIN den-skv.ru.
@@ -378,7 +383,7 @@ EOF
 ```
 
 ```bash
-# 
+# Настройка и Привязка DNS сервера к VPN сети, созданной зоне и перенаправление запросов на внешний DNS
 sudo tee ./etc/coredns/Corefile << 'EOF'
 . {
     bind 10.8.0.1                      # слушаем только на WireGuard-интерфейсе
@@ -391,16 +396,16 @@ EOF
 ```
 
 ```bash
-# 
+# Вывод полученных файлов
 sudo tree /etc/coredns/
 
-# 
+# Проверка наличия поднятого туннеля на WG
 ip -br a show wg0
 
-# 
+# Проверка работы основного интерфейса хоста
 ip -br a show br0
 
-# 
+# Проверка запущенного VPN службы на докере
 docker ps -a
 ```
 
@@ -424,6 +429,7 @@ CONTAINER ID   IMAGE                          COMMAND                  CREATED  
 </details>
 
 ```bash
+# Drop-in редактирование systemd-службы coredns с изменением требований запуска и перезапуска
 sudo systemctl edit coredns
 ```
 
@@ -445,13 +451,20 @@ RestartSec=5
 ```
 
 ```bash 
+# Проверка наличия Drop-in изменений в  systemd-службе coredns
 sudo systemctl cat coredns
 
+# Обновление информации об измененной службе
 sudo systemctl daemon-reload
 
+# Пробный запуск службы
 sudo systemctl restart coredns
 
+# Проверка статуса coredns
 sudo systemctl status coredns
+
+# Установка в автозагрузку
+sudo systemctl enable coredns
 ```
 
 <details>
@@ -505,13 +518,19 @@ RestartSec=5
              └─107165 /usr/bin/coredns -conf=/etc/coredns/Corefile
 
 сен 08 23:16:49 shoellin systemd[1]: Started CoreDNS DNS server.
+
+Created symlink '/etc/systemd/system/multi-user.target.wants/coredns.service' → '/usr/lib/systemd/system/coredns.service'.
 ```
 
 </details>
 
+#### Проверка работы coredns на хостовой машине
+
 ```bash
+# Проверка резолвинага по dns A записи
 host git.den-skv.ru 10.8.0.1
 
+# Проверка работы forwarding запросов на внешние DNS
 host ya.ru 10.8.0.1
 ```
 
@@ -541,6 +560,8 @@ ya.ru mail is handled by 10 mx.yandex.ru.
 ```
 
 </details>
+
+### Git Commit изменений
 
 ```bash
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
@@ -845,6 +866,9 @@ forgejo-db  | 2026-09-09 17:24:48.466 UTC [1] LOG:  database system is ready to 
 ![](./FFOPS-40_diplom-skv_den/img/3.gif)
 
 ![](./FFOPS-40_diplom-skv_den/img/4.gif)
+
+
+### Git Commit изменений
 
 ```bash
 git rm -r --cached \
