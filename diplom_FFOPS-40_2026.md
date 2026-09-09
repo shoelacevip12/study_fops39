@@ -935,3 +935,22 @@ The key's randomart image is:
 </details>
 
 ![](./FFOPS-40_diplom-skv_den/img/5.gif)
+
+```bash
+git remote -v
+
+cd ../..
+
+git remote add ffops40-diplom ssh://git@git.den-skv.ru:6722/diplom/work_progress_cmd_log.git
+
+git remote -v
+
+git add . .. ../.. \
+&& git status
+
+git commit -am 'commit3_test, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
