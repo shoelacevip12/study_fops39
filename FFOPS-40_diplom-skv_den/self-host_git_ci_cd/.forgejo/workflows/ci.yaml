@@ -1,0 +1,142 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - '**'  # Любой коммит в любую ветку
+    tags:
+      - 'v*'  # Любой тег вида v1.0.0, v2.3.4 и т.д.
+
+env:
+  REGISTRY: git.den-skv.ru:3000
+  IMAGE_NAME: ${{ forgejo.repository }}
+
+jobs:
+  # ========================================
+  # Job 1: Сборка и push Docker образа
+  # Запускается при любом коммите и создании тега
+  # ========================================
+  build:
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+      options: --privileged
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+
+      - name: Log in to Forgejo Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ forgejo.actor }}
+          password: ${{ secrets.FORGEJO_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # При push тега v1.0.0 → образ с тегом v1.0.0 и latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # При push в ветку → образ с тегом ветки
+            type=ref,event=branch
+            # При push тега → также latest
+            type=raw,value=latest,enable=${{ startsWith(forgejo.ref, 'refs/tags/v') }}
+            # Всегда добавлять SHA коммита
+            type=sha,prefix=
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+      - name: Image digest
+        run: echo "Image pushed with tags ${{ steps.meta.outputs.tags }}"
+
+  # ========================================
+  # Job 2: Деплой в Kubernetes
+  # Запускается ТОЛЬКО при создании тега v*
+  # ========================================
+  deploy:
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    needs: build
+    if: startsWith(forgejo.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          # Извлекаем версию из тега (v1.0.0 → 1.0.0)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deploying version: $VERSION"
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          mv kubectl /usr/local/bin/
+
+      - name: Configure kubectl
+        run: |
+          # Создаём директорию для kubeconfig
+          mkdir -p $HOME/.kube
+
+          # Декодируем kubeconfig из secrets
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy to Kubernetes
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION"
+
+          echo "Deploying image: $IMAGE"
+
+          # Обновляем образ в deployment
+          # Замените 'your-deployment-name' и 'your-namespace' на ваши значения
+          kubectl set image deployment/your-deployment-name \
+            your-container-name=$IMAGE \
+            -n your-namespace
+
+          # Ждём завершения rollout
+          kubectl rollout status deployment/your-deployment-name -n your-namespace --timeout=300s
+
+          echo "Deployment completed successfully!"
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n your-namespace
+          kubectl get services -n your-namespace
+
+  # ========================================
+  # Job 3: Уведомление об успехе
+  # ========================================
+  notify:
+    runs-on: docker
+    needs: [build, deploy]
+    if: success() && startsWith(forgejo.ref, 'refs/tags/v')
+    steps:
+      - name: Notify deployment success
+        run: |
+          echo "Deployment successful!"
+          echo "Version: ${{ github.ref_name }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
