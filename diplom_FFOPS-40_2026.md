@@ -956,5 +956,5 @@ git commit -am 'commit3_test, FFOPS-40_diplom-skv_den' \
 ; git push \
 --set-upstream \
 ffops40-diplom \
-main
+FFOPS-40_diplom-skv_den
 ```
