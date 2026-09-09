@@ -627,7 +627,9 @@ cat /etc/fstab | grep git
 
 ls -ld
 
-mkdir -pv ./{postgres,forgejo}-data
+mkdir -pv ./postgres-data
+
+mkdir -pv ~/forgejo-data
 ```
 
 <details>
@@ -647,7 +649,7 @@ Export list for 192.168.89.246:
 drwxrwxrwx 1 1024 100 152 сен  8 23:46 .
 
 mkdir: создан каталог './postgres-data'
-mkdir: создан каталог './forgejo-data'
+mkdir: создан каталог '/home/shoel/forgejo-data'
 ```
 
 </details>
@@ -682,7 +684,7 @@ services:
       - FORGEJO__server__SSH_PORT=6722
       - FORGEJO__actions__ENABLED=true
     volumes:
-      - ./forgejo-data:/data
+      - ~/forgejo-data:/data
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     ports:
@@ -904,7 +906,6 @@ ssh-keygen \
 -t ed25519 \
 -C "forgejo_git"
 
-
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_forgejo_git_ed25519
 ```
@@ -943,9 +944,7 @@ The key's randomart image is:
 ```bash
 git remote -v
 
-cd ../..
-
-git remote add ffops40-diplom ssh://git@git.den-skv.ru:6722/diplom/work_progress_cmd_log.git
+git remote add ffops40-diplom ssh://git@git.den-skv.ru:6722/denskv/work_progress_cmd_log.git
 
 git remote -v
 
