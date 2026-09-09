@@ -226,7 +226,6 @@ kernel.keys.root_maxbytes = 25000000
 ```yaml
 # docker-compose.yml
 cat > docker-compose.yml << 'EOF'
-version: '3.7'
 services:
     wg-easy:
         image: ghcr.io/wg-easy/wg-easy:15.4
@@ -244,6 +243,13 @@ services:
         devices:
             - /dev/net/tun:/dev/net/tun
         restart: unless-stopped
+        healthcheck: 
+            # Ждём, пока wg0 получит адрес 10.8.0.1
+            test: ["CMD-SHELL", "ip -4 addr show wg0 | grep -q '10.8.0.1'"]
+            interval: 10s
+            timeout: 3s
+            retries: 15
+            start_period: 30s
 
 volumes:
     etc_wireguard:
@@ -559,18 +565,87 @@ FFOPS-40_diplom-skv_den
 
 ## commit_3,`FFOPS-40_diplom-skv_den`
 
-### forgejo
+### NFS файловое хранилище
+
+```bash
+# вывод рабочего интерфейса сети Сервера
+ip -br a show bond0
+
+# Проверка настроек экспорта FS nfs
+sudo exportfs -vra
+
+# конфиг настроек экспорта
+sudo cat /etc/exports
+```
+
+<details>
+<summary>
+Вывод настроек NFS экспорта с сервера
+</summary>
+
+```log
+bond0  UP  192.168.89.246/24
+
+exporting 192.168.89.0/24:/volume1/iso
+exporting 192.168.89.0/24:/volume1/git
+
+/volume1/git    192.168.89.0/24(rw,async,no_wdelay,crossmnt,all_squash,insecure_locks,sec=sys,anonuid=1024,anongid=100)
+/volume1/iso    192.168.89.0/24(rw,async,no_wdelay,crossmnt,all_squash,insecure_locks,sec=sys,anonuid=1024,anongid=100)
+```
+
+</details>
+
+### Сервер forgejo
+
+```bash
+pwd
+
+showmount -e 192.168.89.246
+
+cat /etc/fstab | grep git
+
+ls -ld
+
+mkdir -pv ./{postgres,forgejo}-data
+```
+
+<details>
+<summary>
+Подготовка каталогов для работы forgejo и PG БД
+</summary>
+
+```log
+/home/shoel/nfs_git/gited/FFOPS-40_diplom-skv_den/self-host_git_ci_cd
+
+Export list for 192.168.89.246:
+/volume1/iso 192.168.89.0/24
+/volume1/git 192.168.89.0/24
+
+192.168.89.246:/volume1/git /home/shoel/nfs_git nfs rw,soft,intr,noatime,nodev,nosuid 0 0
+
+drwxrwxrwx 1 1024 100 152 сен  8 23:46 .
+
+mkdir: создан каталог './postgres-data'
+mkdir: создан каталог './forgejo-data'
+```
+
+</details>
 
 ```yaml
 # docker-compose-forgejo.yml
 cat > docker-compose-forgejo.yml << 'EOF'
+include:
+  - docker-compose.yml
 services:
   server:
     image: data.forgejo.org/forgejo/forgejo:16.0.3
     container_name: forgejo
-    restart: unless-stopped
+    restart: always
     depends_on:
-      - db
+      wg-easy:
+        condition: service_healthy
+      db:
+        condition: service_healthy
     networks:
       - forgejo
     environment:
@@ -598,6 +673,9 @@ services:
     container_name: forgejo-db
     user: "1024:100"
     restart: unless-stopped
+    depends_on:
+      wg-easy:
+        condition: service_healthy
     networks:
       - forgejo
     environment:
@@ -607,19 +685,25 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - ./postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgejo"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
 networks:
   forgejo:
 EOF
 ```
 
 ```bash
+# Генерация пароля для базы данных
 echo "DB_PASSWORD=$(openssl rand -hex 24)" \
 > .env
 ```
 
 ```bash
-mkdir -pv ./{postgres,forgejo}-data
-
 docker-compose -f docker-compose-forgejo.yml up -d
 ```
 
@@ -629,10 +713,6 @@ Docker forgejo с postgres 18
 </summary>
 
 ```log
-mkdir: создан каталог './postgres-data'
-mkdir: создан каталог './forgejo-data'
-
-
 [+] up 20/20
  ⠏ Image data.forgejo.org/forgejo/forgejo:16.0.3 [⣿⣿⣿⣿⣿⣄⣿⣿⣿] 54.81MB / 82.05MB Pulling                                                      [+] up 18/20
  ⠋ Image data.forgejo.org/forgejo/forgejo:16.0.3 [⣿⣿⣿⣿⣿⣄⣿⣿⣿] 54.81MB / 82.05MB Pulling                              [+] up 18/20             148.1s
@@ -652,12 +732,13 @@ mkdir: создан каталог './forgejo-data'
 </details>
 
 ```bash
+# Проверка готовности git-сервера forgejo
 docker-compose -f docker-compose-forgejo.yml logs -f server
 ```
 
 <details>
 <summary>
-
+готовность git-сервера forgejo
 </summary>
 
 ```log
@@ -682,6 +763,81 @@ forgejo  | 2026/09/09 00:01:04 ...s/graceful/server.go:50:NewServer() [I] Starti
 
 </details>>
 
+```bash
+# Проверка готовности базы данных
+docker-compose -f docker-compose-forgejo.yml logs -f db
+```
+
+<details>
+<summary>
+готовность базы данных
+</summary>
+
+```log
+forgejo-db  | chmod: /var/run/postgresql: Operation not permitted
+forgejo-db  | The files belonging to this database system will be owned by user "postgres".
+forgejo-db  | This user must also own the server process.
+forgejo-db  | 
+forgejo-db  | The database cluster will be initialized with locale "en_US.utf8".
+forgejo-db  | The default database encoding has accordingly been set to "UTF8".
+forgejo-db  | The default text search configuration will be set to "english".
+forgejo-db  | 
+forgejo-db  | Data page checksums are enabled.
+forgejo-db  | 
+forgejo-db  | fixing permissions on existing directory /var/lib/postgresql/data/pgdata ... ok
+forgejo-db  | creating subdirectories ... ok
+forgejo-db  | selecting dynamic shared memory implementation ... posix
+forgejo-db  | selecting default "max_connections" ... 100
+forgejo-db  | selecting default "shared_buffers" ... 128MB
+forgejo-db  | selecting default time zone ... UTC
+forgejo-db  | creating configuration files ... ok
+forgejo-db  | running bootstrap script ... ok
+forgejo-db  | sh: locale: not found
+forgejo-db  | 2026-09-09 17:24:44.403 UTC [25] WARNING:  no usable system locales were found
+forgejo-db  | performing post-bootstrap initialization ... ok
+forgejo-db  | syncing data to disk ... ok
+forgejo-db  | 
+forgejo-db  | 
+forgejo-db  | Success. You can now start the database server using:
+forgejo-db  | 
+forgejo-db  |     pg_ctl -D /var/lib/postgresql/data/pgdata -l logfile start
+forgejo-db  | 
+forgejo-db  | initdb: warning: enabling "trust" authentication for local connections
+forgejo-db  | initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+forgejo-db  | waiting for server to start....2026-09-09 17:24:47.364 UTC [32] LOG:  starting PostgreSQL 18.6 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+forgejo-db  | 2026-09-09 17:24:47.367 UTC [32] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+forgejo-db  | 2026-09-09 17:24:47.377 UTC [38] LOG:  database system was shut down at 2026-09-09 17:24:46 UTC
+forgejo-db  | 2026-09-09 17:24:47.387 UTC [32] LOG:  database system is ready to accept connections
+forgejo-db  |  done
+forgejo-db  | server started
+forgejo-db  | 2026-09-09 17:24:47.565 UTC [53] FATAL:  database "forgejo" does not exist
+forgejo-db  | CREATE DATABASE
+forgejo-db  | 
+forgejo-db  | 
+forgejo-db  | /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+forgejo-db  | 
+forgejo-db  | waiting for server to shut down....2026-09-09 17:24:48.096 UTC [32] LOG:  received fast shutdown request
+forgejo-db  | 2026-09-09 17:24:48.097 UTC [32] LOG:  aborting any active transactions
+forgejo-db  | 2026-09-09 17:24:48.099 UTC [32] LOG:  background worker "logical replication launcher" (PID 41) exited with exit code 1
+forgejo-db  | 2026-09-09 17:24:48.100 UTC [36] LOG:  shutting down
+forgejo-db  | 2026-09-09 17:24:48.100 UTC [36] LOG:  checkpoint starting: shutdown immediate
+forgejo-db  | 2026-09-09 17:24:48.256 UTC [36] LOG:  checkpoint complete: wrote 943 buffers (5.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.131 s, sync=0.020 s, total=0.156 s; sync files=303, longest=0.001 s, average=0.001 s; distance=4362 kB, estimate=4362 kB; lsn=0/1BA8858, redo lsn=0/1BA8858
+forgejo-db  | 2026-09-09 17:24:48.346 UTC [32] LOG:  database system is shut down
+forgejo-db  |  done
+forgejo-db  | server stopped
+forgejo-db  | 
+forgejo-db  | PostgreSQL init process complete; ready for start up.
+forgejo-db  | 
+forgejo-db  | 2026-09-09 17:24:48.432 UTC [1] LOG:  starting PostgreSQL 18.6 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+forgejo-db  | 2026-09-09 17:24:48.432 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+forgejo-db  | 2026-09-09 17:24:48.432 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+forgejo-db  | 2026-09-09 17:24:48.441 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+forgejo-db  | 2026-09-09 17:24:48.456 UTC [61] LOG:  database system was shut down at 2026-09-09 17:24:48 UTC
+forgejo-db  | 2026-09-09 17:24:48.466 UTC [1] LOG:  database system is ready to accept connections
+```
+
+</details>>
+
 ![](./FFOPS-40_diplom-skv_den/img/1.gif)
 
 ![](./FFOPS-40_diplom-skv_den/img/2.gif)
@@ -695,7 +851,7 @@ git rm -r --cached \
 ./ ../
 
 # Добавление всех изменений из текущей и вывод текущего состояния репозитория
-git add . .. \
+git add . .. ../.. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку

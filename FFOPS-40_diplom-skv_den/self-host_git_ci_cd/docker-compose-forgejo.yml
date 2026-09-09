@@ -1,10 +1,15 @@
+include:
+  - docker-compose.yml
 services:
   server:
     image: data.forgejo.org/forgejo/forgejo:16.0.3
     container_name: forgejo
-    restart: unless-stopped
+    restart: always
     depends_on:
-      - db
+      wg-easy:
+        condition: service_healthy
+      db:
+        condition: service_healthy
     networks:
       - forgejo
     environment:
@@ -32,6 +37,9 @@ services:
     container_name: forgejo-db
     user: "1024:100"
     restart: unless-stopped
+    depends_on:
+      wg-easy:
+        condition: service_healthy
     networks:
       - forgejo
     environment:
@@ -41,5 +49,12 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - ./postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgejo"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
 networks:
   forgejo:
