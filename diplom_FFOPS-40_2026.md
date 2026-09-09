@@ -894,3 +894,44 @@ FFOPS-40_diplom-skv_den
 ```
 
 ## commit_3,`FFOPS-40_diplom-skv_den`
+
+### Проверка работоспособности git сервера
+
+```bash
+# Генерация ssh-ключа для git сервера
+ssh-keygen \
+-f ~/.ssh/id_forgejo_git_ed25519 \
+-t ed25519 \
+-C "forgejo_git"
+```
+
+<details>
+<summary>
+Вывод генерации ключа
+</summary>
+
+```log
+Generating public/private ed25519 key pair.
+Enter passphrase for "/home/shoel/.ssh/id_forgejo_git_ed25519" (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/shoel/.ssh/id_forgejo_git_ed25519
+Your public key has been saved in /home/shoel/.ssh/id_forgejo_git_ed25519.pub
+The key fingerprint is:
+SHA256:6qvlatW53xruvrApp5vPrMbsGmSSWkVntU9FWGRQcB0 forgejo_git
+The key's randomart image is:
++--[ED25519 256]--+
+|               . |
+|                 |
+|                 |
+|   o             |
+|          .      |
+| o +             |
+|.                |
+|                 |
+|                 |
++----[SHA256]-----+
+```
+
+</details>
+
+![](./FFOPS-40_diplom-skv_den/img/5.gif)
