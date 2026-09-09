@@ -995,3 +995,157 @@ FFOPS-40_diplom-skv_den
 ```
 
 ## commit_4,`FFOPS-40_diplom-skv_den`
+
+### Развертывание FORGEJO runner
+
+```bash
+# каталог для данных runner
+mkdir -pv ~/data-runner/.cache
+
+# Генерируем файл конфигурации раннера
+docker run --rm data.forgejo.org/forgejo/runner:13 \
+forgejo-runner generate-config > ~/data-runner/runner-config.yml
+
+# смена прав на неппривилигированного пользователя контейнера с UID/GUID 1001 
+sudo chown -Rv 1001:1001 /home/shoel/data-runner
+
+sudo chmod -v 775 /home/shoel/data-runner/.cache
+
+sudo chmod -v g+s /home/shoel/data-runner/.cache
+```
+
+<details>
+<summary>
+каталог для runner
+</summary>
+
+```log
+mkdir: создан каталог '/home/shoel/data-runner'
+
+mkdir: создан каталог '/home/shoel/data-runner/.cache'
+
+Unable to find image 'data.forgejo.org/forgejo/runner:13' locally
+13: Pulling from forgejo/runner
+55afa1ecc21d: Already exists 
+13ef92308689: Pull complete 
+35cc8c60d093: Pull complete 
+6146ea618b55: Pull complete 
+Digest: sha256:c4af85fd9f0dd03788676a534781a87c71aa2c6a37737143e017eb94d4312952
+Status: Downloaded newer image for data.forgejo.org/forgejo/runner:13
+
+изменён владелец '/home/shoel/data-runner/runner-config.yml' с shoel:shoel на 1001:1001
+
+изменён владелец '/home/shoel/data-runner/.cache' с shoel:shoel на 1001:1001
+
+изменён владелец '/home/shoel/data-runner' с shoel:shoel на 1001:1001
+
+права доступа '/home/shoel/data-runner/.cache' изменены с 0755 (rwxr-xr-x) на 0775 (rwxrwxr-x)
+
+права доступа '/home/shoel/data-runner/.cache' изменены с 0775 (rwxrwxr-x) на 2775 (rwxrwsr-x)
+```
+
+</details>
+
+```yaml
+cat > docker-compose-forgejo-runner.yml <<'EOF'
+include:
+  - docker-compose-forgejo.yml
+services:
+  docker-in-docker:
+    image: docker:dind
+    depends_on:
+      server:
+        condition: service_started
+    container_name: 'docker_dind'
+    privileged: 'true'
+    command: ['dockerd', '-H', 'tcp://0.0.0.0:2375', '--tls=false']
+    restart: 'unless-stopped'
+
+  runner:
+    image: 'data.forgejo.org/forgejo/runner:13'
+    links:
+      - docker-in-docker
+    depends_on:
+      docker-in-docker:
+        condition: service_started
+    container_name: 'runner'
+    environment:
+      DOCKER_HOST: tcp://docker-in-docker:2375
+    user: 1001:1001
+    volumes:
+      - ~/data-runner:/data
+    restart: 'unless-stopped'
+    command: 'forgejo-runner daemon --config runner-config.yml'
+EOF
+```
+
+```bash
+# Создание настроек для подключения в роли runnera
+sudo tee ~/data-runner/runner-config.yml <<'EOF'
+runner:
+  labels: ["docker:docker://ghcr.io/catthehacker/ubuntu:act-latest"]
+
+server:
+  connections:
+    forgejo:
+      url: http://10.8.0.1:3000/   # внутренний HTTP
+      uuid: 308d588e-5379-4e69-8234-b85c0027d7a4
+      token: c08ad111cf3b1801107aae9759d9af984bfe590c
+EOF
+```
+
+```bash
+docker-compose -f docker-compose-forgejo-runner.yml up -d
+```
+
+<details>
+<summary>
+Лог запуска runner
+</summary>
+
+```log
+[+] up 23/23
+ ✔ Image docker:dind                   Pulled    19.2s
+ ✔ Container forgejo-db                Healthy   1.1s
+ ✔ Container wg-easy                   Healthy   1.1s
+ ✔ Container forgejo                   Running   0.0s
+ ✔ Network self-host_git_ci_cd_default Created   0.0s
+ ✔ Container docker_dind               Started   1.2s
+ ✔ Container runner                    Started   1.3s
+```
+
+</details>
+
+![](./FFOPS-40_diplom-skv_den/img/7.gif)
+
+### Git Commit изменений
+
+```bash
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit4, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
+
+## commit_5,`FFOPS-40_diplom-skv_den`

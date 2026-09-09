@@ -1,0 +1,28 @@
+include:
+  - docker-compose-forgejo.yml
+services:
+  docker-in-docker:
+    image: docker:dind
+    depends_on:
+      server:
+        condition: service_started
+    container_name: 'docker_dind'
+    privileged: 'true'
+    command: ['dockerd', '-H', 'tcp://0.0.0.0:2375', '--tls=false']
+    restart: 'unless-stopped'
+
+  runner:
+    image: 'data.forgejo.org/forgejo/runner:13'
+    links:
+      - docker-in-docker
+    depends_on:
+      docker-in-docker:
+        condition: service_started
+    container_name: 'runner'
+    environment:
+      DOCKER_HOST: tcp://docker-in-docker:2375
+    user: 1001:1001
+    volumes:
+      - ~/data-runner:/data
+    restart: 'unless-stopped'
+    command: 'forgejo-runner daemon --config runner-config.yml'
