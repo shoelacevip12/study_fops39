@@ -17,8 +17,8 @@ resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter" {
   /*
 Сервисному аккаунту назначается роль "kms.keys.encrypterDecrypter".
 
-KMS_ID=abjbpu5tk0dfbcfceku2
-SA_ID=ajevuvi14s54jikil9m0
+KMS_ID="$(yc kms symmetric-key list | awk '/sym-kms-den-skv/{print $2}')"
+SA_ID="$(yc iam service-account list | awk '/stor/ {print $2}')"
 
 yc kms symmetric-key add-access-binding "$KMS_ID" \
 --role kms.keys.encrypterDecrypter \

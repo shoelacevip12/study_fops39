@@ -2920,26 +2920,3 @@ Apply complete! Resources: 14 added, 2 changed, 0 destroyed.
 ```
 
 </details>
-
-```bash
-terraform output encrypted_secret_key \
-| xargs -I{} echo {} \
-| base64 -d \
-| gpg2 --list-secret-keys
-```
-
-<details>
-<summary>
-Лог Создания ресурсов
-</summary>
-
-```log
-[keyboxd]
----------
-sec   ed25519 2026-09-12 [SC]
-      CC1A1DA66D05E943B17BDB820186BF84DFD06287
-uid         [  абсолютно ] denskv (denskv) <shoelacevip12@gmail.com>
-ssb   cv25519 2026-09-12 [E]
-```
-
-</details>
