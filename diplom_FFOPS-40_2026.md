@@ -1692,7 +1692,6 @@ TF-манифест создания сервисного аккаунта дл�
 
 ```tf
 cat > sa_storage.tf <<'EOF'
-
 resource "yandex_iam_service_account" "sa-storage-access" {
   folder_id   = var.folder_id
   name        = "sa-storage-access"
@@ -1711,8 +1710,8 @@ resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter" {
   /*
 Сервисному аккаунту назначается роль "kms.keys.encrypterDecrypter".
 
-KMS_ID=abjbpu5tk0dfbcfceku2
-SA_ID=ajevuvi14s54jikil9m0
+KMS_ID="$(yc kms symmetric-key list | awk '/sym-kms-den-skv/{print $2}')"
+SA_ID="$(yc iam service-account list | awk '/stor/ {print $2}')"
 
 yc kms symmetric-key add-access-binding "$KMS_ID" \
 --role kms.keys.encrypterDecrypter \
@@ -1748,7 +1747,6 @@ resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
   description        = "Static access key для доступа к Object Storage"
   pgp_key            = var.pgp_key_base64
 }
-
 EOF
 ```
 
@@ -2012,7 +2010,9 @@ yc resource-manager folder add-access-binding \
 
 yc iam access-key create \
 --service-account-name sa-storage-access \
---description "terraform backend"
+--description "terraform backend" \
+| grep "secret:" \
+| tee ~/.sa_storage_secret
 ```
 
 <details>
@@ -2045,12 +2045,12 @@ secret:
 cat > ~/.sa_storage.key <<EOF
 [default]
 aws_access_key_id = $(yc iam access-key list --service-account-name sa-storage-access | awk 'NR == 4 {print $6}')
-aws_secret_access_key = <SECRET>
+aws_secret_access_key =$(awk -F: '{print $2}' ~/.sa_storage_secret)
 EOF
 
 cat ~/.sa_storage.key
 
-chmod -v 600 ~/.sa_storage.key
+chmod -v 600 ~/.sa_storage{.key,_secret}
 ```
 
 <details>
@@ -2064,6 +2064,7 @@ aws_access_key_id = YCAJEJyV6VU4oe14uT0xhP9s7
 aws_secret_access_key = <!!!SECRET!!!>
 
 права доступа '/home/shoel/.sa_storage.key' изменены с 0644 (rw-r--r--) на 0600 (rw-------)
+права доступа '/home/shoel/.sa_storage_secret' изменены с 0644 (rw-r--r--) на 0600 (rw-------)
 ```
 
 </details>
@@ -2500,7 +2501,7 @@ your Terraform state and will henceforth be managed by Terraform.
 </details>
 
 ```bash
-# Импорт существующего бакета (по имени бакета)
+# Импорт существующего бакета (по имени бакета yandex_storage_bucket )
 terraform import yandex_storage_bucket.tfstate \
 $(yc storage bucket list | awk 'NR ==4  {print $2}')
 ```
@@ -2873,50 +2874,184 @@ To perform exactly these actions, run the following command to apply:
 </details>
 
 ```bash
-# Создание ресурсов
+# Создание ресурсов с ошибкой первого запуска
 terraform apply "tfplan"
 ```
 
 <details>
 <summary>
-Лог Создания ресурсов
+Лог Создания ресурсов с ошибкой первого запуска
 </summary>
 
 ```log
+terraform apply "tfplan"
 yandex_vpc_network.skv-net: Creating...
 yandex_vpc_address.public_addr["ingress_lb_zone_ru_central1_a"]: Creating...
 yandex_kms_symmetric_key.sym-kms: Creating...
-yandex_iam_service_account.sa-storage-access: Modifying... [id=ajevuvi14s54jikil9m0]
-yandex_kms_symmetric_key.sym-kms: Creation complete after 0s [id=abjbpu5tk0dfbcfceku2]
+yandex_iam_service_account.sa-storage-access: Modifying... [id=aje298mb5a9t4o2b7uu4]
+yandex_kms_symmetric_key.sym-kms: Creation complete after 0s [id=abjc2coa2k6ika7hqu3n]
 yandex_storage_bucket.tfstate: Modifying... [id=tfstate-skv]
-yandex_vpc_address.public_addr["ingress_lb_zone_ru_central1_a"]: Creation complete after 1s [id=e9bac3283b88mk7aio1q]
+yandex_vpc_address.public_addr["ingress_lb_zone_ru_central1_a"]: Creation complete after 0s [id=e9be46av1ek7kbkq26ub]
 yandex_storage_bucket.tfstate: Modifications complete after 1s [id=tfstate-skv]
-yandex_iam_service_account.sa-storage-access: Modifications complete after 2s [id=ajevuvi14s54jikil9m0]
-yandex_resourcemanager_folder_iam_binding.vpc-public-admin: Creating...
-yandex_resourcemanager_folder_iam_member.sa_storage_editor: Creating...
-yandex_resourcemanager_folder_iam_binding.images-puller: Creating...
-yandex_iam_service_account_static_access_key.sa_static_key: Creating...
-yandex_vpc_network.skv-net: Creation complete after 2s [id=enpet221hvbndeo89itn]
-yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"]: Creating...
-yandex_vpc_subnet.subnet-main["k8s_master_zone_a"]: Creating...
-yandex_vpc_security_group.internal: Creating...
+yandex_vpc_network.skv-net: Creation complete after 1s [id=enppv6l8m2qte4qq0glt]
 yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"]: Creating...
-yandex_vpc_security_group.k8s_master: Creating...
-yandex_vpc_security_group.k8s_worker: Creating...
-yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"]: Creation complete after 0s [id=fl82knu8pvd3dn0g3eu3]
+yandex_vpc_subnet.subnet-main["k8s_master_zone_a"]: Creating...
 yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"]: Creating...
-yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"]: Creation complete after 1s [id=e9b8rf88ci7qgodsrct7]
-yandex_vpc_security_group.k8s_master: Creation complete after 1s [id=enpcae5stgt33eejn07u]
-yandex_iam_service_account_static_access_key.sa_static_key: Creation complete after 1s [id=aje0g7a5d2oqkcq9sjs3]
-yandex_vpc_subnet.subnet-main["k8s_master_zone_a"]: Creation complete after 1s [id=e9bftt165f7is440d0l4]
-yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"]: Creation complete after 1s [id=e2lsf0nmgc0g7992tc1j]
-yandex_vpc_security_group.internal: Creation complete after 2s [id=enprr82lvjj1e7grmet7]
-yandex_resourcemanager_folder_iam_member.sa_storage_editor: Creation complete after 2s [id=b1g9l0vgsvf6cegkvj1c/storage.editor/serviceAccount:ajevuvi14s54jikil9m0]
+yandex_vpc_security_group.internal: Creating...
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"]: Creating...
+yandex_vpc_security_group.k8s_worker: Creating...
+yandex_vpc_security_group.k8s_master: Creating...
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"]: Creation complete after 0s [id=e2lr6qnibpl3c3uv19f6]
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"]: Creation complete after 1s [id=e9b6mtdppn9hnq30l7q3]
+yandex_iam_service_account.sa-storage-access: Modifications complete after 2s [id=aje298mb5a9t4o2b7uu4]
+yandex_iam_service_account_static_access_key.sa_static_key: Creating...
+yandex_resourcemanager_folder_iam_member.sa_storage_editor: Creating...
+yandex_resourcemanager_folder_iam_binding.vpc-public-admin: Creating...
+yandex_resourcemanager_folder_iam_member.sa_encrypterDecrypter: Creating...
+yandex_resourcemanager_folder_iam_binding.images-puller: Creating...
+yandex_vpc_subnet.subnet-main["k8s_master_zone_a"]: Creation complete after 1s [id=e9bvugvgqhal7ch3v763]
+yandex_vpc_security_group.internal: Creation complete after 2s [id=enpthqbsibqt8revvdme]
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"]: Creation complete after 2s [id=fl8kng1h13t239fpuikc]
+yandex_iam_service_account_static_access_key.sa_static_key: Creation complete after 1s [id=aje53nhlamcejd379clo]
+yandex_vpc_security_group.k8s_worker: Creation complete after 3s [id=enp6rqrneosdee0jla97]
 yandex_resourcemanager_folder_iam_binding.vpc-public-admin: Creation complete after 2s [id=b1g9l0vgsvf6cegkvj1c/vpc.publicAdmin]
-yandex_vpc_security_group.k8s_worker: Creation complete after 4s [id=enpn8bp7qm5c215u43ha]
+yandex_vpc_security_group.k8s_master: Creation complete after 4s [id=enp19upe845d04e9aha2]
+yandex_resourcemanager_folder_iam_member.sa_storage_editor: Creation complete after 5s [id=b1g9l0vgsvf6cegkvj1c/storage.admin/serviceAccount:aje298mb5a9t4o2b7uu4]
 yandex_resourcemanager_folder_iam_binding.images-puller: Creation complete after 5s [id=b1g9l0vgsvf6cegkvj1c/container-registry.images.puller]
-
-Apply complete! Resources: 14 added, 2 changed, 0 destroyed.
+╷
+│ Warning: No bindings found for role
+│ 
+│   with yandex_resourcemanager_folder_iam_member.sa_encrypterDecrypter,
+│   on sa_storage.tf line 15, in resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter":
+│   15: resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter" {
+│ 
+│ No bindings found for role: kms.keys.encrypterDecrypter. Resource will be removed from state
+╵
+╷
+│ Error: Missing Resource State After Create
+│ 
+│   with yandex_resourcemanager_folder_iam_member.sa_encrypterDecrypter,
+│   on sa_storage.tf line 15, in resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter":
+│   15: resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter" {
+│ 
+│ The Terraform Provider unexpectedly returned no resource state after having no errors in the resource creation. This is always an issue in the Terraform
+│ Provider and should be reported to the provider developers.
+│ 
+│ The resource may have been successfully created, but Terraform is not tracking it. Applying the configuration again with no other action may result in
+│ duplicate resource errors. Import the resource if the resource was actually created and Terraform should be tracking it.
 ```
 
 </details>
+
+```bash
+# Повторная проверка ресурсов плана
+terraform init --upgrade \
+&& terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
+```
+
+<details>
+<summary>
+проверка ресурсов плана
+</summary>
+
+```log
+Initializing the backend...
+
+Initializing provider plugins...
+- Finding latest version of yandex-cloud/yandex...
+- Using previously-installed yandex-cloud/yandex v0.226.0
+
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+
+yandex_vpc_network.skv-net: Refreshing state... [id=enppv6l8m2qte4qq0glt]
+yandex_kms_symmetric_key.sym-kms: Refreshing state... [id=abjc2coa2k6ika7hqu3n]
+yandex_iam_service_account.sa-storage-access: Refreshing state... [id=aje298mb5a9t4o2b7uu4]
+yandex_vpc_address.public_addr["ingress_lb_zone_ru_central1_a"]: Refreshing state... [id=e9be46av1ek7kbkq26ub]
+yandex_resourcemanager_folder_iam_binding.vpc-public-admin: Refreshing state... [id=b1g9l0vgsvf6cegkvj1c/vpc.publicAdmin]
+yandex_resourcemanager_folder_iam_binding.images-puller: Refreshing state... [id=b1g9l0vgsvf6cegkvj1c/container-registry.images.puller]
+yandex_iam_service_account_static_access_key.sa_static_key: Refreshing state... [id=aje53nhlamcejd379clo]
+yandex_resourcemanager_folder_iam_member.sa_storage_editor: Refreshing state... [id=b1g9l0vgsvf6cegkvj1c/storage.admin/serviceAccount:aje298mb5a9t4o2b7uu4]
+yandex_storage_bucket.tfstate: Refreshing state... [id=tfstate-skv]
+yandex_vpc_subnet.subnet-main["k8s_master_zone_a"]: Refreshing state... [id=e9bvugvgqhal7ch3v763]
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"]: Refreshing state... [id=e2lr6qnibpl3c3uv19f6]
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"]: Refreshing state... [id=fl8kng1h13t239fpuikc]
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"]: Refreshing state... [id=e9b6mtdppn9hnq30l7q3]
+yandex_vpc_security_group.k8s_worker: Refreshing state... [id=enp6rqrneosdee0jla97]
+yandex_vpc_security_group.internal: Refreshing state... [id=enpthqbsibqt8revvdme]
+yandex_vpc_security_group.k8s_master: Refreshing state... [id=enp19upe845d04e9aha2]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # yandex_resourcemanager_folder_iam_member.sa_encrypterDecrypter will be created
+  + resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter" {
+      + folder_id = "b1g9l0vgsvf6cegkvj1c"
+      + id        = (known after apply)
+      + member    = "serviceAccount:aje298mb5a9t4o2b7uu4"
+      + role      = "kms.keys.encrypterDecrypter"
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+Saved the plan to: tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "tfplan"
+```
+
+</details>
+
+```bash
+# Применение плана для содания оставшихся ресурсов
+terraform apply "tfplan"
+```
+
+<details>
+<summary>
+Cодание оставшихся ресурсов
+</summary>
+
+```log
+yandex_resourcemanager_folder_iam_member.sa_encrypterDecrypter: Creating...
+yandex_resourcemanager_folder_iam_member.sa_encrypterDecrypter: Creation complete after 2s [id=b1g9l0vgsvf6cegkvj1c/kms.keys.encrypterDecrypter/serviceAccount:aje298mb5a9t4o2b7uu4]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+access_key_id = "YCAJEhBiM6a0lB19-rc_7AxiO"
+key_fingerprint = "cc1a1da66d05e943b17bdb820186bf84dfd06287"
+service_account_id = "aje298mb5a9t4o2b7uu4"
+```
+
+</details>
+
+```bash
+# удалить содержимое бакета и сам бакет (SA для backend уже мёртв)
+# 1. вычищать вручную
+# 2. удалить бакет
+yc storage bucket delete --name tfstate-skv    
+
+# Удалить и оставшийся KMS-ключ
+yc kms symmetric-key delete "$(yc kms symmetric-key list | awk '/sym-kms-den-skv/{print $2}')"
+
+# удалить битые локальные state-файлы
+rm -vf ./errored.tfstate \
+./terraform.tfstate.backup
+```

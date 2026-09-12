@@ -1,4 +1,3 @@
-
 resource "yandex_iam_service_account" "sa-storage-access" {
   folder_id   = var.folder_id
   name        = "sa-storage-access"
@@ -28,8 +27,6 @@ yc kms symmetric-key add-access-binding "$KMS_ID" \
   role      = "kms.keys.encrypterDecrypter"
   member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
 }
-
-
 
 resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
   # Сервисному аккаунту назначается роль "vpc.publicAdmin".
