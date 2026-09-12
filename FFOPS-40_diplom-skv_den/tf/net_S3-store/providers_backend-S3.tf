@@ -8,15 +8,15 @@ terraform {
 
   backend "s3" {
     endpoints = {
-      s3 = var.s3.endpoints[0]
+      s3 = "https://storage.yandexcloud.net"
     }
-    bucket     = var.s3.bucket
-    region     = var.s3.region
-    key        = var.s3.key
-    shared_credentials_file = var.s3.shared_credentials_file
+    bucket                   = "tfstate-skv"
+    region                   = "ru-central1"
+    key                      = "diplom/network.tfstate"
+    shared_credentials_files = ["storage.key"]
 
-    skip_region_validation      = var.s3.skip_region_validation
-    skip_credentials_validation = var.s3.skip_credentials_validation
+    skip_region_validation      = true
+    skip_credentials_validation = true
   }
 }
 

@@ -7,9 +7,9 @@ resource "yandex_iam_service_account" "sa-storage-access" {
 
 resource "yandex_resourcemanager_folder_iam_member" "sa_storage_editor" {
   # Сервисному аккаунту назначается роль "storage.editor".
-  folder_id = var.folder_id
-  role      = "storage.editor"
-  member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+  folder_id  = var.folder_id
+  role       = "storage.editor"
+  member     = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
   depends_on = [yandex_iam_service_account.sa-storage-access]
 }
 
@@ -32,7 +32,7 @@ resource "yandex_resourcemanager_folder_iam_binding" "images-puller" {
 }
 
 resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
-  service_account_id = yandex_iam_service_account.sa.id
+  service_account_id = yandex_iam_service_account.sa-storage-access.id
   description        = "Static access key для доступа к Object Storage"
   pgp_key            = var.pgp_key_base64
 }

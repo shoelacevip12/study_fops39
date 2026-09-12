@@ -12,20 +12,6 @@ variable "default_zone" {
   type        = string
 }
 
-variable "s3" {
-  description = "описание backend для tfstate"
-  type = map(object(
-    {
-      endpoints = list(string),
-      bucket = string,
-      region = string,
-      key = string,
-      shared_credentials_file = string,
-      skip_region_validation = bool,
-      skip_credentials_validation = bool
-    }))
-}
-
 #=========== sa_storage ==============
 
 variable "pgp_key_base64" {
@@ -85,5 +71,5 @@ variable "external_static_ips" {
 #=========== security_group ==============
 variable "white_ips_access_to_master" {
   description = "Ip с доступом до мастера"
-  type = list(string)
+  type        = list(string)
 }

@@ -1465,3 +1465,507 @@ FFOPS-40_diplom-skv_den
 ```
 
 ## commit_6,`FFOPS-40_diplom-skv_den`
+
+### `TF-манифест` описания провайдера YC с бэкендом
+
+<details>
+<summary>
+TF-манифест описания провайдера YC
+</summary>
+
+```tf
+cat > providers_backend-S3.tf <<'EOF'
+terraform {
+  required_providers {
+    yandex = {
+      source = "yandex-cloud/yandex"
+    }
+  }
+  required_version = ">= 0.13"
+
+  backend "s3" {
+    endpoints = {
+      s3 = "https://storage.yandexcloud.net"
+    }
+    bucket                   = "tfstate-skv"
+    region                   = "ru-central1"
+    key                      = "diplom/network.tfstate"
+    shared_credentials_files = ["storage.key"]
+
+    skip_region_validation      = true
+    skip_credentials_validation = true
+  }
+}
+
+provider "yandex" {
+  service_account_key_file = file("~/.authorized_key.json")
+  cloud_id                 = var.cloud_id
+  folder_id                = var.folder_id
+  zone                     = var.default_zone
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` объявления переменных
+
+<details>
+<summary>
+TF-манифест объявления переменных
+</summary>
+
+```tf
+cat > variables.tf <<'EOF'
+#=========== providers_backend-S3 ==============
+variable "cloud_id" {
+  description = "ID облака"
+  type        = string
+}
+variable "folder_id" {
+  description = "The folder ID"
+  type        = string
+}
+variable "default_zone" {
+  description = "Зона размещения по умолчанию"
+  type        = string
+}
+
+#=========== sa_storage ==============
+
+variable "pgp_key_base64" {
+  description = "Публичный PGP-ключ в base64"
+  type        = string
+  sensitive   = true
+}
+
+#=========== s3 ==============
+variable "bucket_name_chipher" {
+  description = "Имя S3 бакета"
+  type        = string
+}
+
+#=========== kms ==============
+variable "symmetric_key_name" {
+  description = "имя yandex_kms_symmetric_key"
+  type        = string
+}
+
+#=========== network_vpc ==============
+variable "network_name" {
+  description = "наименование созданной сети"
+  type        = string
+}
+
+#=========== network_subnet ==============
+variable "subnets" {
+  description = "подсети для k8s"
+
+  type = map(list(object(
+    {
+      name = string,
+      zone = string,
+      cidr = list(string)
+    }))
+  )
+
+  validation {
+    condition     = alltrue([for i in keys(var.subnets) : alltrue([for j in lookup(var.subnets, i) : contains(["ru-central1-a", "ru-central1-b", "ru-central1-d"], j.zone)])])
+    error_message = "Ошибка! Зоны не доступны!"
+  }
+}
+
+#=========== network_external_ipv4_address ==============
+variable "external_static_ips" {
+  description = "static ips"
+
+  type = map(list(object(
+    {
+      name = string,
+      zone = string
+    }))
+  )
+}
+
+#=========== security_group ==============
+variable "white_ips_access_to_master" {
+  description = "Ip с доступом до мастера"
+  type        = list(string)
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` locls значений
+
+<details>
+<summary>
+TF-манифест локальных значений
+</summary>
+
+```tf
+cat > locals.tf <<'EOF'
+locals {
+  subnet_array = flatten([for k, v in var.subnets : [for j in v : {
+    name = j.name
+    zone = j.zone
+    cidr = j.cidr
+    }
+  ]])
+  external_ips_array = flatten([for k, v in var.external_static_ips : [for j in v : {
+    name = j.name
+    zone = j.zone
+    }
+  ]])
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` создания VPC сети, подсетей и публичных адресов
+
+<details>
+<summary>
+TF-манифест создания VPC сети, подсетей и публичных адресов
+</summary>
+
+```tf
+cat > network_vpc.tf <<'EOF'
+resource "yandex_vpc_network" "skv-net" {
+  name = var.network_name
+}
+
+resource "yandex_vpc_subnet" "subnet-main" {
+  for_each = {
+    for k, v in local.subnet_array : "${v.name}" => v
+  }
+  network_id     = yandex_vpc_network.skv-net.id
+  v4_cidr_blocks = each.value.cidr
+  zone           = each.value.zone
+  name           = each.value.name
+}
+
+resource "yandex_vpc_address" "public_addr" {
+  for_each = {
+    for v in local.external_ips_array : "${v.name}" => v
+  }
+  name = each.value.name
+  external_ipv4_address {
+    zone_id = each.value.zone
+  }
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` создания симметричного KMS-ключа
+
+<details>
+<summary>
+TF-манифест создания симметричного KMS-ключа
+</summary>
+
+```tf
+cat > kms.tf <<'EOF'
+resource "yandex_kms_symmetric_key" "sym-kms" {
+  default_algorithm = "AES_256"
+  description       = "Создание симметричного ключа"
+  folder_id         = var.folder_id
+  name              = var.symmetric_key_name
+  rotation_period   = ""
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` создания сервисного аккаунта для доступа к Object Storage
+
+<details>
+<summary>
+TF-манифест создания сервисного аккаунта для доступа к Object Storage
+</summary>
+
+```tf
+cat > sa_storage.tf <<'EOF'
+
+resource "yandex_iam_service_account" "sa-storage-access" {
+  folder_id   = var.folder_id
+  name        = "sa-storage-access"
+  description = "Service account для доступа к Object Storage"
+}
+
+resource "yandex_resourcemanager_folder_iam_member" "sa_storage_editor" {
+  # Сервисному аккаунту назначается роль "storage.editor".
+  folder_id  = var.folder_id
+  role       = "storage.editor"
+  member     = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+  depends_on = [yandex_iam_service_account.sa-storage-access]
+}
+
+resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
+  # Сервисному аккаунту назначается роль "vpc.publicAdmin".
+  folder_id = var.folder_id
+  role      = "vpc.publicAdmin"
+  members = [
+    "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+  ]
+}
+
+resource "yandex_resourcemanager_folder_iam_binding" "images-puller" {
+  # Сервисному аккаунту назначается роль "container-registry.images.puller".
+  folder_id = var.folder_id
+  role      = "container-registry.images.puller"
+  members = [
+    "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+  ]
+}
+
+resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
+  service_account_id = yandex_iam_service_account.sa-storage-access.id
+  description        = "Static access key для доступа к Object Storage"
+  pgp_key            = var.pgp_key_base64
+}
+
+output "access_key_id" {
+  description = "ID статического ключа доступа к Object Storage"
+  value       = yandex_iam_service_account_static_access_key.sa_static_key.access_key
+}
+output "encrypted_secret_key" {
+  description = "Кодированный PGP secret key. Для раскодировки: echo <value> | base64 -d | gpg2 --decrypt"
+  value       = yandex_iam_service_account_static_access_key.sa_static_key.encrypted_secret_key
+}
+output "key_fingerprint" {
+  description = "Fingerprint PGP-ключа, использованного для шифрования"
+  value       = yandex_iam_service_account_static_access_key.sa_static_key.key_fingerprint
+}
+output "service_account_id" {
+  description = "ID созданного Service Account"
+  value       = yandex_iam_service_account.sa-storage-access.id
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` группы доступа
+
+<details>
+<summary>
+TF-манифест групп доступа
+</summary>
+
+```tf
+cat > security_groups.tf <<'EOF'
+resource "yandex_vpc_security_group" "internal" {
+  name        = "internal"
+  description = "Доступность для внутренней сети"
+  network_id  = yandex_vpc_network.skv-net.id
+  labels = {
+    firewall = "yc_internal"
+  }
+  ingress {
+    protocol          = "ANY"
+    description       = "self"
+    predefined_target = "self_security_group"
+    from_port         = 0
+    to_port           = 65535
+  }
+  egress {
+    protocol          = "ANY"
+    description       = "self"
+    predefined_target = "self_security_group"
+    from_port         = 0
+    to_port           = 65535
+  }
+}
+
+resource "yandex_vpc_security_group" "k8s_master" {
+  name        = "k8s-master"
+  description = "Доступность для мастера k8s"
+  network_id  = yandex_vpc_network.skv-net.id
+  labels = {
+    firewall = "k8s-master"
+  }
+  ingress {
+    protocol       = "TCP"
+    description    = "доступ до api k8s"
+    v4_cidr_blocks = var.white_ips_access_to_master
+    port           = 443
+  }
+  ingress {
+    protocol          = "TCP"
+    description       = "доступ до api k8s из Yandex load balancer"
+    predefined_target = "loadbalancer_healthchecks"
+    from_port         = 0
+    to_port           = 65535
+  }
+}
+
+resource "yandex_vpc_security_group" "k8s_worker" {
+  name        = "k8s-worker"
+  description = "Доступность для рабочих нод"
+  network_id  = yandex_vpc_network.skv-net.id
+  labels = {
+    firewall = "k8s-worker"
+  }
+  ingress {
+    protocol       = "ANY"
+    description    = "any connections"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
+  egress {
+    protocol       = "ANY"
+    description    = "any connections"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` создания S3-бакета
+
+<details>
+<summary>
+TF-манифест создания S3-бакета
+</summary>
+
+```tf
+cat > s3.tf <<'EOF'
+resource "yandex_storage_bucket" "tfstate" {
+  anonymous_access_flags {
+    read        = true
+    list        = false
+    config_read = false
+  }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        kms_master_key_id = yandex_kms_symmetric_key.sym-kms.id
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
+
+  bucket                  = var.bucket_name_chipher
+  default_storage_class   = "STANDARD"
+  disabled_statickey_auth = false
+  max_size                = 1073741824
+  versioning {
+    enabled = false
+  }
+
+  depends_on = [yandex_kms_symmetric_key.sym-kms]
+
+}
+EOF
+```
+
+</details>
+
+### `tfvars-файл` значений переменных поумолчанию
+
+<details>
+<summary>
+tfvars-файл значений переменных поумолчанию
+</summary>
+
+```tf
+cat > terraform.tfvars <<'EOF'
+#=========== providers_backend-S3 ===========
+cloud_id     = "b1g46dhqv17rkjcoc9k7"
+folder_id    = "b1g9l0vgsvf6cegkvj1c"
+default_zone = "ru-central1-a"
+
+#=========== sa_storage ==============
+
+pgp_key_base64 = "LS0tLS1CRUdJTiBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0tCgptRE1FYXFWNWZoWUpLd1lCQkFIYVJ3OEJBUWRBUVArRjVjNjdDUU83TVVzTWMwdyt5OEpwRFVkdGhoVGhBa0VrCncvTWQ3TSswS1dSbGJuTnJkaUFvWkdWdWMydDJLU0E4YzJodlpXeGhZMlYyYVhBeE1rQm5iV0ZwYkM1amIyMCsKaUpBRUV4WUtBRGdXSVFUTUdoMm1iUVhwUTdGNzI0SUJocitFMzlCaWh3VUNhcVY1ZmdJYkF3VUxDUWdIQWdZVgpDZ2tJQ3dJRUZnSURBUUllQVFJWGdBQUtDUkFCaHIrRTM5QmloLytpQVFET1FoTUsycWVOdnhtUjlFKzdGeFIvCklUMXlrQVZ6MGJxUUo1TzRlenVqdWdFQXRIVnVEV0lERkxxaDJpUlA4MUs1RnhxbUhZTnpjMFJ6QW9Ua3lXQzQKNkFlNE9BUnFwWGwrRWdvckJnRUVBWmRWQVFVQkFRZEFJT09MQ3VCZ2doL0RnVTRySGk5dVZFTmV4TDRaSkduQwpaS1ZDcncveHlEY0RBUWdIaUhnRUdCWUtBQ0FXSVFUTUdoMm1iUVhwUTdGNzI0SUJocitFMzlCaWh3VUNhcVY1CmZnSWJEQUFLQ1JBQmhyK0UzOUJpaHpZeEFRQ0ttVTc3c1JaZ0lsVFU2cWkyWnBwQXBpQXQ4bXZsZ2lkc0RESFYKU3lPMDdBRUFuUjJaOEtyUVpLNGwzY3dYUytHVjNSSFpPWmFzT1pNODlXcjl0M1hpOXdJPQo9STBWbQotLS0tLUVORCBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0tCg=="
+
+#=========== s3 ==============
+bucket_name_chipher = "tfstate-skv"
+
+#=========== kms ==============
+symmetric_key_name = "sym-kms-den-skv"
+
+#=========== network_vpc ===========
+network_name = "skv-net"
+
+#=========== network_subnet ===========
+subnets = {
+  "k8s_master" = [
+    {
+      name = "k8s_master_zone_a"
+      zone = "ru-central1-a"
+      cidr = ["10.10.10.0/28"]
+    }
+  ],
+  "k8s_workers" = [
+    {
+      name = "k8s_worker_zone_a"
+      zone = "ru-central1-a"
+      cidr = ["10.10.10.16/28"]
+    },
+    {
+      name = "k8s_worker_zone_b"
+      zone = "ru-central1-b"
+      cidr = ["10.10.10.32/28"]
+    },
+    {
+      name = "k8s_worker_zone_d"
+      zone = "ru-central1-d"
+      cidr = ["10.10.10.48/28"]
+    }
+  ],
+}
+
+#=========== network_external_ipv4_address ===========
+external_static_ips = {
+  ingress_lb = [
+    {
+      name = "ingress_lb_zone_ru_central1_a"
+      zone = "ru-central1-a"
+    }
+  ]
+}
+
+#=========== security_group ===========
+white_ips_access_to_master = [
+  "127.0.0.1/32",
+  "0.0.0.0/0"
+]
+
+# white_ips_access_to_master = [
+#   "127.0.0.1/32",
+#   "$YOUR_IP/32"
+#   ]
+EOF
+```
+
+</details>
+
+### Инициализация и запуск
+
+```bash
+terraform init --upgrade && terraform validate && terraform fmt && terraform plan -out=tfplan
+```
+
+<details>
+<summary>
+вывод инициализации и проверки
+</summary>
+
+```log
+
+```
+
+</details>
