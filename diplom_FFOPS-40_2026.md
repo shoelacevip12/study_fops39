@@ -3086,20 +3086,6 @@ service_account_id = "aje298mb5a9t4o2b7uu4"
 
 </details>
 
-```bash
-# удалить содержимое бакета и сам бакет (SA для backend уже мёртв)
-# 1. вычищать вручную
-# 2. удалить бакет
-yc storage bucket delete --name tfstate-skv    
-
-# Удалить и оставшийся KMS-ключ
-yc kms symmetric-key delete "$(yc kms symmetric-key list | awk '/sym-kms-den-skv/{print $2}')"
-
-# удалить битые локальные state-файлы
-rm -vf ./errored.tfstate \
-./terraform.tfstate.backup
-```
-
 ### Git Commit изменений
 
 ```bash
@@ -3131,3 +3117,34 @@ FFOPS-40_diplom-skv_den
 ```
 
 ## commit_7,`FFOPS-40_diplom-skv_den`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```bash
+# удалить содержимое бакета и сам бакет (SA для backend уже мёртв)
+# 1. вычищать вручную
+# 2. удалить бакет
+yc storage bucket delete --name tfstate-skv    
+
+# Удалить и оставшийся KMS-ключ
+yc kms symmetric-key delete "$(yc kms symmetric-key list | awk '/sym-kms-den-skv/{print $2}')"
+
+# удалить битые локальные state-файлы
+rm -vf ./errored.tfstate \
+./terraform.tfstate.backup
+```
