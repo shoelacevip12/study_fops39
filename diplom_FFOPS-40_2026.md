@@ -1312,7 +1312,9 @@ git tag v1.0.0
 git push ffops40-diplom v1.0.0
 ```
 
-### Создание terraform ресурсов
+---
+
+## Создание terraform ресурсов
 
 ```bash
 mkdir -pv tf/{net_store,k8s}
@@ -3097,3 +3099,35 @@ yc kms symmetric-key delete "$(yc kms symmetric-key list | awk '/sym-kms-den-skv
 rm -vf ./errored.tfstate \
 ./terraform.tfstate.backup
 ```
+
+### Git Commit изменений
+
+```bash
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit6, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
+
+## commit_7,`FFOPS-40_diplom-skv_den`
