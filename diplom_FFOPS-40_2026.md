@@ -1150,7 +1150,6 @@ FFOPS-40_diplom-skv_den
 
 ## commit_5,`FFOPS-40_diplom-skv_den`
 
-
 ```bash
 mkdir -p .forgejo/workflows
 ```
@@ -1312,3 +1311,157 @@ git push
 git tag v1.0.0
 git push ffops40-diplom v1.0.0
 ```
+
+### Создание terraform ресурсов
+
+```bash
+mkdir -pv tf/{net_store,k8s}
+
+cd tf/net_store
+```
+
+### Описание сети и tfsate хранилища
+
+#### Генерация Ключа GPG
+
+```bash
+# Интерактивная генерирация ключа GPG
+gpg2 --full-generate-key
+```
+
+<details>
+<summary>
+Сгенерировать ключ GPG
+</summary>
+
+```log
+gpg (GnuPG) 2.4.9; Copyright (C) 2025 g10 Code GmbH
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Выберите тип ключа:
+   (1) RSA and RSA
+   (2) DSA and Elgamal
+   (3) DSA (sign only)
+   (4) RSA (sign only)
+   (9) ECC (sign and encrypt) *default*
+  (10) ECC (только для подписи)
+  (14) Existing key from card
+Ваш выбор? 9
+Выберите эллиптическую кривую:
+   (1) Curve 25519 *default*
+   (4) NIST P-384
+   (6) Brainpool P-256
+Ваш выбор? 1
+Выберите срок действия ключа.
+         0 = не ограничен
+      <n>  = срок действия ключа - n дней
+      <n>w = срок действия ключа - n недель
+      <n>m = срок действия ключа - n месяцев
+      <n>y = срок действия ключа - n лет
+Срок действия ключа? (0) 
+Срок действия ключа не ограничен
+Все верно? (y/N) y
+
+GnuPG должен составить идентификатор пользователя для идентификации ключа.
+
+Ваше полное имя: denskv
+Адрес электронной почты: shoelacevip12@gmail.com
+Примечание: denskv
+Вы выбрали следующий идентификатор пользователя:
+    "denskv (denskv) <shoelacevip12@gmail.com>"
+
+Сменить (N)Имя, (C)Примечание, (E)Адрес; (O)Принять/(Q)Выход? O
+Необходимо получить много случайных чисел. Желательно, чтобы Вы
+в процессе генерации выполняли какие-то другие действия (печать
+на клавиатуре, движения мыши, обращения к дискам); это даст генератору
+случайных чисел больше возможностей получить достаточное количество энтропии.
+Необходимо получить много случайных чисел. Желательно, чтобы Вы
+в процессе генерации выполняли какие-то другие действия (печать
+на клавиатуре, движения мыши, обращения к дискам); это даст генератору
+случайных чисел больше возможностей получить достаточное количество энтропии.
+gpg: создан каталог '/home/shoel/.gnupg/openpgp-revocs.d'
+gpg: сертификат отзыва записан в '/home/shoel/.gnupg/openpgp-revocs.d/CC1A1DA66D05E943B17BDB820186BF84DFD06287.rev'.
+открытый и секретный ключи созданы и подписаны.
+
+pub   ed25519 2026-09-12 [SC]
+      CC1A1DA66D05E943B17BDB820186BF84DFD06287
+uid                      denskv (denskv) <shoelacevip12@gmail.com>
+sub   cv25519 2026-09-12 [E]
+```
+
+![](./FFOPS-40_diplom-skv_den/img/1.png)
+
+</details>
+
+```bash
+# список GPG-ключей
+gpg2 --list-secret-keys
+```
+
+<details>
+<summary>
+Список GPG-ключей
+</summary>
+
+```log
+gpg: проверка таблицы доверия
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: глубина: 0  достоверных:   1  подписанных:   0  доверие: 0-, 0q, 0n, 0m, 0f, 1u
+[keyboxd]
+---------
+sec   ed25519 2026-09-12 [SC]
+      CC1A1DA66D05E943B17BDB820186BF84DFD06287
+uid         [  абсолютно ] denskv (denskv) <shoelacevip12@gmail.com>
+ssb   cv25519 2026-09-12 [E]
+```
+
+</details>
+
+```bash
+# получить публичный GPG-ключ в base64
+gpg2 --armor --export 'CC1A1DA66D05E943B17BDB820186BF84DFD06287' | base64 -w0
+```
+
+<details>
+<summary>
+публичный GPG-ключ в base64
+</summary>
+
+```log
+LS0tLS1CRUdJTiBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0tCgptRE1FYXFWNWZoWUpLd1lCQkFIYVJ3OEJBUWRBUVArRjVjNjdDUU83TVVzTWMwdyt5OEpwRFVkdGhoVGhBa0VrCncvTWQ3TSswS1dSbGJuTnJkaUFvWkdWdWMydDJLU0E4YzJodlpXeGhZMlYyYVhBeE1rQm5iV0ZwYkM1amIyMCsKaUpBRUV4WUtBRGdXSVFUTUdoMm1iUVhwUTdGNzI0SUJocitFMzlCaWh3VUNhcVY1ZmdJYkF3VUxDUWdIQWdZVgpDZ2tJQ3dJRUZnSURBUUllQVFJWGdBQUtDUkFCaHIrRTM5QmloLytpQVFET1FoTUsycWVOdnhtUjlFKzdGeFIvCklUMXlrQVZ6MGJxUUo1TzRlenVqdWdFQXRIVnVEV0lERkxxaDJpUlA4MUs1RnhxbUhZTnpjMFJ6QW9Ua3lXQzQKNkFlNE9BUnFwWGwrRWdvckJnRUVBWmRWQVFVQkFRZEFJT09MQ3VCZ2doL0RnVTRySGk5dVZFTmV4TDRaSkduQwpaS1ZDcncveHlEY0RBUWdIaUhnRUdCWUtBQ0FXSVFUTUdoMm1iUVhwUTdGNzI0SUJocitFMzlCaWh3VUNhcVY1CmZnSWJEQUFLQ1JBQmhyK0UzOUJpaHpZeEFRQ0ttVTc3c1JaZ0lsVFU2cWkyWnBwQXBpQXQ4bXZsZ2lkc0RESFYKU3lPMDdBRUFuUjJaOEtyUVpLNGwzY3dYUytHVjNSSFpPWmFzT1pNODlXcjl0M1hpOXdJPQo9STBWbQotLS0tLUVORCBQR1AgUFVCTElDIEtFWSBCTE9D
+```
+
+</details>
+
+### Git Commit изменений
+
+```bash
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit5, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
+
+## commit_6,`FFOPS-40_diplom-skv_den`
