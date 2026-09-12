@@ -1541,9 +1541,20 @@ variable "pgp_key_base64" {
 }
 
 #=========== s3 ==============
+# variable "bucket_name_chipher" {
+#   description = "Имя S3 бакета"
+#   type        = string
+# }
+
 variable "bucket_name_chipher" {
-  description = "Имя S3 бакета"
-  type        = string
+  description = "Конфигурация S3 бакета"
+  type = object({
+    bucket                  = string
+    default_storage_class   = string
+    disabled_statickey_auth = bool
+    max_size                = number
+    versioning              = bool
+  })
 }
 
 #=========== kms ==============
@@ -1592,33 +1603,6 @@ variable "external_static_ips" {
 variable "white_ips_access_to_master" {
   description = "Ip с доступом до мастера"
   type        = list(string)
-}
-EOF
-```
-
-</details>
-
-### `TF-манифест` locls значений
-
-<details>
-<summary>
-TF-манифест локальных значений
-</summary>
-
-```tf
-cat > locals.tf <<'EOF'
-locals {
-  subnet_array = flatten([for k, v in var.subnets : [for j in v : {
-    name = j.name
-    zone = j.zone
-    cidr = j.cidr
-    }
-  ]])
-  external_ips_array = flatten([for k, v in var.external_static_ips : [for j in v : {
-    name = j.name
-    zone = j.zone
-    }
-  ]])
 }
 EOF
 ```
@@ -1752,6 +1736,29 @@ EOF
 
 </details>
 
+### `TF-манифест` таймера
+
+<details>
+<summary>
+TF-манифест тамера
+</summary>
+
+```tf
+cat > sleep_timer.tf <<'EOF'
+resource "time_sleep" "iam_propagation" {
+  /*
+    задержка после создания IAM-биндинга sa_encrypterDecrypter, 
+    чтобы провайдер успел прочитать его обратно
+    из-за ручного import ресурсов terraform
+    */
+  depends_on      = [yandex_resourcemanager_folder_iam_member.sa_encrypterDecrypter]
+  create_duration = "30s"
+}
+EOF
+```
+
+</details>
+
 ### `TF-манифест` группы доступа
 
 <details>
@@ -1858,12 +1865,12 @@ resource "yandex_storage_bucket" "tfstate" {
     }
   }
 
-  bucket                  = var.bucket_name_chipher
-  default_storage_class   = "STANDARD"
-  disabled_statickey_auth = false
-  max_size                = 1073741824
+  bucket                  = var.bucket_name_chipher.bucket
+  default_storage_class   = var.bucket_name_chipher.default_storage_class
+  disabled_statickey_auth = var.bucket_name_chipher.disabled_statickey_auth
+  max_size                = var.bucket_name_chipher.max_size
   versioning {
-    enabled = false
+    enabled = var.bucket_name_chipher.versioning
   }
 
   depends_on = [yandex_kms_symmetric_key.sym-kms]
@@ -1893,7 +1900,15 @@ default_zone = "ru-central1-a"
 pgp_key_base64 = "mDMEaqV5fhYJKwYBBAHaRw8BAQdAQP+F5c67CQO7MUsMc0w+y8JpDUdthhThAkEkw/Md7M+0KWRlbnNrdiAoZGVuc2t2KSA8c2hvZWxhY2V2aXAxMkBnbWFpbC5jb20+iJAEExYKADgWIQTMGh2mbQXpQ7F724IBhr+E39BihwUCaqV5fgIbAwULCQgHAgYVCgkICwIEFgIDAQIeAQIXgAAKCRABhr+E39Bih/+iAQDOQhMK2qeNvxmR9E+7FxR/IT1ykAVz0bqQJ5O4ezujugEAtHVuDWIDFLqh2iRP81K5FxqmHYNzc0RzAoTkyWC46Ae4OARqpXl+EgorBgEEAZdVAQUBAQdAIOOLCuBggh/DgU4rHi9uVENexL4ZJGnCZKVCrw/xyDcDAQgHiHgEGBYKACAWIQTMGh2mbQXpQ7F724IBhr+E39BihwUCaqV5fgIbDAAKCRABhr+E39BihzYxAQCKmU77sRZgIlTU6qi2ZppApiAt8mvlgidsDDHVSyO07AEAnR2Z8KrQZK4l3cwXS+GV3RHZOZasOZM89Wr9t3Xi9wI="
 
 #=========== s3 ==============
-bucket_name_chipher = "tfstate-skv"
+# bucket_name_chipher = "tfstate-skv"
+
+bucket_name_chipher = {
+  bucket                  = "tfstate-skv"
+  default_storage_class   = "STANDARD"
+  disabled_statickey_auth = false
+  max_size                = 1073741824
+  versioning              = false
+}
 
 #=========== kms ==============
 symmetric_key_name = "sym-kms-den-skv"
@@ -1949,6 +1964,33 @@ white_ips_access_to_master = [
 #   "127.0.0.1/32",
 #   "$YOUR_IP/32"
 #   ]
+EOF
+```
+
+</details>
+
+### `TF-манифест` locls значений
+
+<details>
+<summary>
+TF-манифест локальных значений
+</summary>
+
+```tf
+cat > locals.tf <<'EOF'
+locals {
+  subnet_array = flatten([for k, v in var.subnets : [for j in v : {
+    name = j.name
+    zone = j.zone
+    cidr = j.cidr
+    }
+  ]])
+  external_ips_array = flatten([for k, v in var.external_static_ips : [for j in v : {
+    name = j.name
+    zone = j.zone
+    }
+  ]])
+}
 EOF
 ```
 

@@ -21,9 +21,20 @@ variable "pgp_key_base64" {
 }
 
 #=========== s3 ==============
+# variable "bucket_name_chipher" {
+#   description = "Имя S3 бакета"
+#   type        = string
+# }
+
 variable "bucket_name_chipher" {
-  description = "Имя S3 бакета"
-  type        = string
+  description = "Конфигурация S3 бакета"
+  type = object({
+    bucket                  = string
+    default_storage_class   = string
+    disabled_statickey_auth = bool
+    max_size                = number
+    versioning              = bool
+  })
 }
 
 #=========== kms ==============
