@@ -6,12 +6,30 @@ resource "yandex_iam_service_account" "sa-storage-access" {
 }
 
 resource "yandex_resourcemanager_folder_iam_member" "sa_storage_editor" {
-  # Сервисному аккаунту назначается роль "storage.editor".
+  # Сервисному аккаунту назначается роль "storage.admin".
   folder_id  = var.folder_id
-  role       = "storage.editor"
+  role       = "storage.admin"
   member     = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
   depends_on = [yandex_iam_service_account.sa-storage-access]
 }
+
+resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter" {
+  /*
+Сервисному аккаунту назначается роль "kms.keys.encrypterDecrypter".
+
+KMS_ID=abjbpu5tk0dfbcfceku2
+SA_ID=ajevuvi14s54jikil9m0
+
+yc kms symmetric-key add-access-binding "$KMS_ID" \
+--role kms.keys.encrypterDecrypter \
+--service-account-id "$SA_ID"
+*/
+  folder_id = var.folder_id
+  role      = "kms.keys.encrypterDecrypter"
+  member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+}
+
+
 
 resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
   # Сервисному аккаунту назначается роль "vpc.publicAdmin".
@@ -35,21 +53,4 @@ resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
   service_account_id = yandex_iam_service_account.sa-storage-access.id
   description        = "Static access key для доступа к Object Storage"
   pgp_key            = var.pgp_key_base64
-}
-
-output "access_key_id" {
-  description = "ID статического ключа доступа к Object Storage"
-  value       = yandex_iam_service_account_static_access_key.sa_static_key.access_key
-}
-output "encrypted_secret_key" {
-  description = "Кодированный PGP secret key. Для раскодировки: echo <value> | base64 -d | gpg2 --decrypt"
-  value       = yandex_iam_service_account_static_access_key.sa_static_key.encrypted_secret_key
-}
-output "key_fingerprint" {
-  description = "Fingerprint PGP-ключа, использованного для шифрования"
-  value       = yandex_iam_service_account_static_access_key.sa_static_key.key_fingerprint
-}
-output "service_account_id" {
-  description = "ID созданного Service Account"
-  value       = yandex_iam_service_account.sa-storage-access.id
 }

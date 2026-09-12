@@ -1419,8 +1419,8 @@ ssb   cv25519 2026-09-12 [E]
 </details>
 
 ```bash
-# получить публичный GPG-ключ в base64
-gpg2 --armor --export 'CC1A1DA66D05E943B17BDB820186BF84DFD06287' | base64 -w0
+# получить публичный GPG-ключ в base64 без --armor
+gpg2 --export 'CC1A1DA66D05E943B17BDB820186BF84DFD06287' | base64 -w0
 ```
 
 <details>
@@ -1490,10 +1490,11 @@ terraform {
     bucket                   = "tfstate-skv"
     region                   = "ru-central1"
     key                      = "diplom/network.tfstate"
-    shared_credentials_files = ["storage.key"]
+    shared_credentials_files = ["~/.sa_storage.key"]
 
     skip_region_validation      = true
     skip_credentials_validation = true
+    skip_requesting_account_id  = true
   }
 }
 
@@ -1699,12 +1700,30 @@ resource "yandex_iam_service_account" "sa-storage-access" {
 }
 
 resource "yandex_resourcemanager_folder_iam_member" "sa_storage_editor" {
-  # Сервисному аккаунту назначается роль "storage.editor".
+  # Сервисному аккаунту назначается роль "storage.admin".
   folder_id  = var.folder_id
-  role       = "storage.editor"
+  role       = "storage.admin"
   member     = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
   depends_on = [yandex_iam_service_account.sa-storage-access]
 }
+
+resource "yandex_resourcemanager_folder_iam_member" "sa_encrypterDecrypter" {
+  /*
+Сервисному аккаунту назначается роль "kms.keys.encrypterDecrypter".
+
+KMS_ID=abjbpu5tk0dfbcfceku2
+SA_ID=ajevuvi14s54jikil9m0
+
+yc kms symmetric-key add-access-binding "$KMS_ID" \
+--role kms.keys.encrypterDecrypter \
+--service-account-id "$SA_ID"
+*/
+  folder_id = var.folder_id
+  role      = "kms.keys.encrypterDecrypter"
+  member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+}
+
+
 
 resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
   # Сервисному аккаунту назначается роль "vpc.publicAdmin".
@@ -1730,22 +1749,6 @@ resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
   pgp_key            = var.pgp_key_base64
 }
 
-output "access_key_id" {
-  description = "ID статического ключа доступа к Object Storage"
-  value       = yandex_iam_service_account_static_access_key.sa_static_key.access_key
-}
-output "encrypted_secret_key" {
-  description = "Кодированный PGP secret key. Для раскодировки: echo <value> | base64 -d | gpg2 --decrypt"
-  value       = yandex_iam_service_account_static_access_key.sa_static_key.encrypted_secret_key
-}
-output "key_fingerprint" {
-  description = "Fingerprint PGP-ключа, использованного для шифрования"
-  value       = yandex_iam_service_account_static_access_key.sa_static_key.key_fingerprint
-}
-output "service_account_id" {
-  description = "ID созданного Service Account"
-  value       = yandex_iam_service_account.sa-storage-access.id
-}
 EOF
 ```
 
@@ -1843,7 +1846,7 @@ TF-манифест создания S3-бакета
 cat > s3.tf <<'EOF'
 resource "yandex_storage_bucket" "tfstate" {
   anonymous_access_flags {
-    read        = true
+    read        = false
     list        = false
     config_read = false
   }
@@ -1889,7 +1892,7 @@ default_zone = "ru-central1-a"
 
 #=========== sa_storage ==============
 
-pgp_key_base64 = "LS0tLS1CRUdJTiBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0tCgptRE1FYXFWNWZoWUpLd1lCQkFIYVJ3OEJBUWRBUVArRjVjNjdDUU83TVVzTWMwdyt5OEpwRFVkdGhoVGhBa0VrCncvTWQ3TSswS1dSbGJuTnJkaUFvWkdWdWMydDJLU0E4YzJodlpXeGhZMlYyYVhBeE1rQm5iV0ZwYkM1amIyMCsKaUpBRUV4WUtBRGdXSVFUTUdoMm1iUVhwUTdGNzI0SUJocitFMzlCaWh3VUNhcVY1ZmdJYkF3VUxDUWdIQWdZVgpDZ2tJQ3dJRUZnSURBUUllQVFJWGdBQUtDUkFCaHIrRTM5QmloLytpQVFET1FoTUsycWVOdnhtUjlFKzdGeFIvCklUMXlrQVZ6MGJxUUo1TzRlenVqdWdFQXRIVnVEV0lERkxxaDJpUlA4MUs1RnhxbUhZTnpjMFJ6QW9Ua3lXQzQKNkFlNE9BUnFwWGwrRWdvckJnRUVBWmRWQVFVQkFRZEFJT09MQ3VCZ2doL0RnVTRySGk5dVZFTmV4TDRaSkduQwpaS1ZDcncveHlEY0RBUWdIaUhnRUdCWUtBQ0FXSVFUTUdoMm1iUVhwUTdGNzI0SUJocitFMzlCaWh3VUNhcVY1CmZnSWJEQUFLQ1JBQmhyK0UzOUJpaHpZeEFRQ0ttVTc3c1JaZ0lsVFU2cWkyWnBwQXBpQXQ4bXZsZ2lkc0RESFYKU3lPMDdBRUFuUjJaOEtyUVpLNGwzY3dYUytHVjNSSFpPWmFzT1pNODlXcjl0M1hpOXdJPQo9STBWbQotLS0tLUVORCBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0tCg=="
+pgp_key_base64 = "mDMEaqV5fhYJKwYBBAHaRw8BAQdAQP+F5c67CQO7MUsMc0w+y8JpDUdthhThAkEkw/Md7M+0KWRlbnNrdiAoZGVuc2t2KSA8c2hvZWxhY2V2aXAxMkBnbWFpbC5jb20+iJAEExYKADgWIQTMGh2mbQXpQ7F724IBhr+E39BihwUCaqV5fgIbAwULCQgHAgYVCgkICwIEFgIDAQIeAQIXgAAKCRABhr+E39Bih/+iAQDOQhMK2qeNvxmR9E+7FxR/IT1ykAVz0bqQJ5O4ezujugEAtHVuDWIDFLqh2iRP81K5FxqmHYNzc0RzAoTkyWC46Ae4OARqpXl+EgorBgEEAZdVAQUBAQdAIOOLCuBggh/DgU4rHi9uVENexL4ZJGnCZKVCrw/xyDcDAQgHiHgEGBYKACAWIQTMGh2mbQXpQ7F724IBhr+E39BihwUCaqV5fgIbDAAKCRABhr+E39BihzYxAQCKmU77sRZgIlTU6qi2ZppApiAt8mvlgidsDDHVSyO07AEAnR2Z8KrQZK4l3cwXS+GV3RHZOZasOZM89Wr9t3Xi9wI="
 
 #=========== s3 ==============
 bucket_name_chipher = "tfstate-skv"
@@ -1956,7 +1959,120 @@ EOF
 ### Инициализация и запуск
 
 ```bash
-terraform init --upgrade && terraform validate && terraform fmt && terraform plan -out=tfplan
+yc components update
+
+yc storage bucket create --name tfstate-skv
+
+yc iam service-account create --name sa-storage-access
+
+yc resource-manager folder add-access-binding \
+$(yc resource-manager folder list | awk '/ACTIVE/ {print $2}') \
+--role storage.admin \
+--service-account-id $(yc iam service-account list | awk '/sa-storage-access/ {print $2}')
+```
+
+<details>
+<summary>
+Лог создания бакета и сервис аккаунта
+</summary>
+
+```log
+Installing yc 1.34.0 ...
+Update is complete!
+Please reload your shell for changes to take place.
+Now we have zsh completion. Type "echo 'source /home/shoel/yandex-cloud/completion.zsh.inc' >>  ~/.zshrc" to install it
+
+name: tfstate-skv
+folder_id: b1g9l0vgsvf6cegkvj1c
+anonymous_access_flags: {}
+default_storage_class: STANDARD
+versioning: VERSIONING_DISABLED
+created_at: "2026-09-12T19:30:27.404220Z"
+resource_id: e3eovi75ndgdinekmgl3
+
+done (2s)
+id: ajeoimlfbtl0sab6ln8a
+folder_id: b1g9l0vgsvf6cegkvj1c
+created_at: "2026-09-12T19:42:26Z"
+name: sa-storage-access
+status: ACTIVE
+
+done (2s)
+{}
+```
+
+</details>
+
+```bash
+yc resource-manager folder add-access-binding \
+"$(yc resource-manager folder list | awk '/ACTIVE/ {print $2}')" \
+--role storage.editor \
+--service-account-id \
+"$(yc iam service-account list | awk '/sa-storage-access/ {print $2}')"
+
+yc iam access-key create \
+--service-account-name sa-storage-access \
+--description "terraform backend"
+```
+
+<details>
+<summary>
+Лог добавления прав и создания ключа доступа
+</summary>
+
+```log
+done (2s)
+effective_deltas:
+  - action: ADD
+    access_binding:
+      role_id: storage.editor
+      subject:
+        id: ajeoimlfbtl0sab6ln8a
+        type: serviceAccount
+
+access_key:
+  id: ajegvl9pirj12gb1hp9m
+  service_account_id: ajeoimlfbtl0sab6ln8a
+  created_at: "2026-09-12T19:52:52.974704596Z"
+  description: terraform backend
+  key_id: YCAJEJyV6VU4oe14uT0xhP9s7
+secret:
+```
+
+</details>
+
+```bash
+cat > ~/.sa_storage.key <<EOF
+[default]
+aws_access_key_id = $(yc iam access-key list --service-account-name sa-storage-access | awk 'NR == 4 {print $6}')
+aws_secret_access_key = <SECRET>
+EOF
+
+cat ~/.sa_storage.key
+
+chmod -v 600 ~/.sa_storage.key
+```
+
+<details>
+<summary>
+Создание файла доступа
+</summary>
+
+```log
+[default]
+aws_access_key_id = YCAJEJyV6VU4oe14uT0xhP9s7
+aws_secret_access_key = <!!!SECRET!!!>
+
+права доступа '/home/shoel/.sa_storage.key' изменены с 0644 (rw-r--r--) на 0600 (rw-------)
+```
+
+</details>
+
+```bash
+terraform init --upgrade \
+&& terraform validate \
+&& terraform fmt \
+&& terraform plan -out=tfplan
 ```
 
 <details>
@@ -1965,7 +2081,865 @@ terraform init --upgrade && terraform validate && terraform fmt && terraform pla
 </summary>
 
 ```log
+Initializing the backend...
 
+Successfully configured the backend "s3"! Terraform will automatically
+use this backend unless the backend configuration changes.
+
+Initializing provider plugins...
+- Finding latest version of yandex-cloud/yandex...
+- Installing yandex-cloud/yandex v0.226.0...
+- Installed yandex-cloud/yandex v0.226.0 (unauthenticated)
+
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+
+╷
+│ Warning: Incomplete lock file information for providers
+│ 
+│ Due to your customized provider installation methods, Terraform was forced to calculate lock file checksums locally for the following providers:
+│   - yandex-cloud/yandex
+│ 
+│ The current .terraform.lock.hcl file only includes checksums for linux_amd64, so Terraform running on another platform will fail to install
+│ these providers.
+│ 
+│ To calculate additional checksums for another platform, run:
+│   terraform providers lock -platform=linux_amd64
+│ (where linux_amd64 is the platform to generate)
+╵
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # yandex_iam_service_account.sa-storage-access will be created
+  + resource "yandex_iam_service_account" "sa-storage-access" {
+      + created_at         = (known after apply)
+      + description        = "Service account для доступа к Object Storage"
+      + expires_at         = (known after apply)
+      + folder_id          = "b1g9l0vgsvf6cegkvj1c"
+      + id                 = (known after apply)
+      + labels             = (known after apply)
+      + name               = "sa-storage-access"
+      + service_account_id = (known after apply)
+      + status             = (known after apply)
+    }
+
+  # yandex_iam_service_account_static_access_key.sa_static_key will be created
+  + resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
+      + access_key                   = (known after apply)
+      + created_at                   = (known after apply)
+      + description                  = "Static access key для доступа к Object Storage"
+      + encrypted_secret_key         = (known after apply)
+      + id                           = (known after apply)
+      + key_fingerprint              = (known after apply)
+      + output_to_lockbox_version_id = (known after apply)
+      + pgp_key                      = (sensitive value)
+      + secret_key                   = (sensitive value)
+      + service_account_id           = (known after apply)
+    }
+
+  # yandex_kms_symmetric_key.sym-kms will be created
+  + resource "yandex_kms_symmetric_key" "sym-kms" {
+      + created_at          = (known after apply)
+      + default_algorithm   = "AES_256"
+      + deletion_protection = false
+      + description         = "Создание симметричного ключа"
+      + folder_id           = "b1g9l0vgsvf6cegkvj1c"
+      + id                  = (known after apply)
+      + labels              = (known after apply)
+      + name                = "sym-kms-den-skv"
+      + rotated_at          = (known after apply)
+      + status              = (known after apply)
+      + symmetric_key_id    = (known after apply)
+        # (1 unchanged attribute hidden)
+    }
+
+  # yandex_resourcemanager_folder_iam_binding.images-puller will be created
+  + resource "yandex_resourcemanager_folder_iam_binding" "images-puller" {
+      + folder_id = "b1g9l0vgsvf6cegkvj1c"
+      + id        = (known after apply)
+      + members   = [
+          + (known after apply),
+        ]
+      + role      = "container-registry.images.puller"
+    }
+
+  # yandex_resourcemanager_folder_iam_binding.vpc-public-admin will be created
+  + resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
+      + folder_id = "b1g9l0vgsvf6cegkvj1c"
+      + id        = (known after apply)
+      + members   = [
+          + (known after apply),
+        ]
+      + role      = "vpc.publicAdmin"
+    }
+
+  # yandex_resourcemanager_folder_iam_member.sa_storage_editor will be created
+  + resource "yandex_resourcemanager_folder_iam_member" "sa_storage_editor" {
+      + folder_id = "b1g9l0vgsvf6cegkvj1c"
+      + id        = (known after apply)
+      + member    = (known after apply)
+      + role      = "storage.editor"
+    }
+
+  # yandex_storage_bucket.tfstate will be created
+  + resource "yandex_storage_bucket" "tfstate" {
+      + acl                     = (known after apply)
+      + bucket                  = "tfstate-skv"
+      + bucket_domain_name      = (known after apply)
+      + default_storage_class   = "STANDARD"
+      + disabled_statickey_auth = false
+      + folder_id               = (known after apply)
+      + force_destroy           = false
+      + id                      = (known after apply)
+      + max_size                = 1073741824
+      + policy                  = (known after apply)
+      + website_domain          = (known after apply)
+      + website_endpoint        = (known after apply)
+
+      + anonymous_access_flags {
+          + config_read = false
+          + list        = false
+          + read        = false
+        }
+
+      + grant (known after apply)
+
+      + server_side_encryption_configuration {
+          + rule {
+              + apply_server_side_encryption_by_default {
+                  + kms_master_key_id = (known after apply)
+                  + sse_algorithm     = "aws:kms"
+                }
+            }
+        }
+
+      + versioning {
+          + enabled = false
+        }
+    }
+
+  # yandex_vpc_address.public_addr["ingress_lb_zone_ru_central1_a"] will be created
+  + resource "yandex_vpc_address" "public_addr" {
+      + created_at          = (known after apply)
+      + deletion_protection = (known after apply)
+      + folder_id           = (known after apply)
+      + id                  = (known after apply)
+      + labels              = (known after apply)
+      + name                = "ingress_lb_zone_ru_central1_a"
+      + reserved            = (known after apply)
+      + used                = (known after apply)
+
+      + external_ipv4_address {
+          + address                  = (known after apply)
+          + ddos_protection_provider = (known after apply)
+          + outgoing_smtp_capability = (known after apply)
+          + zone_id                  = "ru-central1-a"
+        }
+    }
+
+  # yandex_vpc_network.skv-net will be created
+  + resource "yandex_vpc_network" "skv-net" {
+      + created_at                = (known after apply)
+      + default_security_group_id = (known after apply)
+      + folder_id                 = (known after apply)
+      + id                        = (known after apply)
+      + labels                    = (known after apply)
+      + name                      = "skv-net"
+      + subnet_ids                = (known after apply)
+    }
+
+  # yandex_vpc_security_group.internal will be created
+  + resource "yandex_vpc_security_group" "internal" {
+      + created_at  = (known after apply)
+      + description = "Доступность для внутренней сети"
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + labels      = {
+          + "firewall" = "yc_internal"
+        }
+      + name        = "internal"
+      + network_id  = (known after apply)
+      + status      = (known after apply)
+
+      + egress {
+          + description       = "self"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + predefined_target = "self_security_group"
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = []
+          + v6_cidr_blocks    = []
+            # (1 unchanged attribute hidden)
+        }
+
+      + ingress {
+          + description       = "self"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + predefined_target = "self_security_group"
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = []
+          + v6_cidr_blocks    = []
+            # (1 unchanged attribute hidden)
+        }
+    }
+
+  # yandex_vpc_security_group.k8s_master will be created
+  + resource "yandex_vpc_security_group" "k8s_master" {
+      + created_at  = (known after apply)
+      + description = "Доступность для мастера k8s"
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + labels      = {
+          + "firewall" = "k8s-master"
+        }
+      + name        = "k8s-master"
+      + network_id  = (known after apply)
+      + status      = (known after apply)
+
+      + egress (known after apply)
+
+      + ingress {
+          + description       = "доступ до api k8s из Yandex load balancer"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + predefined_target = "loadbalancer_healthchecks"
+          + protocol          = "TCP"
+          + to_port           = 65535
+          + v4_cidr_blocks    = []
+          + v6_cidr_blocks    = []
+            # (1 unchanged attribute hidden)
+        }
+      + ingress {
+          + description       = "доступ до api k8s"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 443
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "127.0.0.1/32",
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+  # yandex_vpc_security_group.k8s_worker will be created
+  + resource "yandex_vpc_security_group" "k8s_worker" {
+      + created_at  = (known after apply)
+      + description = "Доступность для рабочих нод"
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + labels      = {
+          + "firewall" = "k8s-worker"
+        }
+      + name        = "k8s-worker"
+      + network_id  = (known after apply)
+      + status      = (known after apply)
+
+      + egress {
+          + description       = "any connections"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+
+      + ingress {
+          + description       = "any connections"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+  # yandex_vpc_subnet.subnet-main["k8s_master_zone_a"] will be created
+  + resource "yandex_vpc_subnet" "subnet-main" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "k8s_master_zone_a"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.0/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-a"
+    }
+
+  # yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"] will be created
+  + resource "yandex_vpc_subnet" "subnet-main" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "k8s_worker_zone_a"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.16/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-a"
+    }
+
+  # yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"] will be created
+  + resource "yandex_vpc_subnet" "subnet-main" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "k8s_worker_zone_b"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.32/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-b"
+    }
+
+  # yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"] will be created
+  + resource "yandex_vpc_subnet" "subnet-main" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "k8s_worker_zone_d"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.48/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-d"
+    }
+
+Plan: 16 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + access_key_id        = (known after apply)
+  + encrypted_secret_key = (known after apply)
+  + key_fingerprint      = (known after apply)
+  + service_account_id   = (known after apply)
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+Saved the plan to: tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "tfplan"
+```
+
+</details>
+
+```bash
+# Импорт существующего сервисного аккаунта (yc iam service-account list)
+terraform import \
+"yandex_iam_service_account.$(yc iam service-account list | awk '/sa-storage-access/ {print $4}')" \
+$(yc iam service-account list | awk '/sa-storage-access/ {print $2}')
+```
+
+<details>
+<summary>
+лог импорта существующих ресурсов
+</summary>
+
+```log
+yandex_iam_service_account.sa-storage-access: Importing from ID "ajeoimlfbtl0sab6ln8a"...
+yandex_iam_service_account.sa-storage-access: Import prepared!
+  Prepared yandex_iam_service_account for import
+yandex_iam_service_account.sa-storage-access: Refreshing state...
+
+Import successful!
+
+The resources that were imported are shown above. These resources are now in
+your Terraform state and will henceforth be managed by Terraform.
+```
+
+</details>
+
+```bash
+# Импорт существующего бакета (по имени бакета)
+terraform import yandex_storage_bucket.tfstate \
+$(yc storage bucket list | awk 'NR ==4  {print $2}')
+```
+
+<details>
+<summary>
+лог импорта существующих ресурсов
+</summary>
+
+```log
+yandex_storage_bucket.tfstate: Importing from ID "tfstate-skv"...
+yandex_storage_bucket.tfstate: Import prepared!
+  Prepared yandex_storage_bucket for import
+yandex_storage_bucket.tfstate: Refreshing state... [id=tfstate-skv]
+
+Import successful!
+
+The resources that were imported are shown above. These resources are now in
+your Terraform state and will henceforth be managed by Terraform.
+```
+
+</details>
+
+```bash
+# Обновление plan
+terraform plan -out=tfplan
+```
+
+<details>
+<summary>
+Обновления Plan
+</summary>
+
+```log
+yandex_iam_service_account.sa-storage-access: Refreshing state... [id=ajevuvi14s54jikil9m0]
+yandex_storage_bucket.tfstate: Refreshing state... [id=tfstate-skv]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following
+symbols:
+  + create
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+  # yandex_iam_service_account.sa-storage-access will be updated in-place
+  ~ resource "yandex_iam_service_account" "sa-storage-access" {
+      ~ created_at         = "2026-09-12T21:00:43Z" -> (known after apply)
+      + description        = "Service account для доступа к Object Storage"
+        id                 = "ajevuvi14s54jikil9m0"
+      + labels             = (known after apply)
+        name               = "sa-storage-access"
+      ~ status             = "ACTIVE" -> (known after apply)
+        # (3 unchanged attributes hidden)
+    }
+
+  # yandex_iam_service_account_static_access_key.sa_static_key will be created
+  + resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
+      + access_key                   = (known after apply)
+      + created_at                   = (known after apply)
+      + description                  = "Static access key для доступа к Object Storage"
+      + encrypted_secret_key         = (known after apply)
+      + id                           = (known after apply)
+      + key_fingerprint              = (known after apply)
+      + output_to_lockbox_version_id = (known after apply)
+      + pgp_key                      = (sensitive value)
+      + secret_key                   = (sensitive value)
+      + service_account_id           = "ajevuvi14s54jikil9m0"
+    }
+
+  # yandex_kms_symmetric_key.sym-kms will be created
+  + resource "yandex_kms_symmetric_key" "sym-kms" {
+      + created_at          = (known after apply)
+      + default_algorithm   = "AES_256"
+      + deletion_protection = false
+      + description         = "Создание симметричного ключа"
+      + folder_id           = "b1g9l0vgsvf6cegkvj1c"
+      + id                  = (known after apply)
+      + labels              = (known after apply)
+      + name                = "sym-kms-den-skv"
+      + rotated_at          = (known after apply)
+      + status              = (known after apply)
+      + symmetric_key_id    = (known after apply)
+        # (1 unchanged attribute hidden)
+    }
+
+  # yandex_resourcemanager_folder_iam_binding.images-puller will be created
+  + resource "yandex_resourcemanager_folder_iam_binding" "images-puller" {
+      + folder_id = "b1g9l0vgsvf6cegkvj1c"
+      + id        = (known after apply)
+      + members   = [
+          + "serviceAccount:ajevuvi14s54jikil9m0",
+        ]
+      + role      = "container-registry.images.puller"
+    }
+
+  # yandex_resourcemanager_folder_iam_binding.vpc-public-admin will be created
+  + resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
+      + folder_id = "b1g9l0vgsvf6cegkvj1c"
+      + id        = (known after apply)
+      + members   = [
+          + "serviceAccount:ajevuvi14s54jikil9m0",
+        ]
+      + role      = "vpc.publicAdmin"
+    }
+
+  # yandex_resourcemanager_folder_iam_member.sa_storage_editor will be created
+  + resource "yandex_resourcemanager_folder_iam_member" "sa_storage_editor" {
+      + folder_id = "b1g9l0vgsvf6cegkvj1c"
+      + id        = (known after apply)
+      + member    = "serviceAccount:ajevuvi14s54jikil9m0"
+      + role      = "storage.editor"
+    }
+
+  # yandex_storage_bucket.tfstate will be updated in-place
+  ~ resource "yandex_storage_bucket" "tfstate" {
+      + force_destroy           = false
+        id                      = "tfstate-skv"
+      ~ max_size                = 0 -> 1073741824
+        tags                    = {}
+        # (6 unchanged attributes hidden)
+
+      + server_side_encryption_configuration {
+          + rule {
+              + apply_server_side_encryption_by_default {
+                  + kms_master_key_id = (known after apply)
+                  + sse_algorithm     = "aws:kms"
+                }
+            }
+        }
+
+        # (2 unchanged blocks hidden)
+    }
+
+  # yandex_vpc_address.public_addr["ingress_lb_zone_ru_central1_a"] will be created
+  + resource "yandex_vpc_address" "public_addr" {
+      + created_at          = (known after apply)
+      + deletion_protection = (known after apply)
+      + folder_id           = (known after apply)
+      + id                  = (known after apply)
+      + labels              = (known after apply)
+      + name                = "ingress_lb_zone_ru_central1_a"
+      + reserved            = (known after apply)
+      + used                = (known after apply)
+
+      + external_ipv4_address {
+          + address                  = (known after apply)
+          + ddos_protection_provider = (known after apply)
+          + outgoing_smtp_capability = (known after apply)
+          + zone_id                  = "ru-central1-a"
+        }
+    }
+
+  # yandex_vpc_network.skv-net will be created
+  + resource "yandex_vpc_network" "skv-net" {
+      + created_at                = (known after apply)
+      + default_security_group_id = (known after apply)
+      + folder_id                 = (known after apply)
+      + id                        = (known after apply)
+      + labels                    = (known after apply)
+      + name                      = "skv-net"
+      + subnet_ids                = (known after apply)
+    }
+
+  # yandex_vpc_security_group.internal will be created
+  + resource "yandex_vpc_security_group" "internal" {
+      + created_at  = (known after apply)
+      + description = "Доступность для внутренней сети"
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + labels      = {
+          + "firewall" = "yc_internal"
+        }
+      + name        = "internal"
+      + network_id  = (known after apply)
+      + status      = (known after apply)
+
+      + egress {
+          + description       = "self"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + predefined_target = "self_security_group"
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = []
+          + v6_cidr_blocks    = []
+            # (1 unchanged attribute hidden)
+        }
+
+      + ingress {
+          + description       = "self"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + predefined_target = "self_security_group"
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = []
+          + v6_cidr_blocks    = []
+            # (1 unchanged attribute hidden)
+        }
+    }
+
+  # yandex_vpc_security_group.k8s_master will be created
+  + resource "yandex_vpc_security_group" "k8s_master" {
+      + created_at  = (known after apply)
+      + description = "Доступность для мастера k8s"
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + labels      = {
+          + "firewall" = "k8s-master"
+        }
+      + name        = "k8s-master"
+      + network_id  = (known after apply)
+      + status      = (known after apply)
+
+      + egress (known after apply)
+
+      + ingress {
+          + description       = "доступ до api k8s из Yandex load balancer"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + predefined_target = "loadbalancer_healthchecks"
+          + protocol          = "TCP"
+          + to_port           = 65535
+          + v4_cidr_blocks    = []
+          + v6_cidr_blocks    = []
+            # (1 unchanged attribute hidden)
+        }
+      + ingress {
+          + description       = "доступ до api k8s"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 443
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "127.0.0.1/32",
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+  # yandex_vpc_security_group.k8s_worker will be created
+  + resource "yandex_vpc_security_group" "k8s_worker" {
+      + created_at  = (known after apply)
+      + description = "Доступность для рабочих нод"
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + labels      = {
+          + "firewall" = "k8s-worker"
+        }
+      + name        = "k8s-worker"
+      + network_id  = (known after apply)
+      + status      = (known after apply)
+
+      + egress {
+          + description       = "any connections"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+
+      + ingress {
+          + description       = "any connections"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + protocol          = "ANY"
+          + to_port           = 65535
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+  # yandex_vpc_subnet.subnet-main["k8s_master_zone_a"] will be created
+  + resource "yandex_vpc_subnet" "subnet-main" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "k8s_master_zone_a"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.0/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-a"
+    }
+
+  # yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"] will be created
+  + resource "yandex_vpc_subnet" "subnet-main" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "k8s_worker_zone_a"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.16/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-a"
+    }
+
+  # yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"] will be created
+  + resource "yandex_vpc_subnet" "subnet-main" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "k8s_worker_zone_b"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.32/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-b"
+    }
+
+  # yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"] will be created
+  + resource "yandex_vpc_subnet" "subnet-main" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "k8s_worker_zone_d"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.10.10.48/28",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-d"
+    }
+
+Plan: 14 to add, 2 to change, 0 to destroy.
+
+Changes to Outputs:
+  + access_key_id        = (known after apply)
+  + encrypted_secret_key = (known after apply)
+  + key_fingerprint      = (known after apply)
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+Saved the plan to: tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "tfplan"
+```
+
+</details>
+
+```bash
+# Создание ресурсов
+terraform apply "tfplan"
+```
+
+<details>
+<summary>
+Лог Создания ресурсов
+</summary>
+
+```log
+yandex_vpc_network.skv-net: Creating...
+yandex_vpc_address.public_addr["ingress_lb_zone_ru_central1_a"]: Creating...
+yandex_kms_symmetric_key.sym-kms: Creating...
+yandex_iam_service_account.sa-storage-access: Modifying... [id=ajevuvi14s54jikil9m0]
+yandex_kms_symmetric_key.sym-kms: Creation complete after 0s [id=abjbpu5tk0dfbcfceku2]
+yandex_storage_bucket.tfstate: Modifying... [id=tfstate-skv]
+yandex_vpc_address.public_addr["ingress_lb_zone_ru_central1_a"]: Creation complete after 1s [id=e9bac3283b88mk7aio1q]
+yandex_storage_bucket.tfstate: Modifications complete after 1s [id=tfstate-skv]
+yandex_iam_service_account.sa-storage-access: Modifications complete after 2s [id=ajevuvi14s54jikil9m0]
+yandex_resourcemanager_folder_iam_binding.vpc-public-admin: Creating...
+yandex_resourcemanager_folder_iam_member.sa_storage_editor: Creating...
+yandex_resourcemanager_folder_iam_binding.images-puller: Creating...
+yandex_iam_service_account_static_access_key.sa_static_key: Creating...
+yandex_vpc_network.skv-net: Creation complete after 2s [id=enpet221hvbndeo89itn]
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"]: Creating...
+yandex_vpc_subnet.subnet-main["k8s_master_zone_a"]: Creating...
+yandex_vpc_security_group.internal: Creating...
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"]: Creating...
+yandex_vpc_security_group.k8s_master: Creating...
+yandex_vpc_security_group.k8s_worker: Creating...
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"]: Creation complete after 0s [id=fl82knu8pvd3dn0g3eu3]
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"]: Creating...
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"]: Creation complete after 1s [id=e9b8rf88ci7qgodsrct7]
+yandex_vpc_security_group.k8s_master: Creation complete after 1s [id=enpcae5stgt33eejn07u]
+yandex_iam_service_account_static_access_key.sa_static_key: Creation complete after 1s [id=aje0g7a5d2oqkcq9sjs3]
+yandex_vpc_subnet.subnet-main["k8s_master_zone_a"]: Creation complete after 1s [id=e9bftt165f7is440d0l4]
+yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"]: Creation complete after 1s [id=e2lsf0nmgc0g7992tc1j]
+yandex_vpc_security_group.internal: Creation complete after 2s [id=enprr82lvjj1e7grmet7]
+yandex_resourcemanager_folder_iam_member.sa_storage_editor: Creation complete after 2s [id=b1g9l0vgsvf6cegkvj1c/storage.editor/serviceAccount:ajevuvi14s54jikil9m0]
+yandex_resourcemanager_folder_iam_binding.vpc-public-admin: Creation complete after 2s [id=b1g9l0vgsvf6cegkvj1c/vpc.publicAdmin]
+yandex_vpc_security_group.k8s_worker: Creation complete after 4s [id=enpn8bp7qm5c215u43ha]
+yandex_resourcemanager_folder_iam_binding.images-puller: Creation complete after 5s [id=b1g9l0vgsvf6cegkvj1c/container-registry.images.puller]
+
+Apply complete! Resources: 14 added, 2 changed, 0 destroyed.
+```
+
+</details>
+
+```bash
+terraform output encrypted_secret_key \
+| xargs -I{} echo {} \
+| base64 -d \
+| gpg2 --list-secret-keys
+```
+
+<details>
+<summary>
+Лог Создания ресурсов
+</summary>
+
+```log
+[keyboxd]
+---------
+sec   ed25519 2026-09-12 [SC]
+      CC1A1DA66D05E943B17BDB820186BF84DFD06287
+uid         [  абсолютно ] denskv (denskv) <shoelacevip12@gmail.com>
+ssb   cv25519 2026-09-12 [E]
 ```
 
 </details>

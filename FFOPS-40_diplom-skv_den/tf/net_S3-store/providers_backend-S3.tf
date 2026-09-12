@@ -13,10 +13,11 @@ terraform {
     bucket                   = "tfstate-skv"
     region                   = "ru-central1"
     key                      = "diplom/network.tfstate"
-    shared_credentials_files = ["storage.key"]
+    shared_credentials_files = ["~/.sa_storage.key"]
 
     skip_region_validation      = true
     skip_credentials_validation = true
+    skip_requesting_account_id  = true
   }
 }
 

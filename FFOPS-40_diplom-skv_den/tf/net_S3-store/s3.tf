@@ -1,6 +1,6 @@
 resource "yandex_storage_bucket" "tfstate" {
   anonymous_access_flags {
-    read        = true
+    read        = false
     list        = false
     config_read = false
   }
