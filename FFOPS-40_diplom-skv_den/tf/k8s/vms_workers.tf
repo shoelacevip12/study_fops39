@@ -1,7 +1,6 @@
 resource "yandex_compute_instance_group" "ins-gr_workers" {
-  name =  var.group_name_prefix
-  
-  # Политика масштабирования
+  name = var.group_name_prefix
+
   scale_policy {
     fixed_scale {
       size = var.scale_policy_size
@@ -12,7 +11,6 @@ resource "yandex_compute_instance_group" "ins-gr_workers" {
   service_account_id  = local.sa_id # Берем из remote state
   deletion_protection = false
 
-  # Политика размещения: используем зоны из tfstate network
   allocation_policy {
     zones = local.worker_zones
   }
@@ -53,10 +51,10 @@ resource "yandex_compute_instance_group" "ins-gr_workers" {
     }
 
     network_interface {
-      network_id = local.network_id
-      subnet_ids = values(local.worker_subnet_list)
+      network_id         = local.network_id
+      subnet_ids         = values(local.worker_subnet_list)
       security_group_ids = [local.network_output.worker_sg_id]
-      nat = false
+      nat                = false
     }
   }
 }

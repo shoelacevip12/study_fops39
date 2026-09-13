@@ -1,6 +1,6 @@
 resource "yandex_compute_instance_group" "ins-gr_master" {
   name = var.master_group_name_prefix
-  
+
   # Политика масштабирования 1 нода
   scale_policy {
     fixed_scale {
@@ -28,7 +28,7 @@ resource "yandex_compute_instance_group" "ins-gr_master" {
 
   instance_template {
     platform_id = var.platform_id
-    hostname    = "master-node" # Фиксированное имя
+    hostname    = "master-{instance.index}" # Плейсхолдер для уникальности имени
 
     resources {
       cores         = var.master_host.cores

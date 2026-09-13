@@ -37,6 +37,6 @@ personal.auto.tfvars
 */self-host_git_ci_cd/forgejo-data/gitea/*
 */self-host_git_ci_cd/forgejo-data/ssh/ssh_host_*
 */self-host_git_ci_cd/postgres-data/data/pgdata/*
-
+# terraform.tfvars.secret
 # Исключения
 !9_*/cloud-init.yml

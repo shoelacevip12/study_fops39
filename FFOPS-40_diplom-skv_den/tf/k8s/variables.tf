@@ -34,7 +34,7 @@ variable "ssh_key_file" {
 }
 
 variable "vm_image_family" {
-  type    = string
+  type = string
 }
 
 variable "host" {
@@ -61,11 +61,11 @@ variable "disk" {
 }
 
 variable "group_name_prefix" {
-  type    = string
+  type = string
 }
 
 variable "scale_policy_size" {
-  type    = number
+  type = number
 }
 
 variable "master_group_name_prefix" {
@@ -76,13 +76,8 @@ variable "master_group_name_prefix" {
 variable "master_host" {
   description = "Ресурсы для мастер-ноды"
   type        = map(number)
-  default = {
-    cores         = 2
-    memory        = 4
-    core_fraction = 100 # Мастеру лучше выделить гарантированные ресурсы
-  }
 }
 
 variable "master_scale_policy_size" {
-  type    = number
+  type = number
 }

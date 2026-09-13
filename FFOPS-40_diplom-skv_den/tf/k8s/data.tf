@@ -4,10 +4,10 @@ data "terraform_remote_state" "network" {
     endpoints = {
       s3 = "https://storage.yandexcloud.net"
     }
-    bucket        = var.network_bucket_name
-    region        = "ru-central1"
-    key           = var.network_state_key
-    
+    bucket = var.network_bucket_name
+    region = "ru-central1"
+    key    = var.network_state_key
+
     shared_credentials_files = ["~/.sa_storage.key"]
 
     skip_region_validation      = true

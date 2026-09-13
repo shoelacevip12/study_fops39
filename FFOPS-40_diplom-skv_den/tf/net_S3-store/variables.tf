@@ -62,16 +62,15 @@ variable "subnets" {
   }
 }
 
-#=========== network_external_ipv4_address ==============
-variable "external_static_ips" {
-  description = "static ips"
+#=========== network_nat_gateway ==============
+variable "nat_gateway_name" {
+  description = "Имя NAT-шлюза для выхода в WAN"
+  type        = string
+}
 
-  type = map(list(object(
-    {
-      name = string,
-      zone = string
-    }))
-  )
+variable "route_table_name" {
+  description = "Имя таблицы маршрутизации"
+  type        = string
 }
 
 #=========== security_group ==============

@@ -2,6 +2,23 @@ resource "yandex_vpc_network" "skv-net" {
   name = var.network_name
 }
 
+resource "yandex_vpc_gateway" "nat-gateway" {
+  description = "NAT-шлюз для выхода в WAN из подсетей"
+  name        = var.nat_gateway_name
+  shared_egress_gateway {}
+}
+
+resource "yandex_vpc_route_table" "route" {
+  description = "Таблица маршрутизации для skv-net"
+  name        = var.route_table_name
+  network_id  = yandex_vpc_network.skv-net.id
+
+  static_route {
+    destination_prefix = "0.0.0.0/0"
+    gateway_id         = yandex_vpc_gateway.nat-gateway.id
+  }
+}
+
 resource "yandex_vpc_subnet" "subnet-main" {
   for_each = {
     for k, v in local.subnet_array : "${v.name}" => v
@@ -10,14 +27,5 @@ resource "yandex_vpc_subnet" "subnet-main" {
   v4_cidr_blocks = each.value.cidr
   zone           = each.value.zone
   name           = each.value.name
-}
-
-resource "yandex_vpc_address" "public_addr" {
-  for_each = {
-    for v in local.external_ips_array : "${v.name}" => v
-  }
-  name = each.value.name
-  external_ipv4_address {
-    zone_id = each.value.zone
-  }
+  route_table_id = yandex_vpc_route_table.route.id
 }
