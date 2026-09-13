@@ -3407,7 +3407,7 @@ TF-манифест создания группы ВМ
 </summary>
 
 ```tf
-cat > vms.tf <<'EOF'
+cat > vms_workers.tf <<'EOF'
 resource "yandex_compute_instance_group" "ins-gr_workers" {
   name =  var.group_name_prefix
   
