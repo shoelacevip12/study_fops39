@@ -28,6 +28,12 @@ yc kms symmetric-key add-access-binding "$KMS_ID" \
   member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
 }
 
+resource "yandex_resourcemanager_folder_iam_member" "sa_compute_admin" {
+  folder_id = var.folder_id
+  role      = "compute.admin"
+  member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+}
+
 resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
   # Сервисному аккаунту назначается роль "vpc.publicAdmin".
   folder_id = var.folder_id
@@ -49,5 +55,6 @@ resource "yandex_resourcemanager_folder_iam_binding" "images-puller" {
 resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
   service_account_id = yandex_iam_service_account.sa-storage-access.id
   description        = "Static access key для доступа к Object Storage"
-  pgp_key            = var.pgp_key_base64
+  # pgp_key            = file(var.pgp_key_base64)
+  pgp_key = var.pgp_key_base64
 }

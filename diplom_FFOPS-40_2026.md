@@ -880,7 +880,7 @@ git add . .. ../.. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit2, FFOPS-40_diplom-skv_den' \
+git commit -am 'commit3, FFOPS-40_diplom-skv_den' \
 ; git push \
 --set-upstream \
 study_fops39 \
@@ -899,7 +899,7 @@ ffops40-diplom \
 FFOPS-40_diplom-skv_den
 ```
 
-## commit_3,`FFOPS-40_diplom-skv_den`
+## commit_4,`FFOPS-40_diplom-skv_den`
 
 ### Проверка работоспособности git сервера
 
@@ -975,7 +975,7 @@ git add . .. ../.. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit3, FFOPS-40_diplom-skv_den' \
+git commit -am 'commit4, FFOPS-40_diplom-skv_den' \
 ; git push \
 --set-upstream \
 study_fops39 \
@@ -994,7 +994,7 @@ ffops40-diplom \
 FFOPS-40_diplom-skv_den
 ```
 
-## commit_4,`FFOPS-40_diplom-skv_den`
+## commit_5,`FFOPS-40_diplom-skv_den`
 
 ### Развертывание FORGEJO runner
 
@@ -1129,7 +1129,7 @@ git add . .. ../.. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit4, FFOPS-40_diplom-skv_den' \
+git commit -am 'commit5, FFOPS-40_diplom-skv_den' \
 ; git push \
 --set-upstream \
 study_fops39 \
@@ -1148,7 +1148,7 @@ ffops40-diplom \
 FFOPS-40_diplom-skv_den
 ```
 
-## commit_5,`FFOPS-40_diplom-skv_den`
+## commit_6,`FFOPS-40_diplom-skv_den`
 
 ```bash
 mkdir -p .forgejo/workflows
@@ -1422,7 +1422,7 @@ ssb   cv25519 2026-09-12 [E]
 
 ```bash
 # получить публичный GPG-ключ в base64 без --armor
-gpg2 --export 'CC1A1DA66D05E943B17BDB820186BF84DFD06287' | base64 -w0
+gpg2 --export 'CC1A1DA66D05E943B17BDB820186BF84DFD06287' | base64 -w0 | tee ~/.pgp_key_base64
 ```
 
 <details>
@@ -1447,7 +1447,7 @@ git add . .. ../.. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit5, FFOPS-40_diplom-skv_den' \
+git commit -am 'commit6, FFOPS-40_diplom-skv_den' \
 ; git push \
 --set-upstream \
 study_fops39 \
@@ -1466,7 +1466,7 @@ ffops40-diplom \
 FFOPS-40_diplom-skv_den
 ```
 
-## commit_6,`FFOPS-40_diplom-skv_den`
+## commit_7,`FFOPS-40_diplom-skv_den`
 
 ### `TF-манифест` описания провайдера YC с бэкендом
 
@@ -1543,11 +1543,6 @@ variable "pgp_key_base64" {
 }
 
 #=========== s3 ==============
-# variable "bucket_name_chipher" {
-#   description = "Имя S3 бакета"
-#   type        = string
-# }
-
 variable "bucket_name_chipher" {
   description = "Конфигурация S3 бакета"
   type = object({
@@ -1708,7 +1703,11 @@ yc kms symmetric-key add-access-binding "$KMS_ID" \
   member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
 }
 
-
+resource "yandex_resourcemanager_folder_iam_member" "sa_compute_admin" {
+  folder_id = var.folder_id
+  role      = "compute.admin"
+  member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+}
 
 resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
   # Сервисному аккаунту назначается роль "vpc.publicAdmin".
@@ -1731,7 +1730,8 @@ resource "yandex_resourcemanager_folder_iam_binding" "images-puller" {
 resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
   service_account_id = yandex_iam_service_account.sa-storage-access.id
   description        = "Static access key для доступа к Object Storage"
-  pgp_key            = var.pgp_key_base64
+  # pgp_key            = file(var.pgp_key_base64)
+  pgp_key = var.pgp_key_base64
 }
 EOF
 ```
@@ -1742,14 +1742,14 @@ EOF
 
 <details>
 <summary>
-TF-манифест тамера
+TF-манифест таймера
 </summary>
 
 ```tf
 cat > sleep_timer.tf <<'EOF'
 resource "time_sleep" "iam_propagation" {
   /*
-    задержка после создания IAM-биндинга sa_encrypterDecrypter, 
+    задержка после создания IAM-биндинга sa_encrypterDecrypter,
     чтобы провайдер успел прочитать его обратно
     из-за ручного import ресурсов terraform
     */
@@ -1883,11 +1883,101 @@ EOF
 
 </details>
 
-### `tfvars-файл` значений переменных поумолчанию
+### `TF-манифест` outputs
 
 <details>
 <summary>
-tfvars-файл значений переменных поумолчанию
+TF-манифест outputs
+</summary>
+
+```tf
+cat > output.tf <<'EOF'
+output "service_account_id" {
+  description = "ID созданного Service Account"
+  value       = yandex_iam_service_account.sa-storage-access.id
+}
+
+output "access_key_id" {
+  description = "ID статического ключа доступа к Object Storage"
+  value       = yandex_iam_service_account_static_access_key.sa_static_key.access_key
+}
+output "encrypted_secret_key" {
+  description = "Кодированный PGP secret key. Для раскодировки: echo <value> | base64 -d | gpg2 --decrypt"
+  value       = yandex_iam_service_account_static_access_key.sa_static_key.encrypted_secret_key
+}
+output "key_fingerprint" {
+  description = "Fingerprint PGP-ключа, использованного для шифрования"
+  value       = yandex_iam_service_account_static_access_key.sa_static_key.key_fingerprint
+}
+
+output "static_access_key_id" {
+  value = yandex_iam_service_account_static_access_key.sa_static_key.id
+}
+
+
+output "network_id" {
+  value = yandex_vpc_network.skv-net.id
+}
+
+output "k8s_workers_subnet_info" {
+  description = "Информация о подсетях рабочих нод (zone и id)"
+  value = [
+    {
+      zone      = "ru-central1-a"
+      subnet_id = yandex_vpc_subnet.subnet-main["k8s_worker_zone_a"].id
+    },
+    {
+      zone      = "ru-central1-b"
+      subnet_id = yandex_vpc_subnet.subnet-main["k8s_worker_zone_b"].id
+    },
+    {
+      zone      = "ru-central1-d"
+      subnet_id = yandex_vpc_subnet.subnet-main["k8s_worker_zone_d"].id
+    }
+  ]
+}
+
+output "worker_sg_id" {
+  description = "ID группы безопасности для рабочих нод k8s"
+  value       = yandex_vpc_security_group.k8s_worker.id
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` locals значений
+
+<details>
+<summary>
+TF-манифест локальных значений
+</summary>
+
+```tf
+cat > locals.tf <<'EOF'
+locals {
+  subnet_array = flatten([for k, v in var.subnets : [for j in v : {
+    name = j.name
+    zone = j.zone
+    cidr = j.cidr
+    }
+  ]])
+  external_ips_array = flatten([for k, v in var.external_static_ips : [for j in v : {
+    name = j.name
+    zone = j.zone
+    }
+  ]])
+}
+EOF
+```
+
+</details>
+
+### `tfvars-файл` значений переменных по умолчанию
+
+<details>
+<summary>
+tfvars-файл значений переменных по умолчанию
 </summary>
 
 ```tf
@@ -1898,12 +1988,10 @@ folder_id    = "b1g9l0vgsvf6cegkvj1c"
 default_zone = "ru-central1-a"
 
 #=========== sa_storage ==============
-
 pgp_key_base64 = "mDMEaqV5fhYJKwYBBAHaRw8BAQdAQP+F5c67CQO7MUsMc0w+y8JpDUdthhThAkEkw/Md7M+0KWRlbnNrdiAoZGVuc2t2KSA8c2hvZWxhY2V2aXAxMkBnbWFpbC5jb20+iJAEExYKADgWIQTMGh2mbQXpQ7F724IBhr+E39BihwUCaqV5fgIbAwULCQgHAgYVCgkICwIEFgIDAQIeAQIXgAAKCRABhr+E39Bih/+iAQDOQhMK2qeNvxmR9E+7FxR/IT1ykAVz0bqQJ5O4ezujugEAtHVuDWIDFLqh2iRP81K5FxqmHYNzc0RzAoTkyWC46Ae4OARqpXl+EgorBgEEAZdVAQUBAQdAIOOLCuBggh/DgU4rHi9uVENexL4ZJGnCZKVCrw/xyDcDAQgHiHgEGBYKACAWIQTMGh2mbQXpQ7F724IBhr+E39BihwUCaqV5fgIbDAAKCRABhr+E39BihzYxAQCKmU77sRZgIlTU6qi2ZppApiAt8mvlgidsDDHVSyO07AEAnR2Z8KrQZK4l3cwXS+GV3RHZOZasOZM89Wr9t3Xi9wI="
+# pgp_key_base64 = "~/.pgp_key_base64"
 
 #=========== s3 ==============
-# bucket_name_chipher = "tfstate-skv"
-
 bucket_name_chipher = {
   bucket                  = "tfstate-skv"
   default_storage_class   = "STANDARD"
@@ -1966,33 +2054,6 @@ white_ips_access_to_master = [
 #   "127.0.0.1/32",
 #   "$YOUR_IP/32"
 #   ]
-EOF
-```
-
-</details>
-
-### `TF-манифест` locls значений
-
-<details>
-<summary>
-TF-манифест локальных значений
-</summary>
-
-```tf
-cat > locals.tf <<'EOF'
-locals {
-  subnet_array = flatten([for k, v in var.subnets : [for j in v : {
-    name = j.name
-    zone = j.zone
-    cidr = j.cidr
-    }
-  ]])
-  external_ips_array = flatten([for k, v in var.external_static_ips : [for j in v : {
-    name = j.name
-    zone = j.zone
-    }
-  ]])
-}
 EOF
 ```
 
@@ -3097,7 +3158,7 @@ git add . .. ../.. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit6, FFOPS-40_diplom-skv_den' \
+git commit -am 'commit7, FFOPS-40_diplom-skv_den' \
 ; git push \
 --set-upstream \
 study_fops39 \
@@ -3116,12 +3177,388 @@ ffops40-diplom \
 FFOPS-40_diplom-skv_den
 ```
 
-## commit_7,`FFOPS-40_diplom-skv_den`
+## commit_8,`FFOPS-40_diplom-skv_den`
 
+```bash
+mkdir -vp ~/.aws
 
+cp -v ~/.sa_storage.key ~/.aws/credentials
 
+cd ..
 
+mkdir k8s
 
+cd !$
+```
+
+## commit_9,`FFOPS-40_diplom-skv_den`
+
+### `TF-манифест` описания провайдера YC с бэкендом (k8s)
+
+<details>
+<summary>
+TF-манифест описания провайдера YC
+</summary>
+
+```tf
+cat > providers_backend-S3.tf <<'EOF'
+terraform {
+  required_providers {
+    yandex = {
+      source = "yandex-cloud/yandex"
+    }
+  }
+  required_version = ">= 0.13"
+
+  backend "s3" {
+    endpoints = {
+      s3 = "https://storage.yandexcloud.net"
+    }
+    bucket                   = "tfstate-skv"
+    region                   = "ru-central1"
+    key                      = "diplom/compute.tfstate"
+    shared_credentials_files = ["~/.sa_storage.key"]
+
+    skip_region_validation      = true
+    skip_credentials_validation = true
+    skip_requesting_account_id  = true
+  }
+}
+
+provider "yandex" {
+  service_account_key_file = file("~/.authorized_key.json")
+  cloud_id                 = var.cloud_id
+  folder_id                = var.folder_id
+  zone                     = var.default_zone
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` объявления переменных (k8s)
+
+<details>
+<summary>
+TF-манифест объявления переменных
+</summary>
+
+```tf
+cat > variables.tf <<'EOF'
+#=========== providers_backend-S3 ==============
+variable "cloud_id" {
+  description = "ID облака Yandex Cloud"
+  type        = string
+}
+
+variable "folder_id" {
+  description = "ID каталога Yandex Cloud"
+  type        = string
+}
+
+variable "default_zone" {
+  description = "Зона размещения по умолчанию"
+  type        = string
+}
+
+#=========== terraform_remote_state ==============
+variable "network_state_key" {
+  description = "Путь к файлу состояния tfstate network в S3"
+  type        = string
+}
+
+variable "network_bucket_name" {
+  description = "Имя S3 бакета, где хранится состояние tfstate network"
+  type        = string
+}
+
+#============
+
+variable "ssh_key_file" {
+  description = "Путь к публичному SSH-ключу на компьютере, загружаемому во все ВМ"
+  type        = string
+  sensitive   = true
+}
+
+variable "vm_image_family" {
+  type    = string
+}
+
+variable "host" {
+  description = "Ресурсы для всех создаваемых ВМ"
+  type        = map(number)
+}
+
+variable "deploy_pol" {
+  description = "Политика развертывания ВМ"
+  type        = map(any)
+}
+
+variable "platform_id" {
+  description = "Платформа YC для ВМ"
+  type        = string
+}
+
+variable "disk" {
+  description = "Параметры диска для ВМ"
+  type = object({
+    type = string
+    size = number
+  })
+}
+
+variable "group_name_prefix" {
+  type    = string
+}
+
+variable "scale_policy_size" {
+  type    = number
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` locals значений (k8s)
+
+<details>
+<summary>
+TF-манифест локальных значений
+</summary>
+
+```tf
+cat > locals.tf <<'EOF'
+locals {
+  # Все output из состояния tfstate network
+  network_output = data.terraform_remote_state.network.outputs
+
+  # Карту подсетей: Zone -> SubnetID
+  worker_subnet_list = zipmap(
+    [for subnet in local.network_output.k8s_workers_subnet_info : subnet.zone],
+    [for subnet in local.network_output.k8s_workers_subnet_info : subnet.subnet_id]
+  )
+
+  # ID сервисного аккаунта напрямую из outputs tfstate network
+  sa_id = local.network_output.service_account_id
+  
+  # При необходимости получить и ключи доступа из tfstate network
+  # sa_access_key = local.network_output.access_key_id
+}
+
+locals {
+  description = "Указание метаданных через locals до ssh ключа"
+  common_metadata = {
+    user-data          = file("./cloud-init.yml")
+    serial-port-enable = "1"
+    ssh-keys           = "skv:${file(var.ssh_key_file)}"
+  }
+}
+
+locals {
+  worker_zones = [for subnet in local.network_output.k8s_workers_subnet_info : subnet.zone]
+  security_group_ids = []
+  network_id = local.network_output.network_id
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` data источников (k8s)
+
+<details>
+<summary>
+TF-манифест data источников
+</summary>
+
+```tf
+cat > data.tf <<'EOF'
+data "terraform_remote_state" "network" {
+  backend = "s3"
+  config = {
+    endpoints = {
+      s3 = "https://storage.yandexcloud.net"
+    }
+    bucket        = var.network_bucket_name
+    region        = "ru-central1"
+    key           = var.network_state_key
+    
+    shared_credentials_files = ["~/.sa_storage.key"]
+
+    skip_region_validation      = true
+    skip_credentials_validation = true
+    skip_requesting_account_id  = true
+  }
+}
+
+data "yandex_compute_image" "debian-13" {
+  family = var.vm_image_family
+}
+EOF
+```
+
+</details>
+
+### `TF-манифест` создания группы ВМ (k8s)
+
+<details>
+<summary>
+TF-манифест создания группы ВМ
+</summary>
+
+```tf
+cat > vms.tf <<'EOF'
+resource "yandex_compute_instance_group" "ins-gr_workers" {
+  name =  var.group_name_prefix
+  
+  # Политика масштабирования
+  scale_policy {
+    fixed_scale {
+      size = var.scale_policy_size
+    }
+  }
+
+  folder_id           = var.folder_id
+  service_account_id  = local.sa_id # Берем из remote state
+  deletion_protection = false
+
+  # Политика размещения: используем зоны из tfstate network
+  allocation_policy {
+    zones = local.worker_zones
+  }
+
+  deploy_policy {
+    max_creating     = var.deploy_pol.max_creating
+    max_deleting     = var.deploy_pol.max_deleting
+    max_unavailable  = var.deploy_pol.max_unavailable
+    max_expansion    = var.deploy_pol.max_expansion
+    startup_duration = var.deploy_pol.startup_duration
+    strategy         = var.deploy_pol.strategy
+  }
+
+  instance_template {
+    platform_id = var.platform_id
+    hostname    = "worker-{instance.index}"
+
+    resources {
+      cores         = var.host.cores
+      memory        = var.host.memory
+      core_fraction = var.host.core_fraction
+      gpus          = var.host.gpus
+    }
+
+    boot_disk {
+      mode = "READ_WRITE"
+      initialize_params {
+        image_id = data.yandex_compute_image.debian-13.image_id
+        type     = var.disk.type
+        size     = var.disk.size
+      }
+    }
+
+    metadata = local.common_metadata
+
+    scheduling_policy {
+      preemptible = true
+    }
+
+    network_interface {
+      network_id = local.network_id
+      subnet_ids = values(local.worker_subnet_list)
+      security_group_ids = [local.network_output.worker_sg_id]
+      nat = false
+    }
+  }
+}
+EOF
+```
+
+</details>
+
+### `tfvars-файл` значений переменных по умолчанию (k8s)
+
+<details>
+<summary>
+tfvars-файл значений переменных по умолчанию
+</summary>
+
+```tf
+cat > terraform.tfvars <<'EOF'
+#=========== providers_backend-S3 ==============
+cloud_id     = "b1g46dhqv17rkjcoc9k7"
+folder_id    = "b1g9l0vgsvf6cegkvj1c"
+default_zone = "ru-central1-a"
+
+#=========== terraform_remote_state ==============
+network_state_key   = "diplom/network.tfstate"
+network_bucket_name = "tfstate-skv"
+
+#==============
+
+ssh_key_file = "~/.ssh/id_lab22_1_fops40_ed25519.pub"
+
+platform_id = "standard-v2"
+
+disk = {
+  type = "network-hdd"
+  size = 20
+}
+
+vm_image_family = "debian-13"
+
+host = {
+    cores         = 2
+    memory        = 4
+    core_fraction = 20
+    gpus          = 0
+}
+
+deploy_pol = {
+    max_creating     = 1
+    max_deleting     = 2
+    max_unavailable  = 1
+    max_expansion    = 1
+    startup_duration = 60
+    strategy         = "proactive"
+}
+
+group_name_prefix = "k8s-workers-group"
+
+scale_policy_size = 3
+EOF
+```
+
+</details>
+
+### Git Commit изменений
+
+```bash
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit7, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
 
 
 
