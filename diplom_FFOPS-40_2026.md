@@ -1941,6 +1941,19 @@ output "worker_sg_id" {
   description = "ID группы безопасности для рабочих нод k8s"
   value       = yandex_vpc_security_group.k8s_worker.id
 }
+
+output "k8s_master_subnet_info" {
+  description = "Информация о подсети мастер-ноды (zone и id)"
+  value = {
+    zone      = "ru-central1-a"
+    subnet_id = yandex_vpc_subnet.subnet-main["k8s_master_zone_a"].id
+  }
+}
+
+output "master_sg_id" {
+  description = "ID группы безопасности для мастер-ноды k8s"
+  value       = yandex_vpc_security_group.k8s_master.id
+}
 EOF
 ```
 
@@ -3314,6 +3327,25 @@ variable "group_name_prefix" {
 variable "scale_policy_size" {
   type    = number
 }
+
+variable "master_group_name_prefix" {
+  description = "Префикс имени группы инстансов для мастер-ноды"
+  type        = string
+}
+
+variable "master_host" {
+  description = "Ресурсы для мастер-ноды"
+  type        = map(number)
+  default = {
+    cores         = 2
+    memory        = 4
+    core_fraction = 100 # Мастеру лучше выделить гарантированные ресурсы
+  }
+}
+
+variable "master_scale_policy_size" {
+  type    = number
+}
 EOF
 ```
 
@@ -3332,17 +3364,21 @@ locals {
   # Все output из состояния tfstate network
   network_output = data.terraform_remote_state.network.outputs
 
-  # Карту подсетей: Zone -> SubnetID
+  # Карту подсетей: Zone -> SubnetID (для воркеров)
   worker_subnet_list = zipmap(
-    [for subnet in local.network_output.k8s_workers_subnet_info : subnet.zone],
+    [for subnet in local.network_output.k8s_workers_subnet_info : subnet.zone], 
     [for subnet in local.network_output.k8s_workers_subnet_info : subnet.subnet_id]
   )
 
   # ID сервисного аккаунта напрямую из outputs tfstate network
   sa_id = local.network_output.service_account_id
   
-  # При необходимости получить и ключи доступа из tfstate network
-  # sa_access_key = local.network_output.access_key_id
+  # Информация о подсети мастера (из новых output)
+  master_subnet_id   = local.network_output.k8s_master_subnet_info.subnet_id
+  master_zone        = local.network_output.k8s_master_subnet_info.zone
+  
+  # Список зон для мастера (всего одна зона)
+  master_zones       = [local.master_zone]
 }
 
 locals {
@@ -3475,6 +3511,82 @@ EOF
 
 </details>
 
+### `TF-манифест` создания группы ВМ masters (k8s)
+
+<details>
+<summary>
+TF-манифест создания группы ВМ masters
+</summary>
+
+```tf
+cat > vms_master.tf <<'EOF'
+resource "yandex_compute_instance_group" "ins-gr_master" {
+  name = var.master_group_name_prefix
+  
+  # Политика масштабирования 1 нода
+  scale_policy {
+    fixed_scale {
+      size = var.master_scale_policy_size
+    }
+  }
+
+  folder_id           = var.folder_id
+  service_account_id  = local.sa_id
+  deletion_protection = false
+
+  # Политика размещения - только зона мастера
+  allocation_policy {
+    zones = local.master_zones
+  }
+
+  deploy_policy {
+    max_creating     = var.deploy_pol.max_creating
+    max_deleting     = var.deploy_pol.max_deleting
+    max_unavailable  = var.deploy_pol.max_unavailable
+    max_expansion    = var.deploy_pol.max_expansion
+    startup_duration = var.deploy_pol.startup_duration
+    strategy         = var.deploy_pol.strategy
+  }
+
+  instance_template {
+    platform_id = var.platform_id
+    hostname    = "master-node" # Фиксированное имя
+
+    resources {
+      cores         = var.master_host.cores
+      memory        = var.master_host.memory
+      core_fraction = var.master_host.core_fraction
+      gpus          = 0
+    }
+
+    boot_disk {
+      mode = "READ_WRITE"
+      initialize_params {
+        image_id = data.yandex_compute_image.debian-13.image_id
+        type     = var.disk.type
+        size     = var.disk.size
+      }
+    }
+
+    metadata = local.common_metadata
+
+    scheduling_policy {
+      preemptible = true
+    }
+
+    network_interface {
+      network_id         = local.network_id
+      subnet_ids         = [local.master_subnet_id]
+      security_group_ids = [local.network_output.master_sg_id]
+      nat                = false
+    }
+  }
+}
+EOF
+```
+
+</details>
+
 ### `tfvars-файл` значений переменных по умолчанию (k8s)
 
 <details>
@@ -3525,10 +3637,46 @@ deploy_pol = {
 group_name_prefix = "k8s-workers-group"
 
 scale_policy_size = 3
+
+master_group_name_prefix = "k8s-master-group"
+
+master_scale_policy_size = 1
+
+master_host = {
+  cores         = 2
+  memory        = 4
+  core_fraction = 100
+}
 EOF
 ```
 
 </details>
+
+### `Yaml-файл` cloud init (k8s)
+
+<details>
+<summary>
+tfvars-файл значений переменных по умолчанию
+</summary>
+
+```yaml
+cat > cloud-init.yml <<'EOF'
+#cloud-config
+users:
+  - name: skv
+    groups: sudo
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBzadnJRc0T5FRUpo71y2SnrasZoVahFxVW7AZ7MNJ4I lab22_1_fops40
+ssh_pwauth: false
+package_update: true
+package_upgrade: true
+EOF
+```
+
+</details>
+
 
 ### Git Commit изменений
 
@@ -3541,7 +3689,7 @@ git add . .. ../.. \
 && git status
 
 # Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
-git commit -am 'commit7, FFOPS-40_diplom-skv_den' \
+git commit -am 'commit9, FFOPS-40_diplom-skv_den' \
 ; git push \
 --set-upstream \
 study_fops39 \

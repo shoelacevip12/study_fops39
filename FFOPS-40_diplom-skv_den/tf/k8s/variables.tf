@@ -29,7 +29,7 @@ variable "network_bucket_name" {
 
 variable "ssh_key_file" {
   description = "Путь к публичному SSH-ключу на компьютере, загружаемому во все ВМ"
-  type        = string   
+  type        = string
   sensitive   = true
 }
 
@@ -65,5 +65,24 @@ variable "group_name_prefix" {
 }
 
 variable "scale_policy_size" {
+  type    = number
+}
+
+variable "master_group_name_prefix" {
+  description = "Префикс имени группы инстансов для мастер-ноды"
+  type        = string
+}
+
+variable "master_host" {
+  description = "Ресурсы для мастер-ноды"
+  type        = map(number)
+  default = {
+    cores         = 2
+    memory        = 4
+    core_fraction = 100 # Мастеру лучше выделить гарантированные ресурсы
+  }
+}
+
+variable "master_scale_policy_size" {
   type    = number
 }

@@ -39,3 +39,13 @@ deploy_pol = {
 group_name_prefix = "k8s-workers-group"
 
 scale_policy_size = 3
+
+master_group_name_prefix = "k8s-master-group"
+
+master_scale_policy_size = 1
+
+master_host = {
+  cores         = 2
+  memory        = 4
+  core_fraction = 100
+}

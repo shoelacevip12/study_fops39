@@ -2,7 +2,7 @@ locals {
   # Все output из состояния tfstate network
   network_output = data.terraform_remote_state.network.outputs
 
-  # Карту подсетей: Zone -> SubnetID
+  # Карту подсетей: Zone -> SubnetID (для воркеров)
   worker_subnet_list = zipmap(
     [for subnet in local.network_output.k8s_workers_subnet_info : subnet.zone], 
     [for subnet in local.network_output.k8s_workers_subnet_info : subnet.subnet_id]
@@ -11,8 +11,12 @@ locals {
   # ID сервисного аккаунта напрямую из outputs tfstate network
   sa_id = local.network_output.service_account_id
   
-  # При необходимости получить и ключи доступа из tfstate network
-  # sa_access_key = local.network_output.access_key_id
+  # Информация о подсети мастера (из новых output)
+  master_subnet_id   = local.network_output.k8s_master_subnet_info.subnet_id
+  master_zone        = local.network_output.k8s_master_subnet_info.zone
+  
+  # Список зон для мастера (всего одна зона)
+  master_zones       = [local.master_zone]
 }
 
 locals {
@@ -29,4 +33,3 @@ locals {
   security_group_ids = []
   network_id = local.network_output.network_id
 }
-

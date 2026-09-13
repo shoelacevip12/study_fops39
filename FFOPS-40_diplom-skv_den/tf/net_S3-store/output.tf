@@ -47,3 +47,16 @@ output "worker_sg_id" {
   description = "ID группы безопасности для рабочих нод k8s"
   value       = yandex_vpc_security_group.k8s_worker.id
 }
+
+output "k8s_master_subnet_info" {
+  description = "Информация о подсети мастер-ноды (zone и id)"
+  value = {
+    zone      = "ru-central1-a"
+    subnet_id = yandex_vpc_subnet.subnet-main["k8s_master_zone_a"].id
+  }
+}
+
+output "master_sg_id" {
+  description = "ID группы безопасности для мастер-ноды k8s"
+  value       = yandex_vpc_security_group.k8s_master.id
+}
