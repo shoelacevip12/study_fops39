@@ -4311,26 +4311,12 @@ Initializing the backend...
 
 Initializing provider plugins...
 - terraform.io/builtin/terraform is built in to Terraform
+- Finding latest version of hashicorp/local...
 - Finding latest version of yandex-cloud/yandex...
-- Installing yandex-cloud/yandex v0.228.0...
-- Installed yandex-cloud/yandex v0.228.0 (unauthenticated)
+- Using previously-installed hashicorp/local v2.9.1
+- Using previously-installed yandex-cloud/yandex v0.228.0
 
-Terraform has made some changes to the provider dependency selections recorded
-in the .terraform.lock.hcl file. Review those changes and commit them to your
-version control system if they represent changes you intended to make.
 
-╷
-│ Warning: Incomplete lock file information for providers
-│ 
-│ Due to your customized provider installation methods, Terraform was forced to calculate lock file checksums locally for the following providers:
-│   - yandex-cloud/yandex
-│ 
-│ The current .terraform.lock.hcl file only includes checksums for linux_amd64, so Terraform running on another platform will fail to install these providers.
-│ 
-│ To calculate additional checksums for another platform, run:
-│   terraform providers lock -platform=linux_amd64
-│ (where linux_amd64 is the platform to generate)
-╵
 Terraform has been successfully initialized!
 
 You may now begin working with Terraform. Try running "terraform plan" to see
@@ -4347,10 +4333,41 @@ data.terraform_remote_state.network: Read complete after 1s
 data.yandex_compute_image.debian-13: Reading...
 data.yandex_compute_image.debian-13: Read complete after 0s [id=fd83cn670v017itrt51f]
 
-Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with
+the following symbols:
   + create
 
 Terraform will perform the following actions:
+
+  # local_file.hosts_ini will be created
+  + resource "local_file" "hosts_ini" {
+      + content              = (sensitive value)
+      + content_base64sha256 = (known after apply)
+      + content_base64sha512 = (known after apply)
+      + content_md5          = (known after apply)
+      + content_sha1         = (known after apply)
+      + content_sha256       = (known after apply)
+      + content_sha512       = (known after apply)
+      + directory_permission = "0777"
+      + file_permission      = "0777"
+      + filename             = "../ansible/hosts.ini"
+      + id                   = (known after apply)
+    }
+
+  # local_file.ssh_config_fragment will be created
+  + resource "local_file" "ssh_config_fragment" {
+      + content              = (sensitive value)
+      + content_base64sha256 = (known after apply)
+      + content_base64sha512 = (known after apply)
+      + content_md5          = (known after apply)
+      + content_sha1         = (known after apply)
+      + content_sha256       = (known after apply)
+      + content_sha512       = (known after apply)
+      + directory_permission = "0777"
+      + file_permission      = "0600"
+      + filename             = "/home/shoel/.ssh/config_yc_k8s"
+      + id                   = (known after apply)
+    }
 
   # yandex_compute_instance_group.ins-gr_master will be created
   + resource "yandex_compute_instance_group" "ins-gr_master" {
@@ -4590,12 +4607,33 @@ Terraform will perform the following actions:
       + target (known after apply)
     }
 
-Plan: 4 to add, 0 to change, 0 to destroy.
+Plan: 6 to add, 0 to change, 0 to destroy.
 
 Changes to Outputs:
-  + nlb_master_ip = (known after apply)
+  + ansible_masters        = (known after apply)
+  + ansible_workers        = (known after apply)
+  + nlb_master_ip          = (known after apply)
+  + ssh_config_instruction = <<-EOT
+        =========================================
+        НАСТРОЙКА SSH ДЛЯ ДОСТУПА К WORKER-НОДАМ
+        =========================================
+            
+        1. Файл с конфигурацией ssh создан здесь:
+           /home/shoel/.ssh/config_yc_k8s
+            
+        2. Добавить следующую строку в !НАЧАЛО! вашего ~/.ssh/config:
+           Include ~/.ssh/config_yc_k8s
+            
+           ИЛИ скопируйте содержимое созданного файла вручную в ~/.ssh/config.
+        
+           cat ~/.ssh/config_yc_k8s | tee -a ~/.ssh/config
+        
+        3. Запуск Ansible:
+           ansible all -m ping -i ../ansible/hosts.ini
+    EOT
+  + ssh_user               = "skv"
 
-───────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 Saved the plan to: tfplan
 
@@ -4618,18 +4656,151 @@ Cодание оставшихся ресурсов
 ```log
 yandex_compute_instance_group.ins-gr_master: Creating...
 yandex_compute_instance_group.ins-gr_workers: Creating...
-yandex_compute_instance_group.ins-gr_master: Creation complete after 1m52s [id=cl1mjgos3t7gbtfp5r96]
+yandex_compute_instance_group.ins-gr_master: Creation complete after 2m5s [id=cl1pe91p5m9cgac980rd]
 yandex_lb_target_group.tg-k8s-master: Creating...
-yandex_lb_target_group.tg-k8s-master: Creation complete after 2s [id=enp5973bidk7murpa7rt]
+yandex_lb_target_group.tg-k8s-master: Creation complete after 2s [id=enp515e0k9b8ojtis56q]
 yandex_lb_network_load_balancer.nlb-k8s-master: Creating...
-yandex_lb_network_load_balancer.nlb-k8s-master: Creation complete after 3s [id=enpkvmlq1v7qrtm3ctpn]
-yandex_compute_instance_group.ins-gr_workers: Creation complete after 5m18s [id=cl1j9jotqum9hmq9i5m6]
+yandex_lb_network_load_balancer.nlb-k8s-master: Creation complete after 3s [id=enppqgsc7jpsfh37rgld]
+local_file.ssh_config_fragment: Creating...
+local_file.ssh_config_fragment: Creation complete after 0s [id=04a579ebe15ed3153784f54ba6931aee3bd29acc]
+yandex_compute_instance_group.ins-gr_workers: Creation complete after 5m21s [id=cl1015remkdroropep9h]
+local_file.hosts_ini: Creating...
+local_file.hosts_ini: Creation complete after 0s [id=96f7a08793b10fb973e1bafc6fe005a00431ef5f]
 
-Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
 
 Outputs:
 
-nlb_master_ip = "158.160.228.58"
+ansible_masters = [
+  {
+    "ip" = "81.26.179.3"
+    "name" = "cl1pe91p5m9cgac980rd-uqan"
+  },
+]
+ansible_workers = [
+  {
+    "ip" = "10.10.10.19"
+    "name" = "cl1015remkdroropep9h-awad"
+  },
+  {
+    "ip" = "10.10.10.41"
+    "name" = "cl1015remkdroropep9h-ozaz"
+  },
+  {
+    "ip" = "10.10.10.59"
+    "name" = "cl1015remkdroropep9h-opoc"
+  },
+]
+nlb_master_ip = "81.26.179.3"
+ssh_config_instruction = <<EOT
+=========================================
+НАСТРОЙКА SSH ДЛЯ ДОСТУПА К WORKER-НОДАМ
+=========================================
+    
+1. Файл с конфигурацией ssh создан здесь:
+   /home/shoel/.ssh/config_yc_k8s
+    
+2. Добавить следующую строку в !НАЧАЛО! вашего ~/.ssh/config:
+   Include ~/.ssh/config_yc_k8s
+    
+   ИЛИ скопируйте содержимое созданного файла вручную в ~/.ssh/config.
+
+   cat ~/.ssh/config_yc_k8s | tee -a ~/.ssh/config
+
+3. Запуск Ansible:
+   ansible all -m ping -i ../ansible/hosts.ini
+
+EOT
+ssh_user = "skv"
+```
+
+</details>
+
+```bash
+# Применение плана для содания оставшихся ресурсов
+cat ~/.ssh/config_yc_k8s
+
+cat ~/.ssh/config
+
+cat ../ansible/hosts.ini
+
+ansible all -m ping -i ../ansible/hosts.ini
+```
+
+<details>
+<summary>
+лог проверок после развертывания
+</summary>
+
+```log
+# Сгенерировано Terraform для кластера K8s YC
+# Дата генерации: 2026-09-16T20:30:51Z
+
+Host bastion-k8s-b1g9l0vgsvf6cegkvj1c
+    HostName 81.26.179.3
+    User skv
+    IdentityFile /home/shoel/.ssh/id_lab22_1_fops40_ed25519
+    StrictHostKeyChecking accept-new
+    IdentitiesOnly yes
+
+# Шаблон для всех воркеров в приватной подсети 10.10.10.0/24
+Host 10.10.10.*
+    ProxyJump bastion-k8s-b1g9l0vgsvf6cegkvj1c
+    User skv
+    IdentityFile /home/shoel/.ssh/id_lab22_1_fops40_ed25519
+    StrictHostKeyChecking accept-new
+    IdentitiesOnly yes
+
+Include ~/.ssh/config_yc_k8s
+
+[masters]
+cl1pe91p5m9cgac980rd-uqan ansible_host=81.26.179.3
+
+[workers]
+cl1015remkdroropep9h-awad ansible_host=10.10.10.19
+cl1015remkdroropep9h-ozaz ansible_host=10.10.10.41
+cl1015remkdroropep9h-opoc ansible_host=10.10.10.59
+
+[workers:vars]
+# SSH использовать с ProxyJump в файле ~/.ssh/config_yc_k8s
+ansible_user=skv
+ansible_ssh_private_key_file=~/.ssh/id_lab22_1_fops40_ed25519
+
+[all:vars]
+ansible_user=skv
+ansible_ssh_private_key_file=~/.ssh/id_lab22_1_fops40_ed25519
+
+cl1pe91p5m9cgac980rd-uqan | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.13"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+cl1015remkdroropep9h-ozaz | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.13"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+cl1015remkdroropep9h-opoc | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.13"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+cl1015remkdroropep9h-awad | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.13"
+    },
+    "changed": false,
+    "ping": "pong"
+}
 ```
 
 </details>
