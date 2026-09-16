@@ -3737,6 +3737,28 @@ locals {
     serial-port-enable = "1"
     ssh-keys           = "skv:${local.ssh_public_key}"
   }
+
+  # === ДАННЫЕ ДЛЯ ANSIBLE ===
+  nlb_listeners      = [for l in yandex_lb_network_load_balancer.nlb-k8s-master.listener : l]
+  kube_api_listener  = length(local.nlb_listeners) > 0 ? local.nlb_listeners[0] : null
+  external_addresses = local.kube_api_listener != null ? [for e in local.kube_api_listener.external_address_spec : e.address] : []
+  master_nlb_ip      = length(local.external_addresses) > 0 ? local.external_addresses[0] : ""
+
+  # Путь к приватному ключу
+  private_ssh_key_path = replace(var.ssh_key_file, ".pub", "")
+}
+
+locals {
+  # Путь к домашней директории пользователя
+  home_dir = pathexpand("~")
+
+  # Полный путь к файлу конфигурации SSH
+  ssh_config_fragment_path = "${local.home_dir}/.ssh/config_yc_k8s"
+
+  # Приватный ключ (без .pub)
+  private_key_path = replace(var.ssh_key_file, ".pub", "")
+  # Раскрытие тильду в пути к ключу для файла конфига
+  resolved_key_path = startswith(local.private_key_path, "~") ? "${local.home_dir}${substr(local.private_key_path, 1, -1)}" : local.private_key_path
 }
 EOF
 ```
@@ -4067,9 +4089,42 @@ tf-файл output (k8s)
 
 ```tf
 cat > output.tf <<'EOF'
-output "nlb_master_ip" {
-  description = "Публичный IP Network Load Balancer для подключения kubectl/ssh к мастер-ноде"
-  value       = [for l in yandex_lb_network_load_balancer.nlb-k8s-master.listener : [for e in l.external_address_spec : e.address]][0][0]
+locals {
+  # Путь к домашней директории пользователя
+  home_dir = pathexpand("~")
+
+  # Полный путь к файлу конфигурации SSH
+  ssh_config_fragment_path = "${local.home_dir}/.ssh/config_yc_k8s"
+
+  # Приватный ключ (без .pub)
+  private_key_path = replace(var.ssh_key_file, ".pub", "")
+  # Раскрытие тильду в пути к ключу для файла конфига
+  resolved_key_path = startswith(local.private_key_path, "~") ? "${local.home_dir}${substr(local.private_key_path, 1, -1)}" : local.private_key_path
+}
+
+resource "local_file" "ssh_config_fragment" {
+  content = <<-EOT
+# Сгенерировано Terraform для кластера K8s YC
+# Дата генерации: ${timestamp()}
+
+Host bastion-k8s-${var.folder_id}
+    HostName ${local.master_nlb_ip}
+    User skv
+    IdentityFile ${local.resolved_key_path}
+    StrictHostKeyChecking accept-new
+    IdentitiesOnly yes
+
+# Шаблон для всех воркеров в приватной подсети 10.10.10.0/24
+Host 10.10.10.*
+    ProxyJump bastion-k8s-${var.folder_id}
+    User skv
+    IdentityFile ${local.resolved_key_path}
+    StrictHostKeyChecking accept-new
+    IdentitiesOnly yes
+  EOT
+
+  filename        = local.ssh_config_fragment_path
+  file_permission = "0600"
 }
 EOF
 ```
@@ -4096,6 +4151,114 @@ network_bucket_name = "tfstate-skv"
 
 #===========
 ssh_key_file = "~/.ssh/id_lab22_1_fops40_ed25519.pub"
+EOF
+```
+
+</details>
+
+### `tf-файл` формирование файла хостов `../ansible/hosts.ini` (k8s)
+
+<details>
+<summary>
+tf-файл формирование файла хостов ansible `../ansible/hosts.ini` (k8s)
+</summary>
+
+```tf
+cat > ansible_hosts.tf <<'EOF'
+resource "local_file" "hosts_ini" {
+  content = templatefile("${path.module}/hosts.tftpl", {
+    masters = [
+      for instance in yandex_compute_instance_group.ins-gr_master.instances : {
+        name = instance.name
+        ip   = local.master_nlb_ip
+      }
+    ]
+    workers = [
+      for instance in yandex_compute_instance_group.ins-gr_workers.instances : {
+        name = instance.name
+        ip   = instance.network_interface[0].ip_address
+      }
+    ]
+    ssh_user     = "skv"
+    ssh_key_file = local.private_ssh_key_path
+  })
+
+  filename = "../ansible/hosts.ini"
+}
+EOF
+```
+
+</details>
+
+### `tf-файл` формирование файла `~/.ssh/config_yc_k8s` (k8s)
+
+<details>
+<summary>
+tf-файл формирование файла `~/.ssh/config_yc_k8s` (k8s)
+</summary>
+
+```tf
+cat > ssh_config.tf <<'EOF'
+resource "local_file" "ssh_config_fragment" {
+  content = <<-EOT
+# Сгенерировано Terraform для кластера K8s YC
+# Дата генерации: ${timestamp()}
+
+Host bastion-k8s-${var.folder_id}
+    HostName ${local.master_nlb_ip}
+    User skv
+    IdentityFile ${local.resolved_key_path}
+    StrictHostKeyChecking accept-new
+    IdentitiesOnly yes
+
+# Шаблон для всех воркеров в приватной подсети 10.10.10.0/24
+Host 10.10.10.*
+    ProxyJump bastion-k8s-${var.folder_id}
+    User skv
+    IdentityFile ${local.resolved_key_path}
+    StrictHostKeyChecking accept-new
+    IdentitiesOnly yes
+  EOT
+
+  filename        = local.ssh_config_fragment_path
+  file_permission = "0600"
+}
+EOF
+```
+
+</details>
+
+### `tmpl-файл` шаблона для формирования `../ansible/hosts.ini` (k8s)
+
+<details>
+<summary>
+tftpl-файл шаблона для формирования `../ansible/hosts.ini` (k8s)
+</summary>
+
+```tf
+cat > hosts.tftpl <<'EOF'
+[masters]
+
+%{~ for i in masters ~}
+${i.name} ansible_host=${i.ip}
+
+%{~ endfor ~}
+
+[workers]
+
+%{~ for i in workers ~}
+${i.name} ansible_host=${i.ip}
+
+%{~ endfor ~}
+
+[workers:vars]
+# SSH использовать с ProxyJump в файле ~/.ssh/config_yc_k8s
+ansible_user=${ssh_user}
+ansible_ssh_private_key_file=${ssh_key_file}
+
+[all:vars]
+ansible_user=${ssh_user}
+ansible_ssh_private_key_file=${ssh_key_file}
 EOF
 ```
 
