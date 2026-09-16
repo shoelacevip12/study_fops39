@@ -2201,6 +2201,10 @@ EOF
 
 cat ~/.sa_storage.key
 
+mkdir -vp ~/.aws
+
+cp -v ~/.sa_storage.key ~/.aws/credentials
+
 /usr/bin/cp -vf \
 ~/.sa_storage.key \
 ~/.aws/credentials
@@ -2217,6 +2221,8 @@ chmod -v 600 ~/.sa_storage{.key,_secret} ~/.aws/credentials
 [default]
 aws_access_key_id = YCAxxXXxxxxxxxxxxxxxxxxxx
 aws_secret_access_key = YCPAxxxxxxxxxxxx_xXxxxxxxxxx_xxxXXXxXXxx
+
+mkdir: создан каталог '/home/shoel/.aws'
 
 '/home/shoel/.sa_storage.key' -> '/home/shoel/.aws/credentials'
 
@@ -3534,10 +3540,6 @@ FFOPS-40_diplom-skv_den
 ## commit_8,`FFOPS-40_diplom-skv_den`
 
 ```bash
-mkdir -vp ~/.aws
-
-cp -v ~/.sa_storage.key ~/.aws/credentials
-
 cd ..
 
 mkdir k8s
@@ -4142,7 +4144,300 @@ terraform init --upgrade \
 </summary>
 
 ```log
+Initializing the backend...
 
+Initializing provider plugins...
+- terraform.io/builtin/terraform is built in to Terraform
+- Finding latest version of yandex-cloud/yandex...
+- Installing yandex-cloud/yandex v0.228.0...
+- Installed yandex-cloud/yandex v0.228.0 (unauthenticated)
+
+Terraform has made some changes to the provider dependency selections recorded
+in the .terraform.lock.hcl file. Review those changes and commit them to your
+version control system if they represent changes you intended to make.
+
+╷
+│ Warning: Incomplete lock file information for providers
+│ 
+│ Due to your customized provider installation methods, Terraform was forced to calculate lock file checksums locally for the following providers:
+│   - yandex-cloud/yandex
+│ 
+│ The current .terraform.lock.hcl file only includes checksums for linux_amd64, so Terraform running on another platform will fail to install these providers.
+│ 
+│ To calculate additional checksums for another platform, run:
+│   terraform providers lock -platform=linux_amd64
+│ (where linux_amd64 is the platform to generate)
+╵
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Success! The configuration is valid.
+
+data.terraform_remote_state.network: Reading...
+data.terraform_remote_state.network: Read complete after 1s
+data.yandex_compute_image.debian-13: Reading...
+data.yandex_compute_image.debian-13: Read complete after 0s [id=fd83cn670v017itrt51f]
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # yandex_compute_instance_group.ins-gr_master will be created
+  + resource "yandex_compute_instance_group" "ins-gr_master" {
+      + created_at          = (known after apply)
+      + deletion_protection = false
+      + folder_id           = "b1g9l0vgsvf6cegkvj1c"
+      + id                  = (known after apply)
+      + instances           = (known after apply)
+      + name                = "k8s-master-group"
+      + service_account_id  = "ajeqt9u60j4km9ski4ip"
+      + status              = (known after apply)
+
+      + allocation_policy {
+          + zones = [
+              + "ru-central1-a",
+            ]
+        }
+
+      + deploy_policy {
+          + max_creating     = 1
+          + max_deleting     = 2
+          + max_expansion    = 1
+          + max_unavailable  = 1
+          + startup_duration = 60
+          + strategy         = "proactive"
+        }
+
+      + instance_template {
+          + hostname    = "master-{instance.index}"
+          + labels      = (known after apply)
+          + metadata    = {
+              + "serial-port-enable" = "1"
+              + "ssh-keys"           = (sensitive value)
+              + "user-data"          = (sensitive value)
+            }
+          + platform_id = "standard-v2"
+
+          + boot_disk {
+              + device_name = (known after apply)
+              + mode        = "READ_WRITE"
+
+              + initialize_params {
+                  + image_id    = "fd83cn670v017itrt51f"
+                  + size        = 20
+                  + snapshot_id = (known after apply)
+                  + type        = "network-hdd"
+                }
+            }
+
+          + metadata_options (known after apply)
+
+          + network_interface {
+              + ip_address         = (known after apply)
+              + ipv4               = true
+              + ipv6               = (known after apply)
+              + ipv6_address       = (known after apply)
+              + nat                = false
+              + network_id         = "enplshg6v4o0872856bc"
+              + security_group_ids = [
+                  + "enpjt1enfqrmg3ads3qf",
+                ]
+              + subnet_ids         = [
+                  + "e9b88at7j4pqh6ugms4n",
+                ]
+            }
+
+          + resources {
+              + core_fraction = 20
+              + cores         = 2
+              + gpus          = 0
+              + memory        = 4
+            }
+
+          + scheduling_policy {
+              + preemptible = true
+            }
+        }
+
+      + scale_policy {
+          + fixed_scale {
+              + size = 1
+            }
+        }
+    }
+
+  # yandex_compute_instance_group.ins-gr_workers will be created
+  + resource "yandex_compute_instance_group" "ins-gr_workers" {
+      + created_at          = (known after apply)
+      + deletion_protection = false
+      + folder_id           = "b1g9l0vgsvf6cegkvj1c"
+      + id                  = (known after apply)
+      + instances           = (known after apply)
+      + name                = "k8s-workers-group"
+      + service_account_id  = "ajeqt9u60j4km9ski4ip"
+      + status              = (known after apply)
+
+      + allocation_policy {
+          + zones = [
+              + "ru-central1-a",
+              + "ru-central1-b",
+              + "ru-central1-d",
+            ]
+        }
+
+      + deploy_policy {
+          + max_creating     = 1
+          + max_deleting     = 2
+          + max_expansion    = 1
+          + max_unavailable  = 1
+          + startup_duration = 60
+          + strategy         = "proactive"
+        }
+
+      + instance_template {
+          + hostname    = "worker-{instance.index}"
+          + labels      = (known after apply)
+          + metadata    = {
+              + "serial-port-enable" = "1"
+              + "ssh-keys"           = (sensitive value)
+              + "user-data"          = (sensitive value)
+            }
+          + platform_id = "standard-v2"
+
+          + boot_disk {
+              + device_name = (known after apply)
+              + mode        = "READ_WRITE"
+
+              + initialize_params {
+                  + image_id    = "fd83cn670v017itrt51f"
+                  + size        = 20
+                  + snapshot_id = (known after apply)
+                  + type        = "network-hdd"
+                }
+            }
+
+          + metadata_options (known after apply)
+
+          + network_interface {
+              + ip_address         = (known after apply)
+              + ipv4               = true
+              + ipv6               = (known after apply)
+              + ipv6_address       = (known after apply)
+              + nat                = false
+              + network_id         = "enplshg6v4o0872856bc"
+              + security_group_ids = [
+                  + "enp6clh6vic9c0uorbh9",
+                ]
+              + subnet_ids         = [
+                  + "e2ln3oalfi1abksve7hb",
+                  + "e9buiu6p1h93jd96v98r",
+                  + "fl8mo049uargdl63kh92",
+                ]
+            }
+
+          + resources {
+              + core_fraction = 20
+              + cores         = 2
+              + gpus          = 0
+              + memory        = 4
+            }
+
+          + scheduling_policy {
+              + preemptible = true
+            }
+        }
+
+      + scale_policy {
+          + fixed_scale {
+              + size = 3
+            }
+        }
+    }
+
+  # yandex_lb_network_load_balancer.nlb-k8s-master will be created
+  + resource "yandex_lb_network_load_balancer" "nlb-k8s-master" {
+      + allow_zonal_shift   = (known after apply)
+      + created_at          = (known after apply)
+      + deletion_protection = false
+      + description         = "Network Load Balancer для доступа к мастер-ноде k8s (kubectl/ssh)"
+      + folder_id           = "b1g9l0vgsvf6cegkvj1c"
+      + id                  = (known after apply)
+      + name                = "nlb-k8s-master"
+      + region_id           = (known after apply)
+      + type                = "external"
+
+      + attached_target_group {
+          + target_group_id = (known after apply)
+
+          + healthcheck {
+              + healthy_threshold   = 2
+              + interval            = 5
+              + name                = "tcp-health-check"
+              + timeout             = 3
+              + unhealthy_threshold = 3
+
+              + tcp_options {
+                  + port = 22
+                }
+            }
+        }
+
+      + listener {
+          + name        = "listener-kube-api"
+          + port        = 6443
+          + protocol    = "tcp"
+          + target_port = 6443
+
+          + external_address_spec {
+              + address    = (known after apply)
+              + ip_version = "ipv4"
+            }
+        }
+      + listener {
+          + name        = "listener-ssh"
+          + port        = 22
+          + protocol    = "tcp"
+          + target_port = 22
+
+          + external_address_spec {
+              + address    = (known after apply)
+              + ip_version = "ipv4"
+            }
+        }
+    }
+
+  # yandex_lb_target_group.tg-k8s-master will be created
+  + resource "yandex_lb_target_group" "tg-k8s-master" {
+      + created_at      = (known after apply)
+      + description     = "Целевая группа для мастер-ноды k8s"
+      + folder_id       = "b1g9l0vgsvf6cegkvj1c"
+      + id              = (known after apply)
+      + labels          = (known after apply)
+      + name            = "tg-k8s-master"
+      + region_id       = (known after apply)
+      + target_group_id = (known after apply)
+
+      + target (known after apply)
+    }
+
+Plan: 4 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + nlb_master_ip = (known after apply)
+
+───────────────────────────────────────
+
+Saved the plan to: tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "tfplan"
 ```
 
 </details>
@@ -4158,7 +4453,20 @@ Cодание оставшихся ресурсов
 </summary>
 
 ```log
+yandex_compute_instance_group.ins-gr_master: Creating...
+yandex_compute_instance_group.ins-gr_workers: Creating...
+yandex_compute_instance_group.ins-gr_master: Creation complete after 1m52s [id=cl1mjgos3t7gbtfp5r96]
+yandex_lb_target_group.tg-k8s-master: Creating...
+yandex_lb_target_group.tg-k8s-master: Creation complete after 2s [id=enp5973bidk7murpa7rt]
+yandex_lb_network_load_balancer.nlb-k8s-master: Creating...
+yandex_lb_network_load_balancer.nlb-k8s-master: Creation complete after 3s [id=enpkvmlq1v7qrtm3ctpn]
+yandex_compute_instance_group.ins-gr_workers: Creation complete after 5m18s [id=cl1j9jotqum9hmq9i5m6]
 
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+nlb_master_ip = "158.160.228.58"
 ```
 
 </details>
