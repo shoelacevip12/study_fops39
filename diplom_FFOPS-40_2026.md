@@ -4904,7 +4904,8 @@ inventory=./hosts.ini
 roles_path=./roles
 host_key_checking = False
 retry_files_enabled = False
-stdout_callback = yaml
+stdout_callback = default
+callback_result_format = yaml
 interpreter_python = auto_silent
 deprecation_warnings=False
 ssh_args = -F ~/.ssh/config_yc_k8s -o ControlMaster=auto -o ControlPersist=60s
@@ -4913,8 +4914,6 @@ forks = 10
 [privilege_escalation]
 become = true
 become_method = sudo
-# become_user = root
-# become_ask_pass = False
 EOF
 ```
 
@@ -5165,12 +5164,36 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
   when: "'workers' in group_names"
   notify: Перезапуск K3s
 
+- name: Развертывание systemd единицы для Master
+  ansible.builtin.template:
+    src: k3s.service.j2
+    dest: /etc/systemd/system/k3s.service
+    mode: '0644'
+  when: "'masters' in group_names"
+  notify: Перезапуск K3s
+
+- name: Развертывание systemd единицы для Worker
+  ansible.builtin.template:
+    src: k3s-agent.service.j2
+    dest: /etc/systemd/system/k3s-agent.service
+    mode: '0644'
+  when: "'workers' in group_names"
+  notify: Перезапуск K3s
+
+- name: Определение имени службы K3s
+  ansible.builtin.set_fact:
+    k3s_service_name: "{{ 'k3s-agent' if ('workers' in group_names) else 'k3s' }}"
+
+- name: Перезагрузка демонов systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
 - name: Обеспечение запуска службы K3s (enabled, started)
   ansible.builtin.systemd:
-    name: k3s
+    name: "{{ k3s_service_name }}"
     enabled: true
     state: started
-    daemon_reload: true
+    daemon_reload: false
 
 - name: Ожидание готовности K3s (master)
   ansible.builtin.wait_for:
@@ -5243,6 +5266,86 @@ node-label:
 # Аргументы kubelet (опционально)
 kubelet-arg:
   - "max-pods=110"
+EOF
+```
+
+<details>
+
+### `jinja2` шаблон службы k3s на мастер ноде
+
+<details>
+<summary>
+jinja2 шаблон службы k3s на мастер ноде
+</summary>
+
+```j2
+cat > ./roles/k3s_cluster/templates/k3s.service.j2 <<'EOF'
+[Unit]
+Description=Lightweight Kubernetes
+Documentation=https://k3s.io
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/systemd/system/k3s.service.env
+KillMode=process
+Delegate=yes
+LimitNOFILE=1048576
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+TimeoutStartSec=0
+Restart=always
+RestartSec=5s
+ExecStartPre=-/sbin/modprobe br_netfilter
+ExecStartPre=-/sbin/modprobe overlay
+ExecStart=/usr/local/bin/k3s server \
+  --config /etc/rancher/k3s/config.yaml
+ExecReload=/bin/kill -s HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+<details>
+
+### `jinja2` шаблон службы k3s на worker нодах
+
+<details>
+<summary>
+jinja2 шаблон службы k3s на worker нодах
+</summary>
+
+```j2
+cat > ./roles/k3s_cluster/templates/k3s-agent.service.j2 <<'EOF'
+[Unit]
+Description=Lightweight Kubernetes Worker Node
+Documentation=https://k3s.io
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/systemd/system/k3s-agent.service.env
+KillMode=process
+Delegate=yes
+LimitNOFILE=1048576
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+TimeoutStartSec=0
+Restart=always
+RestartSec=5s
+ExecStartPre=-/sbin/modprobe br_netfilter
+ExecStartPre=-/sbin/modprobe overlay
+ExecStart=/usr/local/bin/k3s agent \
+  --config /etc/rancher/k3s/config.yaml
+ExecReload=/bin/kill -s HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
 EOF
 ```
 
@@ -5565,9 +5668,22 @@ FFOPS-40_diplom-skv_den
 ## Запуск playbook роли k3s_cluster
 
 ```bash
-# выполнить playbook
-./playbook_main.yaml
+# выполнить playbook с шебангом '#!/usr/bin/env ansible-playbook'
+export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
+./playbook_main.yaml -v
 ```
+
+<details>
+<summary>
+Лог запуска
+</summary>
+
+```log
+```
+
+<details>
+
+
 
 ```bash
 terraform destroy \

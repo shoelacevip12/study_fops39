@@ -21,12 +21,36 @@
   when: "'workers' in group_names"
   notify: Перезапуск K3s
 
+- name: Развертывание systemd единицы для Master
+  ansible.builtin.template:
+    src: k3s.service.j2
+    dest: /etc/systemd/system/k3s.service
+    mode: '0644'
+  when: "'masters' in group_names"
+  notify: Перезапуск K3s
+
+- name: Развертывание systemd единицы для Worker
+  ansible.builtin.template:
+    src: k3s-agent.service.j2
+    dest: /etc/systemd/system/k3s-agent.service
+    mode: '0644'
+  when: "'workers' in group_names"
+  notify: Перезапуск K3s
+
+- name: Определение имени службы K3s
+  ansible.builtin.set_fact:
+    k3s_service_name: "{{ 'k3s-agent' if ('workers' in group_names) else 'k3s' }}"
+
+- name: Перезагрузка демонов systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
 - name: Обеспечение запуска службы K3s (enabled, started)
   ansible.builtin.systemd:
-    name: k3s
+    name: "{{ k3s_service_name }}"
     enabled: true
     state: started
-    daemon_reload: true
+    daemon_reload: false
 
 - name: Ожидание готовности K3s (master)
   ansible.builtin.wait_for:
