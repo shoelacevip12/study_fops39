@@ -1,0 +1,25 @@
+token: {{ k3s_token }}
+cluster-init: true
+node-ip: {{ ansible_default_ipv4.address }}
+
+# Отключение компонентов
+{% for comp in k3s_disable_components %}
+disable:
+  - {{ comp }}
+{% endfor %}
+
+# Настройки сети для Calico
+# Мы явно говорим K3s не управлять сетью, это сделает Calico
+flannel-backend: none
+disable-network-policy: false
+
+cluster-cidr: {{ cluster_cidr }}
+service-cidr: {{ service_cidr }}
+
+# Аргументы API сервера (нужны для Prometheus)
+kube-apiserver-arg:
+  - "anonymous-auth=false"
+  - "authorization-mode=Node,RBAC"
+
+# Разрешаем чтение конфига для копирования
+write-kubeconfig-mode: "0644"

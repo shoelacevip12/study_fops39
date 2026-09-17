@@ -4724,7 +4724,7 @@ cat ~/.ssh/config
 
 cat ../ansible/hosts.ini
 
-ansible all -m ping -i ../ansible/hosts.ini
+ansible all -m ping
 ```
 
 <details>
@@ -4835,17 +4835,739 @@ ffops40-diplom \
 FFOPS-40_diplom-skv_den
 ```
 
+## commit_10,`FFOPS-40_diplom-skv_den`
 
+## K3S Ansible
 
+```bash
+cd ../ansible
 
+# Новая структура с ролью k3s_cluster
+ansible-galaxy role \
+init \
+roles/k3s_cluster
 
+mkdir -pv group_vars
 
+tree
+```
 
+<details>
+<summary>
+лог о содании роли
+</summary>
 
+```log
+- Role roles/k3s_cluster was created successfully
 
+mkdir: создан каталог 'group_vars'
 
+.
+├── group_vars
+├── hosts.ini
+└── roles
+    └── k3s_cluster
+        ├── defaults
+        │   └── main.yml
+        ├── files
+        ├── handlers
+        │   └── main.yml
+        ├── meta
+        │   └── main.yml
+        ├── README.md
+        ├── tasks
+        │   └── main.yml
+        ├── templates
+        ├── tests
+        │   ├── inventory
+        │   └── test.yml
+        └── vars
+            └── main.yml
 
+12 directories, 9 file
+```
 
+<details>
+
+### Создание настроек работы ansible для текущего проекта в каталоге
+
+<details>
+<summary>
+CFG настроек работы ansible
+</summary>
+
+```toml
+cat > ansible.cfg <<'EOF'
+[defaults]
+home=./
+inventory=./hosts.ini
+roles_path=./roles
+host_key_checking = False
+retry_files_enabled = False
+stdout_callback = yaml
+interpreter_python = auto_silent
+deprecation_warnings=False
+ssh_args = -F ~/.ssh/config_yc_k8s -o ControlMaster=auto -o ControlPersist=60s
+forks = 10
+
+[privilege_escalation]
+become = true
+become_method = sudo
+# become_user = root
+# become_ask_pass = False
+EOF
+```
+
+</details>
+
+### Распределение значений переменных `all`
+
+<details>
+<summary>
+`yaml' Распределение значений переменных all
+</summary>
+
+```yaml
+cat > ./group_vars/all.yml <<'EOF'
+---
+# Токен кластера
+k3s_token: "DiplomK8sSecretToken2024!"
+
+# Версии
+k3s_version: "v1.37.0+k3s1"
+helm_version: "v4.3.0"
+
+# Сетевые настройки
+cluster_cidr: "10.20.0.0/16"
+service_cidr: "10.21.0.0/16"
+calico_cidr: "10.20.0.0/16" 
+
+# Отключаемые компоненты K3s
+k3s_disable_components:
+  - traefik
+  - servicelb
+  - metrics-server
+  - flannel
+EOF
+```
+
+<details>
+
+### Распределение значений переменных поумолчанию роли
+
+<details>
+<summary>
+`yaml' значений переменных поумолчанию роли (default)
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/defaults/main.yml <<'EOF'
+---
+# Переменные по умолчанию для роли k3s_cluster
+k3s_cluster_dist_upd: true
+EOF
+```
+
+<details>
+
+### Создание общего playbook для вызова роли
+
+<details>
+<summary>
+`yaml' общего playbook для вызова роли
+</summary>
+
+```yaml
+cat > playbook_main.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Развертывание кластера K3s с Calico
+  hosts: all
+  gather_facts: true
+  vars_files:
+    - group_vars/all.yml
+
+  roles:
+    - k3s_cluster
+...
+EOF
+```
+
+<details>
+
+### Главный собирательный файл выполнения задач роли
+
+<details>
+<summary>
+`yaml' собирательного файла выполнения задач роли
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/tasks/main.yml <<'EOF'
+---
+- name: Подключение предварительных задач
+  ansible.builtin.import_tasks: prereq.yml
+  tags: ['prereq']
+
+- name: Подключение установки
+  ansible.builtin.import_tasks: install.yml
+  tags: ['install', 'k3s']
+
+- name: Подключение настройки
+  ansible.builtin.import_tasks: config.yml
+  tags: ['config', 'k3s']
+
+- name: Установка Calico CNI
+  ansible.builtin.import_tasks: calico.yml
+  when: "'flannel' in k3s_disable_components"
+  tags: ['network', 'calico']
+
+- name: Получение kubeconfig
+  ansible.builtin.import_tasks: fetch_kubeconfig.yml
+  tags: ['kubeconfig']
+EOF
+```
+
+<details>
+
+### Задачи проверки настроек cgroups и отключения swap
+
+<details>
+<summary>
+`yaml' проверки настроек cgroups и отключения swap
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/tasks/prereq.yml <<'EOF'
+---
+- name: Обновление кэша apt
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: k3s_cluster_dist_upd | default(true) | bool
+
+- name: Обновление пакетов (dist-upgrade)
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+    autoclean: true
+
+- name: Отключение swap
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Удаление записи swap из /etc/fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^.*swap.*$'
+    state: absent
+
+- name: Загрузка необходимых модулей ядра
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Сохранение модулей ядра для автозагрузки
+  ansible.builtin.copy:
+    content: |
+      overlay
+      br_netfilter
+    dest: /etc/modules-load.d/k8s.conf
+    mode: '0644'
+
+- name: Настройка параметров sysctl для сети Kubernetes
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { name: 'net.ipv4.ip_forward', value: '1' }
+EOF
+```
+
+<details>
+
+### Задачи по Установке K3s и Helm
+
+<details>
+<summary>
+`yaml' по Установке K3s и Helm
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/tasks/install.yml <<'EOF'
+---
+- name: Загрузка бинарного файла K3s
+  ansible.builtin.get_url:
+    url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/k3s"
+    dest: /usr/local/bin/k3s
+    mode: '0755'
+
+- name: Создание символической ссылки для kubectl
+  ansible.builtin.file:
+    src: /usr/local/bin/k3s
+    dest: /usr/local/bin/kubectl
+    state: link
+
+- name: Загрузка архива бинарного файла Helm
+  ansible.builtin.unarchive:
+    src: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/linux-amd64/helm
+
+- name: Перемещение Helm в /usr/local/bin
+  ansible.builtin.command: mv /tmp/linux-amd64/helm /usr/local/bin/helm
+  args:
+    creates: /usr/local/bin/helm
+  become: true
+EOF
+```
+
+<details>
+
+### Задачи Генерации конфигов. Инициализация Мастера кластер, подключение воркеров
+
+<details>
+<summary>
+`yaml'  Генерации конфигов. Инициализация Мастера кластер, подключение воркеров
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
+---
+- name: Создание каталога конфигурации K3s
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: '0755'
+
+- name: Развертывание конфигурации master-узла
+  ansible.builtin.template:
+    src: k3s-master.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0600'
+  when: "'masters' in group_names"
+  notify: Перезапуск K3s
+
+- name: Развертывание конфигурации worker-узла
+  ansible.builtin.template:
+    src: k3s-worker.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0600'
+  when: "'workers' in group_names"
+  notify: Перезапуск K3s
+
+- name: Обеспечение запуска службы K3s (enabled, started)
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Ожидание готовности K3s (master)
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/db/info
+    timeout: 60
+  when: "'masters' in group_names"
+EOF
+```
+
+<details>
+
+### `jinja2` шаблон матер конфига ноды
+
+<details>
+<summary>
+jinja2 шаблон матер конфига ноды
+</summary>
+
+```jinja2
+cat > ./roles/k3s_cluster/templates/k3s-master.yaml.j2 <<'EOF'
+token: {{ k3s_token }}
+cluster-init: true
+node-ip: {{ ansible_default_ipv4.address }}
+
+# Отключение компонентов
+{% for comp in k3s_disable_components %}
+disable:
+  - {{ comp }}
+{% endfor %}
+
+# Настройки сети для Calico
+# Мы явно говорим K3s не управлять сетью, это сделает Calico
+flannel-backend: none
+disable-network-policy: false
+
+cluster-cidr: {{ cluster_cidr }}
+service-cidr: {{ service_cidr }}
+
+# Аргументы API сервера (нужны для Prometheus)
+kube-apiserver-arg:
+  - "anonymous-auth=false"
+  - "authorization-mode=Node,RBAC"
+
+# Разрешаем чтение конфига для копирования
+write-kubeconfig-mode: "0644"
+EOF
+```
+
+<details>
+
+### `jinja2` шаблон воркер конфиг ноды
+
+<details>
+<summary>
+jinja2 шаблон воркер конфиг ноды
+</summary>
+
+```j2
+cat > ./roles/k3s_cluster/templates/k3s-worker.yaml.j2 <<'EOF'
+# Конфигурация K3s Worker Node
+server: https://{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}:6443
+token: {{ k3s_token }}
+node-ip: {{ ansible_default_ipv4.address }}
+
+# Метки для ноды (опционально)
+node-label:
+  - "node-type=worker"
+  - "zone={{ ansible_facts['cloud']['availability_zone'] | default('ru-central1') }}"
+
+# Аргументы kubelet (опционально)
+kubelet-arg:
+  - "max-pods=110"
+EOF
+```
+
+<details>
+
+### Установка Calico через файл manifest
+
+<details>
+<summary>
+`yaml' Установка Calico через файл manifest
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/tasks/calico.yml <<'EOF'
+---
+- name: Ожидание полной готовности API K3s
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:6443/readyz"
+    method: GET
+    status_code: 200
+    validate_certs: false
+  register: k3s_cluster_api_ready
+  until: k3s_cluster_api_ready.status == 200
+  retries: 10
+  delay: 5
+  when: "'masters' in group_names"
+  run_once: true
+
+- name: Применение манифеста Calico
+  ansible.builtin.command: >
+    kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/refs/heads/master/manifests/calico.yaml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: "'masters' in group_names"
+  run_once: true
+  register: k3s_cluster_calico_apply_result
+  changed_when: "'created' in k3s_cluster_calico_apply_result.stdout or 'configured' in k3s_cluster_calico_apply_result.stdout"
+
+- name: Ожидание готовности подов Calico
+  ansible.builtin.command: >
+    kubectl wait --namespace kube-system -l k8s-app=calico-node --for=condition=Ready pod --timeout=120s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: "'masters' in group_names"
+  run_once: true
+  changed_when: false
+  failed_when: false
+EOF
+```
+
+<details>
+
+### Сборка локального `~/.kube/config`
+
+<details>
+<summary>
+`yaml' Сборка локального `~/.kube/config`
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/tasks/fetch_kubeconfig.yml <<'EOF'
+---
+- name: Создание локального каталога .kube
+  ansible.builtin.file:
+    path: ~/.kube
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  become: false
+
+- name: Получение kubeconfig с master-узла
+  ansible.builtin.fetch:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "./tmp_kubeconfig_raw"
+    flat: true
+  when: "'masters' in group_names"
+  run_once: true
+
+- name: Замена IP сервера в kubeconfig на IP NLB
+  ansible.builtin.replace:
+    path: "./tmp_kubeconfig_raw"
+    regexp: 'https://127.0.0.1:6443'
+    replace: "https://{{ hostvars[groups['masters'][0]]['ansible_host'] }}:6443"
+  become: false
+  delegate_to: localhost
+
+- name: Перемещение итогового конфига в ~/.kube/config
+  ansible.builtin.command: mv ./tmp_kubeconfig_raw ~/.kube/config
+  delegate_to: localhost
+  become: false
+  changed_when: true
+EOF
+```
+
+<details>
+
+### Задачи обработчики роли
+
+<details>
+<summary>
+`yaml' Задачи обработчики роли
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/handlers/main.yml <<'EOF'
+---
+# Обработчики для роли k3s_cluster
+- name: Перезапуск K3s
+  ansible.builtin.systemd:
+    name: k3s
+    state: restarted
+    daemon_reload: true
+EOF
+```
+
+<details>
+
+### Проверки собравшегося проекта в данном каталоге
+
+```bash
+# Для nfs сетевого хранилища и отключения сообщения
+# "Ansible is being run in a world writable directory ...
+# ignoring it as an ansible.cfg source"
+export ANSIBLE_CONFIG=./ansible.cfg
+
+# для вывода в yaml формате
+export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
+
+ansible-playbook *.yaml --syntax-check
+
+ansible-lint *.yaml
+
+yamllint *.yaml
+
+ansible-inventory all --graph
+
+ansible-inventory all --list
+
+tree
+```
+
+<details>
+<summary>
+лог проверок
+</summary>
+
+```log
+playbook: playbook_main.yaml
+
+Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last profile that met the validation criteria was 'production'.
+@all:
+  |--@ungrouped:
+  |--@masters:
+  |  |--cl1pe91p5m9cgac980rd-uqan
+  |--@workers:
+  |  |--cl1015remkdroropep9h-awad
+  |  |--cl1015remkdroropep9h-ozaz
+  |  |--cl1015remkdroropep9h-opoc
+{
+    "_meta": {
+        "hostvars": {
+            "cl1015remkdroropep9h-awad": {
+                "ansible_host": "10.10.10.19",
+                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
+                "ansible_user": "skv",
+                "calico_cidr": "10.20.0.0/16",
+                "cluster_cidr": "10.20.0.0/16",
+                "helm_version": "v4.3.0",
+                "k3s_disable_components": [
+                    "traefik",
+                    "servicelb",
+                    "metrics-server",
+                    "flannel"
+                ],
+                "k3s_token": "DiplomK8sSecretToken2024!",
+                "k3s_version": "v1.37.0+k3s1",
+                "service_cidr": "10.21.0.0/16"
+            },
+            "cl1015remkdroropep9h-opoc": {
+                "ansible_host": "10.10.10.59",
+                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
+                "ansible_user": "skv",
+                "calico_cidr": "10.20.0.0/16",
+                "cluster_cidr": "10.20.0.0/16",
+                "helm_version": "v4.3.0",
+                "k3s_disable_components": [
+                    "traefik",
+                    "servicelb",
+                    "metrics-server",
+                    "flannel"
+                ],
+                "k3s_token": "DiplomK8sSecretToken2024!",
+                "k3s_version": "v1.37.0+k3s1",
+                "service_cidr": "10.21.0.0/16"
+            },
+            "cl1015remkdroropep9h-ozaz": {
+                "ansible_host": "10.10.10.41",
+                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
+                "ansible_user": "skv",
+                "calico_cidr": "10.20.0.0/16",
+                "cluster_cidr": "10.20.0.0/16",
+                "helm_version": "v4.3.0",
+                "k3s_disable_components": [
+                    "traefik",
+                    "servicelb",
+                    "metrics-server",
+                    "flannel"
+                ],
+                "k3s_token": "DiplomK8sSecretToken2024!",
+                "k3s_version": "v1.37.0+k3s1",
+                "service_cidr": "10.21.0.0/16"
+            },
+            "cl1pe91p5m9cgac980rd-uqan": {
+                "ansible_host": "81.26.179.3",
+                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
+                "ansible_user": "skv",
+                "calico_cidr": "10.20.0.0/16",
+                "cluster_cidr": "10.20.0.0/16",
+                "helm_version": "v4.3.0",
+                "k3s_disable_components": [
+                    "traefik",
+                    "servicelb",
+                    "metrics-server",
+                    "flannel"
+                ],
+                "k3s_token": "DiplomK8sSecretToken2024!",
+                "k3s_version": "v1.37.0+k3s1",
+                "service_cidr": "10.21.0.0/16"
+            }
+        },
+        "profile": "inventory_legacy"
+    },
+    "all": {
+        "children": [
+            "ungrouped",
+            "masters",
+            "workers"
+        ]
+    },
+    "masters": {
+        "hosts": [
+            "cl1pe91p5m9cgac980rd-uqan"
+        ]
+    },
+    "workers": {
+        "hosts": [
+            "cl1015remkdroropep9h-awad",
+            "cl1015remkdroropep9h-ozaz",
+            "cl1015remkdroropep9h-opoc"
+        ]
+    }
+}
+.
+├── ansible.cfg
+├── galaxy_cache
+├── group_vars
+│   └── all.yml
+├── hosts.ini
+├── playbook_main.yaml
+├── roles
+│   └── k3s_cluster
+│       ├── defaults
+│       │   └── main.yml
+│       ├── handlers
+│       │   └── main.yml
+│       ├── meta
+│       │   └── main.yml
+│       ├── README.md
+│       ├── tasks
+│       │   ├── calico.yml
+│       │   ├── config.yml
+│       │   ├── fetch_kubeconfig.yml
+│       │   ├── install.yml
+│       │   ├── main.yml
+│       │   └── prereq.yml
+│       ├── templates
+│       │   ├── k3s-master.yaml.j2
+│       │   └── k3s-worker.yaml.j2
+│       └── vars
+│           └── main.yml
+└── tmp
+
+12 directories, 17 files
+```
+
+<details>
+
+### Git Commit изменений
+
+```bash
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit10, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
+
+## commit_11,`FFOPS-40_diplom-skv_den`
+
+## Запуск playbook роли k3s_cluster
+
+```bash
+# выполнить playbook
+./playbook_main.yaml
+```
 
 ```bash
 terraform destroy \

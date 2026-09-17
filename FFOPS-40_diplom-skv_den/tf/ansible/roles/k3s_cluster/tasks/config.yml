@@ -1,0 +1,35 @@
+---
+- name: Создание каталога конфигурации K3s
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: '0755'
+
+- name: Развертывание конфигурации master-узла
+  ansible.builtin.template:
+    src: k3s-master.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0600'
+  when: "'masters' in group_names"
+  notify: Перезапуск K3s
+
+- name: Развертывание конфигурации worker-узла
+  ansible.builtin.template:
+    src: k3s-worker.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0600'
+  when: "'workers' in group_names"
+  notify: Перезапуск K3s
+
+- name: Обеспечение запуска службы K3s (enabled, started)
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Ожидание готовности K3s (master)
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/db/info
+    timeout: 60
+  when: "'masters' in group_names"

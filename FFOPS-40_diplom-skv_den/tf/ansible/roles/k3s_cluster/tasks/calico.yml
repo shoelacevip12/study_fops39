@@ -1,0 +1,33 @@
+---
+- name: Ожидание полной готовности API K3s
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:6443/readyz"
+    method: GET
+    status_code: 200
+    validate_certs: false
+  register: k3s_cluster_api_ready
+  until: k3s_cluster_api_ready.status == 200
+  retries: 10
+  delay: 5
+  when: "'masters' in group_names"
+  run_once: true
+
+- name: Применение манифеста Calico
+  ansible.builtin.command: >
+    kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/refs/heads/master/manifests/calico.yaml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: "'masters' in group_names"
+  run_once: true
+  register: k3s_cluster_calico_apply_result
+  changed_when: "'created' in k3s_cluster_calico_apply_result.stdout or 'configured' in k3s_cluster_calico_apply_result.stdout"
+
+- name: Ожидание готовности подов Calico
+  ansible.builtin.command: >
+    kubectl wait --namespace kube-system -l k8s-app=calico-node --for=condition=Ready pod --timeout=120s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: "'masters' in group_names"
+  run_once: true
+  changed_when: false
+  failed_when: false

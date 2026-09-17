@@ -1,0 +1,50 @@
+---
+- name: Обновление кэша apt
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: k3s_cluster_dist_upd | default(true) | bool
+
+- name: Обновление пакетов (dist-upgrade)
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+    autoclean: true
+
+- name: Отключение swap
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Удаление записи swap из /etc/fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^.*swap.*$'
+    state: absent
+
+- name: Загрузка необходимых модулей ядра
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Сохранение модулей ядра для автозагрузки
+  ansible.builtin.copy:
+    content: |
+      overlay
+      br_netfilter
+    dest: /etc/modules-load.d/k8s.conf
+    mode: '0644'
+
+- name: Настройка параметров sysctl для сети Kubernetes
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { name: 'net.ipv4.ip_forward', value: '1' }
