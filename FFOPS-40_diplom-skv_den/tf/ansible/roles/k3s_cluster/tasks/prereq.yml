@@ -47,4 +47,6 @@
   loop:
     - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
     - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { name: 'fs.inotify.max_user_watches', value: '1048576' }
+    - { name: 'fs.inotify.max_user_instances', value: '1000000' }
     - { name: 'net.ipv4.ip_forward', value: '1' }

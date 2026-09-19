@@ -39,21 +39,93 @@
 
 - name: Определение имени службы K3s
   ansible.builtin.set_fact:
-    k3s_service_name: "{{ 'k3s-agent' if ('workers' in group_names) else 'k3s' }}"
+    k3s_cluster_service_name: "{{ 'k3s-agent' if ('workers' in group_names) else 'k3s' }}"
 
 - name: Перезагрузка демонов systemd
   ansible.builtin.systemd:
     daemon_reload: true
 
+- name: Инициализация K3s Server через официальный скрипт install.sh
+  ansible.builtin.command: >
+    /bin/bash {{ role_path }}/files/install.sh server
+  environment:
+    INSTALL_K3S_SKIP_DOWNLOAD: "true"
+    INSTALL_K3S_SKIP_ENABLE: "true"
+    INSTALL_K3S_SKIP_START: "true"
+  args:
+    creates: /etc/systemd/system/k3s.service
+  become: true
+  register: k3s_cluster_server_install
+  when: "'masters' in group_names"
+  changed_when: false
+
+- name: Инициализация K3s Agent через install.sh
+  ansible.builtin.command: >
+    /bin/bash {{ role_path }}/files/install.sh agent
+  environment:
+    INSTALL_K3S_SKIP_DOWNLOAD: "true"
+    INSTALL_K3S_SKIP_ENABLE: "true"
+    INSTALL_K3S_SKIP_START: "true"
+  args:
+    creates: /etc/systemd/system/k3s-agent.service
+  become: true
+  register: k3s_cluster_agent_install
+  when: "'workers' in group_names"
+  changed_when: false
+
 - name: Обеспечение запуска службы K3s (enabled, started)
   ansible.builtin.systemd:
-    name: "{{ k3s_service_name }}"
+    name: "{{ k3s_cluster_service_name }}"
     enabled: true
     state: started
     daemon_reload: false
+  timeout: 120
 
-- name: Ожидание готовности K3s (master)
+- name: Ожидание доступности порта API K3s Master
   ansible.builtin.wait_for:
-    path: /var/lib/rancher/k3s/server/db/info
-    timeout: 60
+    host: 127.0.0.1
+    port: 6443
+    timeout: 120
+    delay: 5
   when: "'masters' in group_names"
+  run_once: true
+
+- name: Упрощенная Проверка доступности API K3s
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:6443/livez"
+    method: GET
+    status_code: [200, 401, 403, 503]
+    validate_certs: false
+  register: k3s_cluster_api_check
+  retries: 5
+  delay: 5
+  until: k3s_cluster_api_check is defined
+  when: "'masters' in group_names"
+  run_once: true
+  changed_when: false
+  failed_when: false
+
+- name: Пауза для стабилизации мастера перед стартом воркеров
+  ansible.builtin.wait_for:
+    timeout: 20
+  when: "'masters' in group_names"
+  run_once: true
+
+- name: Проверка статуса службы K3s
+  ansible.builtin.systemd:
+    name: "{{ k3s_cluster_service_name }}"
+  register: k3s_cluster_status
+  failed_when: false
+  changed_when: false
+  timeout: 30
+
+- name: Вывод логов при ошибке запуска
+  ansible.builtin.command: journalctl -u "{{ k3s_cluster_service_name }}" --no-pager -n 50
+  register: k3s_cluster_logs
+  when:
+    - k3s_cluster_status is defined
+    - k3s_cluster_status.status is defined
+    - k3s_cluster_status.status.substate is defined
+    - k3s_cluster_status.status.substate != 'running'
+  changed_when: false
+  failed_when: false

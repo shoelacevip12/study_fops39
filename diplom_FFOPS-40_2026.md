@@ -4930,11 +4930,14 @@ EOF
 cat > ./group_vars/all.yml <<'EOF'
 ---
 # Токен кластера
+---
+# Токен кластера
 k3s_token: "DiplomK8sSecretToken2024!"
 
 # Версии
 k3s_version: "v1.37.0+k3s1"
 helm_version: "v4.3.0"
+CNI_version: "v1.9.1"
 
 # Сетевые настройки
 cluster_cidr: "10.20.0.0/16"
@@ -5029,7 +5032,7 @@ EOF
 
 <details>
 
-### Задачи проверки настроек cgroups и отключения swap
+### Задачи проверки настроек cgroups, отключения swap и 
 
 <details>
 <summary>
@@ -5087,13 +5090,15 @@ cat > ./roles/k3s_cluster/tasks/prereq.yml <<'EOF'
   loop:
     - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
     - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { name: 'fs.inotify.max_user_watches', value: '1048576' }
+    - { name: 'fs.inotify.max_user_instances', value: '1000000' }
     - { name: 'net.ipv4.ip_forward', value: '1' }
 EOF
 ```
 
 <details>
 
-### Задачи по Установке K3s и Helm
+### Задачи по Установке K3s, Helm и calicoctl
 
 <details>
 <summary>
@@ -5103,11 +5108,13 @@ EOF
 ```yaml
 cat > ./roles/k3s_cluster/tasks/install.yml <<'EOF'
 ---
-- name: Загрузка бинарного файла K3s
-  ansible.builtin.get_url:
-    url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/k3s"
+- name: Копирование бинарного файла K3s
+  ansible.builtin.copy:
+    src: k3s
     dest: /usr/local/bin/k3s
     mode: '0755'
+    owner: root
+    group: root
 
 - name: Создание символической ссылки для kubectl
   ansible.builtin.file:
@@ -5115,9 +5122,15 @@ cat > ./roles/k3s_cluster/tasks/install.yml <<'EOF'
     dest: /usr/local/bin/kubectl
     state: link
 
-- name: Загрузка архива бинарного файла Helm
+- name: Копирование архива Helm
+  ansible.builtin.copy:
+    src: helm.tar.gz
+    dest: /tmp/helm.tar.gz
+    mode: '0644'
+
+- name: Распаковка Helm
   ansible.builtin.unarchive:
-    src: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+    src: /tmp/helm.tar.gz
     dest: /tmp
     remote_src: true
     creates: /tmp/linux-amd64/helm
@@ -5127,6 +5140,39 @@ cat > ./roles/k3s_cluster/tasks/install.yml <<'EOF'
   args:
     creates: /usr/local/bin/helm
   become: true
+
+- name: Установка стандартных CNI плагинов
+  tags: ['cni', 'install']
+  block:
+    - name: Копирование архива CNI плагинов
+      ansible.builtin.copy:
+        src: cni-plugins-linux-amd64.tgz
+        dest: /tmp/cni-plugins.tgz
+        mode: '0644'
+
+    - name: Создание директории для CNI плагинов
+      ansible.builtin.file:
+        path: /opt/cni/bin
+        state: directory
+        mode: '0755'
+      become: true
+
+    - name: Распаковка CNI плагинов в /opt/cni/bin
+      ansible.builtin.unarchive:
+        src: /tmp/cni-plugins.tgz
+        dest: /opt/cni/bin
+        remote_src: true
+        creates: /opt/cni/bin/loopback
+      become: true
+
+- name: Установка утилиты calicoctl
+  ansible.builtin.copy:
+    src: kubectl-calico
+    dest: /usr/local/bin/kubectl-calico
+    mode: '0755'
+    owner: root
+    group: root
+  tags: ['calico', 'install']
 EOF
 ```
 
@@ -5182,24 +5228,96 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
 
 - name: Определение имени службы K3s
   ansible.builtin.set_fact:
-    k3s_service_name: "{{ 'k3s-agent' if ('workers' in group_names) else 'k3s' }}"
+    k3s_cluster_service_name: "{{ 'k3s-agent' if ('workers' in group_names) else 'k3s' }}"
 
 - name: Перезагрузка демонов systemd
   ansible.builtin.systemd:
     daemon_reload: true
 
+- name: Инициализация K3s Server через официальный скрипт install.sh
+  ansible.builtin.command: >
+    /bin/bash {{ role_path }}/files/install.sh server
+  environment:
+    INSTALL_K3S_SKIP_DOWNLOAD: "true"
+    INSTALL_K3S_SKIP_ENABLE: "true"
+    INSTALL_K3S_SKIP_START: "true"
+  args:
+    creates: /etc/systemd/system/k3s.service
+  become: true
+  register: k3s_cluster_server_install
+  when: "'masters' in group_names"
+  changed_when: false
+
+- name: Инициализация K3s Agent через install.sh
+  ansible.builtin.command: >
+    /bin/bash {{ role_path }}/files/install.sh agent
+  environment:
+    INSTALL_K3S_SKIP_DOWNLOAD: "true"
+    INSTALL_K3S_SKIP_ENABLE: "true"
+    INSTALL_K3S_SKIP_START: "true"
+  args:
+    creates: /etc/systemd/system/k3s-agent.service
+  become: true
+  register: k3s_cluster_agent_install
+  when: "'workers' in group_names"
+  changed_when: false
+
 - name: Обеспечение запуска службы K3s (enabled, started)
   ansible.builtin.systemd:
-    name: "{{ k3s_service_name }}"
+    name: "{{ k3s_cluster_service_name }}"
     enabled: true
     state: started
     daemon_reload: false
+  timeout: 120
 
-- name: Ожидание готовности K3s (master)
+- name: Ожидание доступности порта API K3s Master
   ansible.builtin.wait_for:
-    path: /var/lib/rancher/k3s/server/db/info
-    timeout: 60
+    host: 127.0.0.1
+    port: 6443
+    timeout: 120
+    delay: 5
   when: "'masters' in group_names"
+  run_once: true
+
+- name: Упрощенная Проверка доступности API K3s
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:6443/livez"
+    method: GET
+    status_code: [200, 401, 403, 503]
+    validate_certs: false
+  register: k3s_cluster_api_check
+  retries: 5
+  delay: 5
+  until: k3s_cluster_api_check is defined
+  when: "'masters' in group_names"
+  run_once: true
+  changed_when: false
+  failed_when: false
+
+- name: Пауза для стабилизации мастера перед стартом воркеров
+  ansible.builtin.wait_for:
+    timeout: 20
+  when: "'masters' in group_names"
+  run_once: true
+
+- name: Проверка статуса службы K3s
+  ansible.builtin.systemd:
+    name: "{{ k3s_cluster_service_name }}"
+  register: k3s_cluster_status
+  failed_when: false
+  changed_when: false
+  timeout: 30
+
+- name: Вывод логов при ошибке запуска
+  ansible.builtin.command: journalctl -u "{{ k3s_cluster_service_name }}" --no-pager -n 50
+  register: k3s_cluster_logs
+  when:
+    - k3s_cluster_status is defined
+    - k3s_cluster_status.status is defined
+    - k3s_cluster_status.status.substate is defined
+    - k3s_cluster_status.status.substate != 'running'
+  changed_when: false
+  failed_when: false
 EOF
 ```
 
@@ -5218,17 +5336,16 @@ token: {{ k3s_token }}
 cluster-init: true
 node-ip: {{ ansible_default_ipv4.address }}
 
+tls-san:
+  - {{ hostvars[groups['masters'][0]]['ansible_host'] }}
+
 # Отключение компонентов
 {% for comp in k3s_disable_components %}
 disable:
   - {{ comp }}
 {% endfor %}
-
-# Настройки сети для Calico
-# Мы явно говорим K3s не управлять сетью, это сделает Calico
 flannel-backend: none
 disable-network-policy: false
-
 cluster-cidr: {{ cluster_cidr }}
 service-cidr: {{ service_cidr }}
 
@@ -5351,6 +5468,28 @@ EOF
 
 <details>
 
+### `jinja2` шаблон PPools на calico
+
+<details>
+<summary>
+jinja2 шаблон PPools на calico
+</summary>
+
+```j2
+cat > ./roles/k3s_cluster/templates/calico-ippool.yaml.j2 <<'EOF'
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: default-ipv4-ippool
+spec:
+  cidr: {{ cluster_cidr }}
+  natOutgoing: true
+  blockSize: 26
+EOF
+```
+
+<details>
+
 ### Установка Calico через файл manifest
 
 <details>
@@ -5361,22 +5500,17 @@ EOF
 ```yaml
 cat > ./roles/k3s_cluster/tasks/calico.yml <<'EOF'
 ---
-- name: Ожидание полной готовности API K3s
-  ansible.builtin.uri:
-    url: "https://127.0.0.1:6443/readyz"
-    method: GET
-    status_code: 200
-    validate_certs: false
-  register: k3s_cluster_api_ready
-  until: k3s_cluster_api_ready.status == 200
-  retries: 10
-  delay: 5
+- name: Копирование манифеста Calico на мастер-ноду
+  ansible.builtin.copy:
+    src: calico.yaml
+    dest: /tmp/calico-manifest.yaml
+    mode: '0644'
   when: "'masters' in group_names"
   run_once: true
 
-- name: Применение манифеста Calico
+- name: Применение полного манифеста Calico
   ansible.builtin.command: >
-    kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/refs/heads/master/manifests/calico.yaml
+    kubectl apply -f /tmp/calico-manifest.yaml
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   when: "'masters' in group_names"
@@ -5384,15 +5518,54 @@ cat > ./roles/k3s_cluster/tasks/calico.yml <<'EOF'
   register: k3s_cluster_calico_apply_result
   changed_when: "'created' in k3s_cluster_calico_apply_result.stdout or 'configured' in k3s_cluster_calico_apply_result.stdout"
 
-- name: Ожидание готовности подов Calico
+- name: Ожидание появления подов Calico Node
   ansible.builtin.command: >
-    kubectl wait --namespace kube-system -l k8s-app=calico-node --for=condition=Ready pod --timeout=120s
+    kubectl wait --namespace kube-system -l k8s-app=calico-node --for=condition=Ready pod --timeout=300s
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   when: "'masters' in group_names"
   run_once: true
   changed_when: false
   failed_when: false
+  register: k3s_cluster_calico_wait_result
+  retries: 2
+  delay: 30
+  until: k3s_cluster_calico_wait_result.rc == 0
+
+- name: Настройка Calico IPPool (Master)
+  when: "'masters' in group_names"
+  tags: ['calico', 'network']
+  block:
+    - name: Удаление дефолтного IPPool
+      ansible.builtin.command: >
+        kubectl delete ippool default-ipv4-ippool --ignore-not-found=true
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+      failed_when: false
+      run_once: true
+
+    - name: Развертывание манифеста Calico IPPool из шаблона
+      ansible.builtin.template:
+        src: calico-ippool.yaml.j2
+        dest: /tmp/calico-ippool.yaml
+        mode: '0644'
+      run_once: true
+
+    - name: Применение корректного Calico IPPool
+      ansible.builtin.command: >
+        kubectl apply -f /tmp/calico-ippool.yaml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: k3s_cluster_calico_ippool_result
+      changed_when: "'created' in k3s_cluster_calico_ippool_result.stdout or 'configured' in k3s_cluster_calico_ippool_result.stdout"
+      run_once: true
+
+    - name: Очистка временного файла
+      ansible.builtin.file:
+        path: /tmp/calico-ippool.yaml
+        state: absent
+      run_once: true
 EOF
 ```
 
@@ -5431,12 +5604,16 @@ cat > ./roles/k3s_cluster/tasks/fetch_kubeconfig.yml <<'EOF'
     replace: "https://{{ hostvars[groups['masters'][0]]['ansible_host'] }}:6443"
   become: false
   delegate_to: localhost
+  run_once: true 
 
-- name: Перемещение итогового конфига в ~/.kube/config
-  ansible.builtin.command: mv ./tmp_kubeconfig_raw ~/.kube/config
+- name: Перемещение итогового конфига в ~/.kube/config c Принудительной перезаписью
+  ansible.builtin.command: mv -f ./tmp_kubeconfig_raw ~/.kube/config
   delegate_to: localhost
   become: false
   changed_when: true
+  args:
+    removes: ./tmp_kubeconfig_raw
+  run_once: true 
 EOF
 ```
 
@@ -5463,6 +5640,27 @@ EOF
 
 <details>
 
+### Подготовка файлов архивов и манифестов для роль ansible
+
+```bash
+# скачиваем манифест CNI calico (19.09.2026)
+curl -L https://raw.githubusercontent.com/projectcalico/calico/refs/heads/master/manifests/calico.yaml -o roles/k3s_cluster/files/calico.yaml
+
+# скачиваем бинарный файл k3s (19.09.2026)
+curl -L https://github.com/k3s-io/k3s/releases/latest/download/k3s -o roles/k3s_cluster/files/k3s
+
+# скачиваем бинарный файл calicoctl  (19.09.2026)
+curl -L https://github.com/projectcalico/calico/releases/latest/download/calicoctl-linux-amd64 -o roles/k3s_cluster/files/kubectl-calico
+
+# Скачиваем плагин cni (19.09.2026)
+curl -L "https://github.com/containernetworking/plugins/releases/download/v1.9.1/cni-plugins-linux-amd64-v1.9.1.tgz" -o roles/k3s_cluster/files/cni-plugins-linux-amd64.tgz
+z
+# скачиваем бинарный файл helm  (19.09.2026)
+curl -L https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz -o roles/k3s_cluster/files/helm.tar.gz
+
+"https://github.com/containernetworking/plugins/releases/download/v1.9.1/cni-plugins-linux-amd64-v1.9.1.tgz" -o roles/k3s_cluster/files/cni-plugins-linux-amd64.tgz
+```
+
 ### Проверки собравшегося проекта в данном каталоге
 
 ```bash
@@ -5485,6 +5683,8 @@ ansible-inventory all --graph
 ansible-inventory all --list
 
 tree
+
+ansible -m ping  all
 ```
 
 <details>
@@ -5508,7 +5708,8 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
     "_meta": {
         "hostvars": {
             "cl1015remkdroropep9h-awad": {
-                "ansible_host": "10.10.10.19",
+                "CNI_version": "v1.9.1",
+                "ansible_host": "10.10.10.20",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
                 "calico_cidr": "10.20.0.0/16",
@@ -5525,7 +5726,8 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
                 "service_cidr": "10.21.0.0/16"
             },
             "cl1015remkdroropep9h-opoc": {
-                "ansible_host": "10.10.10.59",
+                "CNI_version": "v1.9.1",
+                "ansible_host": "10.10.10.62",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
                 "calico_cidr": "10.20.0.0/16",
@@ -5542,7 +5744,8 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
                 "service_cidr": "10.21.0.0/16"
             },
             "cl1015remkdroropep9h-ozaz": {
-                "ansible_host": "10.10.10.41",
+                "CNI_version": "v1.9.1",
+                "ansible_host": "10.10.10.36",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
                 "calico_cidr": "10.20.0.0/16",
@@ -5559,6 +5762,7 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
                 "service_cidr": "10.21.0.0/16"
             },
             "cl1pe91p5m9cgac980rd-uqan": {
+                "CNI_version": "v1.9.1",
                 "ansible_host": "81.26.179.3",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
@@ -5609,6 +5813,13 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
 │   └── k3s_cluster
 │       ├── defaults
 │       │   └── main.yml
+│       ├── files
+│       │   ├── calico.yaml
+│       │   ├── cni-plugins-linux-amd64.tgz
+│       │   ├── helm.tar.gz
+│       │   ├── install.sh
+│       │   ├── k3s
+│       │   └── kubectl-calico
 │       ├── handlers
 │       │   └── main.yml
 │       ├── meta
@@ -5622,13 +5833,37 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
 │       │   ├── main.yml
 │       │   └── prereq.yml
 │       ├── templates
+│       │   ├── calico-ippool.yaml.j2
+│       │   ├── k3s-agent.service.j2
 │       │   ├── k3s-master.yaml.j2
+│       │   ├── k3s.service.j2
 │       │   └── k3s-worker.yaml.j2
 │       └── vars
 │           └── main.yml
 └── tmp
 
-12 directories, 17 files
+13 directories, 26 files
+
+cl1pe91p5m9cgac980rd-uqan | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.13
+    changed: false
+    ping: pong
+cl1015remkdroropep9h-awad | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.13
+    changed: false
+    ping: pong
+cl1015remkdroropep9h-ozaz | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.13
+    changed: false
+    ping: pong
+cl1015remkdroropep9h-opoc | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.13
+    changed: false
+    ping: pong
 ```
 
 <details>
@@ -5669,8 +5904,9 @@ FFOPS-40_diplom-skv_den
 
 ```bash
 # выполнить playbook с шебангом '#!/usr/bin/env ansible-playbook'
+export ANSIBLE_CONFIG=./ansible.cfg
 export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
-./playbook_main.yaml -v
+./playbook_main.yaml
 ```
 
 <details>
@@ -5679,6 +5915,62 @@ export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 </summary>
 
 ```log
+```
+
+<details>
+
+### Проверка развернутого кластера
+
+```bash
+cat ~/.kube/config
+
+kubectl config get-contexts
+
+kubectl get po -A -o wide
+```
+
+<details>
+<summary>
+Проверка развернутого кластера
+</summary>
+
+```log
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJkekNDQVIyZ0F3SUJBZ0lCQURBS0JnZ3Foa2pPUFFRREFqQWpNU0V3SHdZRFZRUUREQmhyTTNNdGMyVnkKZG1WeUxXTmhRREUzT0RrNE16RXhNekl3SGhjTk1qWXdPVEU1TVRReE9EVXlXaGNOTXpZd09URTJNVFF4T0RVeQpXakFqTVNFd0h3WURWUVFEREJock0zTXRjMlZ5ZG1WeUxXTmhRREUzT0RrNE16RXhNekl3V1RBVEJnY3Foa2pPClBRSUJCZ2dxaGtqT1BRTUJCd05DQUFUeWxRcFNGbFlTWVM2M0txK2tWTkY1Y0o3bHU2MEJYWWRBYXBJUlhEQWsKUUliVHhsWWZaU0l5RGx4S1FzYVpONHlHY01ZeFpjTDBSV2w1YTJsd21ObWZvMEl3UURBT0JnTlZIUThCQWY4RQpCQU1DQXFRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVVFCTlo3OGg3VFBOL0xKS0RKTU5PCmZoSVhObTR3Q2dZSUtvWkl6ajBFQXdJRFNBQXdSUUlnUjJWeFV4YXozRHRmbmN0UWozNHI5bXRpNlVqQXVNUzYKOURJd1NnSkhZTUFDSVFERlZhdTduSTdyK0swaUoxamVxVmc4R1VwLzNDTDJlK2lOTExERjNNYTVXdz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+    server: https://81.26.179.3:6443
+  name: default
+contexts:
+- context:
+    cluster: default
+    user: default
+  name: default
+current-context: default
+kind: Config
+users:
+- name: default
+  user:
+    client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJrVENDQVRlZ0F3SUJBZ0lJRmZtQ2NPb3FnSmN3Q2dZSUtvWkl6ajBFQXdJd0l6RWhNQjhHQTFVRUF3d1kKYXpOekxXTnNhV1Z1ZEMxallVQXhOemc1T0RNeE1UTXlNQjRYRFRJMk1Ea3hPVEUwTVRnMU1sb1hEVEkzTURreApPVEUwTVRnMU1sb3dNREVYTUJVR0ExVUVDaE1PYzNsemRHVnRPbTFoYzNSbGNuTXhGVEFUQmdOVkJBTVRESE41CmMzUmxiVHBoWkcxcGJqQlpNQk1HQnlxR1NNNDlBZ0VHQ0NxR1NNNDlBd0VIQTBJQUJFV1V3NVRhMGsyS0RSVHQKcGN0Z2c2Kzh3bFZnQjdBTmNhZ044UXZXSm1saXBQTXUrekNlV25BTlhoSEtCT1YwN2ZvbE0yeis4bTZKRzF1RApXRzZ5ZUJhalNEQkdNQTRHQTFVZER3RUIvd1FFQXdJRm9EQVRCZ05WSFNVRUREQUtCZ2dyQmdFRkJRY0RBakFmCkJnTlZIU01FR0RBV2dCVHNoc2NadE5aNVp0ZjN1Zzd5WjVJMkUwNDJ3VEFLQmdncWhrak9QUVFEQWdOSUFEQkYKQWlCeDlXUEUvWTlTTWpIWFhJUzdsbUJsVjRrd25qbEIrVG1ML09LN2t4Zkptd0loQUxnZGl6WS8zOFpUY0gvcQpVblY1WE93VHJGcFhkTE5DbEY0dEMrSk1iaS9VCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KLS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJkakNDQVIyZ0F3SUJBZ0lCQURBS0JnZ3Foa2pPUFFRREFqQWpNU0V3SHdZRFZRUUREQmhyTTNNdFkyeHAKWlc1MExXTmhRREUzT0RrNE16RXhNekl3SGhjTk1qWXdPVEU1TVRReE9EVXlXaGNOTXpZd09URTJNVFF4T0RVeQpXakFqTVNFd0h3WURWUVFEREJock0zTXRZMnhwWlc1MExXTmhRREUzT0RrNE16RXhNekl3V1RBVEJnY3Foa2pPClBRSUJCZ2dxaGtqT1BRTUJCd05DQUFTb21OWGxoUk8yWXdBVmJoZFRBMWY2SFFPMVM3aEhFK1VUODVidldhcTMKSVhIZmI5RTVPeDZ2cytxaVAybld1OVVnRjhOLzg0VVgwK2NoelpzTWQ0M1pvMEl3UURBT0JnTlZIUThCQWY4RQpCQU1DQXFRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVTdJYkhHYlRXZVdiWDk3b084bWVTCk5oTk9Oc0V3Q2dZSUtvWkl6ajBFQXdJRFJ3QXdSQUlnUWxPSVo2bFBHdDZlZ0VWTk5JUnVudXJicjE3TDYyTFoKbU9EaEZHREpZSHdDSUN2OHU2OS9wNGk1T1orOFI2MW1BQUZTUU4zYytzTGRPYXI4Mk1RREFqZ20KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    client-key-data: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU9xZEtUWE85b3FObzY5RnlyQ0pacWthaDhRYzVuN2RENWJDWlNFRlhPaWpvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFUlpURGxOclNUWW9ORk8ybHkyQ0RyN3pDVldBSHNBMXhxQTN4QzlZbWFXS2s4eTc3TUo1YQpjQTFlRWNvRTVYVHQraVV6YlA3eWJva2JXNE5ZYnJKNEZnPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
+
+NAMESPACE     NAME                                      READY   STATUS             RESTARTS       AGE   IP                NODE       NOMINATED NODE   READINESS GATES
+kube-system   calico-kube-controllers-cff756d47-7xxp4   0/1     CrashLoopBackOff   13 (39s ago)   35m   192.168.133.194   worker-2   <none>           <none>
+kube-system   calico-node-2z9gh                         1/1     Running            0              35m   10.10.10.20       worker-1   <none>           <none>
+kube-system   calico-node-jcfvj                         1/1     Running            0              35m   10.10.10.36       worker-2   <none>           <none>
+kube-system   calico-node-r42nh                         1/1     Running            0              35m   10.10.10.5        master-1   <none>           <none>
+kube-system   calico-node-w8nwk                         1/1     Running            0              35m   10.10.10.62       worker-3   <none>           <none>
+kube-system   coredns-577d995dff-8tclz                  1/1     Running            0              37m   192.168.133.197   worker-2   <none>           <none>
+kube-system   helm-install-gateway-api-crd-nvhnx        0/1     Completed          0              37m   192.168.133.198   worker-2   <none>           <none>
+kube-system   helm-install-traefik-crd-rvvpq            0/1     Completed          0              37m   192.168.133.195   worker-2   <none>           <none>
+kube-system   helm-install-traefik-q7vtp                0/1     Completed          1 (34m ago)    37m   192.168.133.199   worker-2   <none>           <none>
+kube-system   local-path-provisioner-6858d854cf-jzvwq   1/1     Running            0              37m   192.168.133.196   worker-2   <none>           <none>
+kube-system   metrics-server-778c4649b4-qs8zg           1/1     Running            0              37m   192.168.133.193   worker-2   <none>           <none>
+kube-system   svclb-traefik-1091d736-dcw84              2/2     Running            0              34m   192.168.39.1      master-1   <none>           <none>
+kube-system   svclb-traefik-1091d736-gvnpq              2/2     Running            0              34m   192.168.226.65    worker-1   <none>           <none>
+kube-system   svclb-traefik-1091d736-vsk89              2/2     Running            0              34m   192.168.133.200   worker-2   <none>           <none>
+kube-system   svclb-traefik-1091d736-wsmn8              2/2     Running            0              34m   192.168.97.193    worker-3   <none>           <none>
+kube-system   traefik-77b898c5c8-lzg98                  1/1     Running            0              34m   192.168.226.66    worker-1   <none>           <none>
 ```
 
 <details>

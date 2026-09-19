@@ -1,9 +1,11 @@
 ---
-- name: Загрузка бинарного файла K3s
-  ansible.builtin.get_url:
-    url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/k3s"
+- name: Копирование бинарного файла K3s
+  ansible.builtin.copy:
+    src: k3s
     dest: /usr/local/bin/k3s
     mode: '0755'
+    owner: root
+    group: root
 
 - name: Создание символической ссылки для kubectl
   ansible.builtin.file:
@@ -11,9 +13,15 @@
     dest: /usr/local/bin/kubectl
     state: link
 
-- name: Загрузка архива бинарного файла Helm
+- name: Копирование архива Helm
+  ansible.builtin.copy:
+    src: helm.tar.gz
+    dest: /tmp/helm.tar.gz
+    mode: '0644'
+
+- name: Распаковка Helm
   ansible.builtin.unarchive:
-    src: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+    src: /tmp/helm.tar.gz
     dest: /tmp
     remote_src: true
     creates: /tmp/linux-amd64/helm
@@ -23,3 +31,36 @@
   args:
     creates: /usr/local/bin/helm
   become: true
+
+- name: Установка стандартных CNI плагинов
+  tags: ['cni', 'install']
+  block:
+    - name: Копирование архива CNI плагинов
+      ansible.builtin.copy:
+        src: cni-plugins-linux-amd64.tgz
+        dest: /tmp/cni-plugins.tgz
+        mode: '0644'
+
+    - name: Создание директории для CNI плагинов
+      ansible.builtin.file:
+        path: /opt/cni/bin
+        state: directory
+        mode: '0755'
+      become: true
+
+    - name: Распаковка CNI плагинов в /opt/cni/bin
+      ansible.builtin.unarchive:
+        src: /tmp/cni-plugins.tgz
+        dest: /opt/cni/bin
+        remote_src: true
+        creates: /opt/cni/bin/loopback
+      become: true
+
+- name: Установка утилиты calicoctl
+  ansible.builtin.copy:
+    src: kubectl-calico
+    dest: /usr/local/bin/kubectl-calico
+    mode: '0755'
+    owner: root
+    group: root
+  tags: ['calico', 'install']
