@@ -4935,9 +4935,9 @@ cat > ./group_vars/all.yml <<'EOF'
 k3s_token: "DiplomK8sSecretToken2024!"
 
 # Версии
-k3s_version: "v1.37.0+k3s1"
-helm_version: "v4.3.0"
-CNI_version: "v1.9.1"
+# k3s_version: "v1.37.0+k3s1"
+# helm_version: "v4.3.0"
+# CNI_version: "v1.9.1"
 
 # Сетевые настройки
 cluster_cidr: "10.20.0.0/16"
