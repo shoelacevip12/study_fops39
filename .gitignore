@@ -18,7 +18,7 @@ antrea/
 k8sprototypes/
 contour/
 ingress-nginx/
-FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files
+FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files/
 
 # игнорировать расширения и файлы:
 *.deb
