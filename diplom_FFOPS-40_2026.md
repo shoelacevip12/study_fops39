@@ -5212,65 +5212,82 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
   when: "'workers' in group_names"
   notify: Перезапуск K3s
 
-- name: Развертывание systemd единицы для Master
-  ansible.builtin.template:
-    src: k3s.service.j2
-    dest: /etc/systemd/system/k3s.service
-    mode: '0644'
-  when: "'masters' in group_names"
-  notify: Перезапуск K3s
+# - name: Развертывание systemd unit для Master
+#   ansible.builtin.template:
+#     src: k3s.service.j2
+#     dest: /etc/systemd/system/k3s.service
+#     mode: '0644'
+#   when: "'masters' in group_names"
+#   notify: Перезапуск K3s
 
-- name: Развертывание systemd единицы для Worker
-  ansible.builtin.template:
-    src: k3s-agent.service.j2
-    dest: /etc/systemd/system/k3s-agent.service
-    mode: '0644'
-  when: "'workers' in group_names"
-  notify: Перезапуск K3s
+# - name: Развертывание systemd unit для Worker
+#   ansible.builtin.template:
+#     src: k3s-agent.service.j2
+#     dest: /etc/systemd/system/k3s-agent.service
+#     mode: '0644'
+#   when: "'workers' in group_names"
+#   notify: Перезапуск K3s
 
-- name: Определение имени службы K3s
+- name: Определение имени службы K3s через facts
   ansible.builtin.set_fact:
     k3s_cluster_service_name: "{{ 'k3s-agent' if ('workers' in group_names) else 'k3s' }}"
 
-- name: Перезагрузка демонов systemd
-  ansible.builtin.systemd:
-    daemon_reload: true
+# - name: Перезагрузка демонов systemd
+#   ansible.builtin.systemd:
+#     daemon_reload: true
 
-- name: Ожидание готовности API K3s на мастере (для воркеров)
-  ansible.builtin.wait_for:
-    host: "{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}"
-    port: 6443
-    timeout: 300
-    delay: 5
-  when: "'workers' in group_names"
+- name: Копирование скрипта установки K3s на узел
+  ansible.builtin.copy:
+    src: install.sh
+    dest: /tmp/k3s-install.sh
+    mode: '0755'
 
 - name: Инициализация K3s Server через официальный скрипт install.sh
   ansible.builtin.command: >
-    /bin/bash {{ role_path }}/files/install.sh server
+    /bin/bash /tmp/k3s-install.sh server
   environment:
     INSTALL_K3S_SKIP_DOWNLOAD: "true"
     INSTALL_K3S_SKIP_ENABLE: "true"
     INSTALL_K3S_SKIP_START: "true"
-  args:
-    creates: /etc/systemd/system/k3s.service
   become: true
   register: k3s_cluster_server_install
   when: "'masters' in group_names"
   changed_when: false
 
+- name: Обеспечение первого запуска службы K3s на мастер
+  ansible.builtin.systemd:
+    name: "{{ k3s_cluster_service_name }}"
+    enabled: false
+    state: started
+    daemon_reload: true
+  timeout: 600
+  when: "'masters' in group_names"
+
+- name: Ожидание готовности API K3s на мастере
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}"
+    port: 6443
+    timeout: 600
+    delay: 5
+  when: "'workers' in group_names"
+
 - name: Инициализация K3s Agent через install.sh
   ansible.builtin.command: >
-    /bin/bash {{ role_path }}/files/install.sh agent
+    /bin/bash /tmp/k3s-install.sh agent
   environment:
     INSTALL_K3S_SKIP_DOWNLOAD: "true"
     INSTALL_K3S_SKIP_ENABLE: "true"
-    INSTALL_K3S_SKIP_START: "true"
-  args:
-    creates: /etc/systemd/system/k3s-agent.service
+    INSTALL_K3S_SKIP_START: "false"
   become: true
   register: k3s_cluster_agent_install
   when: "'workers' in group_names"
   changed_when: false
+
+- name: Перезагрузка после применения скрипта
+  ansible.builtin.reboot:
+    reboot_timeout: 240
+  register: k3s_cluster_agent_install
+  when: "'workers' in group_names"
 
 - name: Обеспечение запуска службы K3s (enabled, started)
   ansible.builtin.systemd:
@@ -5278,7 +5295,11 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
     enabled: true
     state: started
     daemon_reload: false
-  timeout: 600
+  # k3s-agent (Type=notify) остаётся в состоянии "activating" до готовности
+  # CNI (Calico ставится ниже), поэтому игнорируем state,
+  # иначе задача висит до таймаута.
+  async: 600
+  poll: 0
 
 - name: Ожидание доступности порта API K3s Master
   ansible.builtin.wait_for:
@@ -5298,11 +5319,10 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
   register: k3s_cluster_api_check
   retries: 30
   delay: 5
-  until: k3s_cluster_api_check.status == 200
+  until: k3s_cluster_api_check.status in [200, 401, 403, 503]
   when: "'masters' in group_names"
   run_once: true
   changed_when: false
-  failed_when: false
 
 - name: Пауза для стабилизации мастера перед стартом воркеров
   ansible.builtin.wait_for:
@@ -5371,6 +5391,19 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
     - k3s_cluster_status.status.substate != 'running'
   changed_when: false
   failed_when: false
+
+- name: Остановка прогона при неудачном старте службы на мастере
+  ansible.builtin.fail:
+    msg: |
+      Служба {{ k3s_cluster_service_name }} на мастере не запустилась.
+      Логи (journalctl -n 50):
+      {{ k3s_cluster_logs.stdout | default('нет данных') }}
+  when:
+    - "'masters' in group_names"
+    - k3s_cluster_status is defined
+    - k3s_cluster_status.status is defined
+    - k3s_cluster_status.status.substate is defined
+    - k3s_cluster_status.status.substate != 'running'
 EOF
 ```
 
@@ -5531,6 +5564,7 @@ jinja2 шаблон PPools на calico
 </summary>
 
 ```j2
+---
 cat > ./roles/k3s_cluster/templates/calico-ippool.yaml.j2 <<'EOF'
 apiVersion: crd.projectcalico.org/v1
 kind: IPPool
@@ -5690,6 +5724,17 @@ EOF
 ```yaml
 cat > ./roles/k3s_cluster/tasks/fetch_kubeconfig.yml <<'EOF'
 ---
+- name: Принудительный перезапуск подов kube-system для применения корректных CIDR
+  ansible.builtin.command: >
+    kubectl delete pods --all -n kube-system --force --grace-period=0
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_cluster_pods_reset
+  changed_when: true
+  failed_when: false
+  when: "'masters' in group_names"
+  run_once: true
+
 - name: Создание локального каталога .kube
   ansible.builtin.file:
     path: ~/.kube
@@ -5713,7 +5758,7 @@ cat > ./roles/k3s_cluster/tasks/fetch_kubeconfig.yml <<'EOF'
     replace: "https://{{ hostvars[groups['masters'][0]]['ansible_host'] }}:6443"
   become: false
   delegate_to: localhost
-  run_once: true 
+  run_once: true
 
 - name: Перемещение итогового конфига в ~/.kube/config c Принудительной перезаписью
   ansible.builtin.command: mv -f ./tmp_kubeconfig_raw ~/.kube/config
@@ -5722,7 +5767,7 @@ cat > ./roles/k3s_cluster/tasks/fetch_kubeconfig.yml <<'EOF'
   changed_when: true
   args:
     removes: ./tmp_kubeconfig_raw
-  run_once: true 
+  run_once: true
 EOF
 ```
 
@@ -5752,13 +5797,13 @@ EOF
 ### Подготовка файлов архивов и манифестов для роль ansible
 
 ```bash
-# скачиваем манифест CNI calico (19.09.2026)
-curl -L https://raw.githubusercontent.com/projectcalico/calico/refs/heads/master/manifests/calico.yaml -o roles/k3s_cluster/files/calico.yaml
+# скачиваем манифест CNI calico (19.09.2026) - стабильного релиза v3.32.2
+curl -L https://raw.githubusercontent.com/projectcalico/calico/v3.32.2/manifests/calico.yaml -o roles/k3s_cluster/files/calico.yaml
 
 # скачиваем бинарный файл k3s (19.09.2026)
 curl -L https://github.com/k3s-io/k3s/releases/latest/download/k3s -o roles/k3s_cluster/files/k3s
 
-# скачиваем бинарный файл calicoctl  (19.09.2026)
+# скачиваем бинарный файл calicoctl (19.09.2026) - совместим с манифестом CNI calico
 curl -L https://github.com/projectcalico/calico/releases/latest/download/calicoctl-linux-amd64 -o roles/k3s_cluster/files/kubectl-calico
 
 # Скачиваем плагин cni (19.09.2026)
@@ -6010,296 +6055,300 @@ export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 </summary>
 
 ```log
-PLAY [Развертывание кластера K3s с Calico] ***********************************************************
+PLAY [Развертывание кластера K3s с Calico] ******************************************
 
-TASK [Gathering Facts] *******************************************************************************
-ok: [cl1pe91p5m9cgac980rd-uqan]
+TASK [Gathering Facts] **************************************************************
 ok: [cl1015remkdroropep9h-orys]
+ok: [cl1pe91p5m9cgac980rd-uqan]
 ok: [cl1015remkdroropep9h-ozaz]
 ok: [cl1015remkdroropep9h-opoc]
 
-TASK [k3s_cluster : Обновление кэша apt] *************************************************************
+TASK [k3s_cluster : Обновление кэша apt] ********************************************
 ok: [cl1015remkdroropep9h-ozaz]
+ok: [cl1015remkdroropep9h-orys]
 ok: [cl1pe91p5m9cgac980rd-uqan]
 ok: [cl1015remkdroropep9h-opoc]
-ok: [cl1015remkdroropep9h-orys]
 
-TASK [k3s_cluster : Обновление пакетов (dist-upgrade)] ***********************************************
+TASK [k3s_cluster : Обновление пакетов (dist-upgrade)] ******************************
 changed: [cl1015remkdroropep9h-orys]
 changed: [cl1015remkdroropep9h-ozaz]
-changed: [cl1pe91p5m9cgac980rd-uqan]
 changed: [cl1015remkdroropep9h-opoc]
+changed: [cl1pe91p5m9cgac980rd-uqan]
 
-TASK [k3s_cluster : Отключение swap] *****************************************************************
-ok: [cl1015remkdroropep9h-ozaz]
-ok: [cl1pe91p5m9cgac980rd-uqan]
-ok: [cl1015remkdroropep9h-opoc]
+TASK [k3s_cluster : Отключение swap] ************************************************
 ok: [cl1015remkdroropep9h-orys]
-
-TASK [k3s_cluster : Удаление записи swap из /etc/fstab] **********************************************
-ok: [cl1015remkdroropep9h-ozaz]
 ok: [cl1pe91p5m9cgac980rd-uqan]
+ok: [cl1015remkdroropep9h-ozaz]
 ok: [cl1015remkdroropep9h-opoc]
-ok: [cl1015remkdroropep9h-orys]
 
-TASK [k3s_cluster : Загрузка необходимых модулей ядра] ***********************************************
-changed: [cl1015remkdroropep9h-ozaz] => (item=overlay)
+TASK [k3s_cluster : Удаление записи swap из /etc/fstab] *****************************
+ok: [cl1015remkdroropep9h-orys]
+ok: [cl1pe91p5m9cgac980rd-uqan]
+ok: [cl1015remkdroropep9h-ozaz]
+ok: [cl1015remkdroropep9h-opoc]
+
+TASK [k3s_cluster : Загрузка необходимых модулей ядра] ******************************
+changed: [cl1015remkdroropep9h-orys] => (item=overlay)
 changed: [cl1pe91p5m9cgac980rd-uqan] => (item=overlay)
 changed: [cl1015remkdroropep9h-opoc] => (item=overlay)
-changed: [cl1015remkdroropep9h-ozaz] => (item=br_netfilter)
-changed: [cl1pe91p5m9cgac980rd-uqan] => (item=br_netfilter)
-changed: [cl1015remkdroropep9h-orys] => (item=overlay)
-changed: [cl1015remkdroropep9h-opoc] => (item=br_netfilter)
 changed: [cl1015remkdroropep9h-orys] => (item=br_netfilter)
+changed: [cl1pe91p5m9cgac980rd-uqan] => (item=br_netfilter)
+changed: [cl1015remkdroropep9h-opoc] => (item=br_netfilter)
+changed: [cl1015remkdroropep9h-ozaz] => (item=overlay)
+changed: [cl1015remkdroropep9h-ozaz] => (item=br_netfilter)
 
-TASK [k3s_cluster : Сохранение модулей ядра для автозагрузки] ****************************************
-changed: [cl1015remkdroropep9h-ozaz]
+TASK [k3s_cluster : Сохранение модулей ядра для автозагрузки] ***********************
 changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-ozaz]
 changed: [cl1015remkdroropep9h-opoc]
 changed: [cl1015remkdroropep9h-orys]
 
-TASK [k3s_cluster : Настройка параметров sysctl для сети Kubernetes] *********************************
-changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'net.bridge.bridge-nf-call-iptables', 'value': '1'})
+TASK [k3s_cluster : Настройка параметров sysctl для сети Kubernetes] ****************
+changed: [cl1015remkdroropep9h-orys] => (item={'name': 'net.bridge.bridge-nf-call-iptables', 'value': '1'})
 changed: [cl1pe91p5m9cgac980rd-uqan] => (item={'name': 'net.bridge.bridge-nf-call-iptables', 'value': '1'})
 changed: [cl1015remkdroropep9h-opoc] => (item={'name': 'net.bridge.bridge-nf-call-iptables', 'value': '1'})
-changed: [cl1015remkdroropep9h-orys] => (item={'name': 'net.bridge.bridge-nf-call-iptables', 'value': '1'})
-changed: [cl1pe91p5m9cgac980rd-uqan] => (item={'name': 'net.bridge.bridge-nf-call-ip6tables', 'value': '1'})
-changed: [cl1015remkdroropep9h-opoc] => (item={'name': 'net.bridge.bridge-nf-call-ip6tables', 'value': '1'})
-changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'net.bridge.bridge-nf-call-ip6tables', 'value': '1'})
 changed: [cl1015remkdroropep9h-orys] => (item={'name': 'net.bridge.bridge-nf-call-ip6tables', 'value': '1'})
+changed: [cl1015remkdroropep9h-opoc] => (item={'name': 'net.bridge.bridge-nf-call-ip6tables', 'value': '1'})
+changed: [cl1015remkdroropep9h-orys] => (item={'name': 'fs.inotify.max_user_watches', 'value': '1048576'})
+changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'net.bridge.bridge-nf-call-iptables', 'value': '1'})
+changed: [cl1pe91p5m9cgac980rd-uqan] => (item={'name': 'net.bridge.bridge-nf-call-ip6tables', 'value': '1'})
+changed: [cl1015remkdroropep9h-orys] => (item={'name': 'fs.inotify.max_user_instances', 'value': '1000000'})
+changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'net.bridge.bridge-nf-call-ip6tables', 'value': '1'})
+changed: [cl1015remkdroropep9h-orys] => (item={'name': 'net.ipv4.ip_forward', 'value': '1'})
 changed: [cl1015remkdroropep9h-opoc] => (item={'name': 'fs.inotify.max_user_watches', 'value': '1048576'})
-changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'fs.inotify.max_user_watches', 'value': '1048576'})
 changed: [cl1015remkdroropep9h-opoc] => (item={'name': 'fs.inotify.max_user_instances', 'value': '1000000'})
 changed: [cl1pe91p5m9cgac980rd-uqan] => (item={'name': 'fs.inotify.max_user_watches', 'value': '1048576'})
-changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'fs.inotify.max_user_instances', 'value': '1000000'})
-changed: [cl1015remkdroropep9h-orys] => (item={'name': 'fs.inotify.max_user_watches', 'value': '1048576'})
-changed: [cl1pe91p5m9cgac980rd-uqan] => (item={'name': 'fs.inotify.max_user_instances', 'value': '1000000'})
+changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'fs.inotify.max_user_watches', 'value': '1048576'})
 changed: [cl1015remkdroropep9h-opoc] => (item={'name': 'net.ipv4.ip_forward', 'value': '1'})
+changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'fs.inotify.max_user_instances', 'value': '1000000'})
+changed: [cl1pe91p5m9cgac980rd-uqan] => (item={'name': 'fs.inotify.max_user_instances', 'value': '1000000'})
 changed: [cl1015remkdroropep9h-ozaz] => (item={'name': 'net.ipv4.ip_forward', 'value': '1'})
 changed: [cl1pe91p5m9cgac980rd-uqan] => (item={'name': 'net.ipv4.ip_forward', 'value': '1'})
-changed: [cl1015remkdroropep9h-orys] => (item={'name': 'fs.inotify.max_user_instances', 'value': '1000000'})
-changed: [cl1015remkdroropep9h-orys] => (item={'name': 'net.ipv4.ip_forward', 'value': '1'})
 
-TASK [k3s_cluster : Копирование бинарного файла K3s] *************************************************
-changed: [cl1015remkdroropep9h-ozaz]
+TASK [k3s_cluster : Копирование бинарного файла K3s] ********************************
 changed: [cl1015remkdroropep9h-orys]
-changed: [cl1pe91p5m9cgac980rd-uqan]
-changed: [cl1015remkdroropep9h-opoc]
-
-TASK [k3s_cluster : Создание символической ссылки для kubectl] ***************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
 changed: [cl1015remkdroropep9h-ozaz]
-changed: [cl1015remkdroropep9h-orys]
-changed: [cl1015remkdroropep9h-opoc]
-
-TASK [k3s_cluster : Копирование архива Helm] *********************************************************
-changed: [cl1015remkdroropep9h-ozaz]
-changed: [cl1015remkdroropep9h-orys]
-changed: [cl1pe91p5m9cgac980rd-uqan]
-changed: [cl1015remkdroropep9h-opoc]
-
-TASK [k3s_cluster : Распаковка Helm] *****************************************************************
-changed: [cl1015remkdroropep9h-ozaz]
-changed: [cl1pe91p5m9cgac980rd-uqan]
-changed: [cl1015remkdroropep9h-opoc]
-changed: [cl1015remkdroropep9h-orys]
-
-TASK [k3s_cluster : Перемещение Helm в /usr/local/bin] ***********************************************
-changed: [cl1015remkdroropep9h-orys]
-changed: [cl1015remkdroropep9h-opoc]
-changed: [cl1015remkdroropep9h-ozaz]
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Копирование архива CNI плагинов] *************************************************
-changed: [cl1015remkdroropep9h-ozaz]
-changed: [cl1015remkdroropep9h-orys]
 changed: [cl1015remkdroropep9h-opoc]
 changed: [cl1pe91p5m9cgac980rd-uqan]
 
-TASK [k3s_cluster : Создание директории для CNI плагинов] ********************************************
-changed: [cl1015remkdroropep9h-ozaz]
+TASK [k3s_cluster : Создание символической ссылки для kubectl] **********************
 changed: [cl1015remkdroropep9h-orys]
 changed: [cl1pe91p5m9cgac980rd-uqan]
 changed: [cl1015remkdroropep9h-opoc]
-
-TASK [k3s_cluster : Распаковка CNI плагинов в /opt/cni/bin] ******************************************
-changed: [cl1015remkdroropep9h-orys]
 changed: [cl1015remkdroropep9h-ozaz]
-changed: [cl1pe91p5m9cgac980rd-uqan]
-changed: [cl1015remkdroropep9h-opoc]
 
-TASK [k3s_cluster : Установка утилиты calicoctl] *****************************************************
-changed: [cl1015remkdroropep9h-orys]
-changed: [cl1pe91p5m9cgac980rd-uqan]
-changed: [cl1015remkdroropep9h-ozaz]
-changed: [cl1015remkdroropep9h-opoc]
-
-TASK [k3s_cluster : Создание каталога конфигурации K3s] **********************************************
+TASK [k3s_cluster : Копирование архива Helm] ****************************************
 changed: [cl1pe91p5m9cgac980rd-uqan]
 changed: [cl1015remkdroropep9h-orys]
 changed: [cl1015remkdroropep9h-ozaz]
 changed: [cl1015remkdroropep9h-opoc]
 
-TASK [k3s_cluster : Развертывание конфигурации master-узла] ******************************************
+TASK [k3s_cluster : Распаковка Helm] ************************************************
+changed: [cl1015remkdroropep9h-opoc]
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-ozaz]
+
+TASK [k3s_cluster : Перемещение Helm в /usr/local/bin] ******************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-ozaz]
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1015remkdroropep9h-opoc]
+
+TASK [k3s_cluster : Копирование архива CNI плагинов] ********************************
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-ozaz]
+changed: [cl1015remkdroropep9h-opoc]
+
+TASK [k3s_cluster : Создание директории для CNI плагинов] ***************************
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-ozaz]
+changed: [cl1015remkdroropep9h-opoc]
+
+TASK [k3s_cluster : Распаковка CNI плагинов в /opt/cni/bin] *************************
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-opoc]
+changed: [cl1015remkdroropep9h-ozaz]
+
+TASK [k3s_cluster : Установка утилиты calicoctl] ************************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-ozaz]
+changed: [cl1015remkdroropep9h-opoc]
+changed: [cl1015remkdroropep9h-orys]
+
+TASK [k3s_cluster : Создание каталога конфигурации K3s] *****************************
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1015remkdroropep9h-ozaz]
+changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-opoc]
+
+TASK [k3s_cluster : Развертывание конфигурации master-узла] *************************
 skipping: [cl1015remkdroropep9h-ozaz]
 skipping: [cl1015remkdroropep9h-opoc]
 skipping: [cl1015remkdroropep9h-orys]
 changed: [cl1pe91p5m9cgac980rd-uqan]
 
-TASK [k3s_cluster : Развертывание конфигурации worker-узла] ******************************************
+TASK [k3s_cluster : Развертывание конфигурации worker-узла] *************************
 skipping: [cl1pe91p5m9cgac980rd-uqan]
 changed: [cl1015remkdroropep9h-orys]
 changed: [cl1015remkdroropep9h-ozaz]
 changed: [cl1015remkdroropep9h-opoc]
 
-TASK [k3s_cluster : Развертывание systemd единицы для Master] ****************************************
-skipping: [cl1015remkdroropep9h-ozaz]
-skipping: [cl1015remkdroropep9h-opoc]
-skipping: [cl1015remkdroropep9h-orys]
-changed: [cl1pe91p5m9cgac980rd-uqan]
+TASK [k3s_cluster : Определение имени службы K3s через facts] ***********************
+ok: [cl1pe91p5m9cgac980rd-uqan]
+ok: [cl1015remkdroropep9h-ozaz]
+ok: [cl1015remkdroropep9h-opoc]
+ok: [cl1015remkdroropep9h-orys]
 
-TASK [k3s_cluster : Развертывание systemd единицы для Worker] ****************************************
-skipping: [cl1pe91p5m9cgac980rd-uqan]
+TASK [k3s_cluster : Копирование скрипта установки K3s на узел] **********************
+changed: [cl1pe91p5m9cgac980rd-uqan]
 changed: [cl1015remkdroropep9h-orys]
 changed: [cl1015remkdroropep9h-ozaz]
 changed: [cl1015remkdroropep9h-opoc]
 
-TASK [k3s_cluster : Определение имени службы K3s] ****************************************************
-ok: [cl1pe91p5m9cgac980rd-uqan]
-ok: [cl1015remkdroropep9h-ozaz]
-ok: [cl1015remkdroropep9h-opoc]
-ok: [cl1015remkdroropep9h-orys]
-
-TASK [k3s_cluster : Перезагрузка демонов systemd] ****************************************************
-ok: [cl1015remkdroropep9h-orys]
-ok: [cl1pe91p5m9cgac980rd-uqan]
-ok: [cl1015remkdroropep9h-opoc]
-ok: [cl1015remkdroropep9h-ozaz]
-
-TASK [k3s_cluster : Инициализация K3s Server через официальный скрипт install.sh] ********************
+TASK [k3s_cluster : Инициализация K3s Server через официальный скрипт install.sh] ***
 skipping: [cl1015remkdroropep9h-ozaz]
 skipping: [cl1015remkdroropep9h-opoc]
 skipping: [cl1015remkdroropep9h-orys]
 ok: [cl1pe91p5m9cgac980rd-uqan]
 
-TASK [k3s_cluster : Инициализация K3s Agent через install.sh] ****************************************
+TASK [k3s_cluster : Обеспечение первого запуска службы K3s на мастер] ***************
+skipping: [cl1015remkdroropep9h-ozaz]
+skipping: [cl1015remkdroropep9h-opoc]
+skipping: [cl1015remkdroropep9h-orys]
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Ожидание готовности API K3s на мастере] *************************
 skipping: [cl1pe91p5m9cgac980rd-uqan]
+ok: [cl1015remkdroropep9h-orys]
 ok: [cl1015remkdroropep9h-ozaz]
 ok: [cl1015remkdroropep9h-opoc]
-ok: [cl1015remkdroropep9h-orys]
 
-TASK [k3s_cluster : Обеспечение запуска службы K3s (enabled, started)] *******************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-[ERROR]: Task failed: Timed out after 120 second(s).
-Origin: /home/shoel/nfs_git/gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/config.yml:76:3
-
-74   changed_when: false
-75
-76 - name: Обеспечение запуска службы K3s (enabled, started)
-     ^ column 3
-
-fatal: [cl1015remkdroropep9h-ozaz]: FAILED! => 
-    changed: false
-    msg: 'Task failed: Timed out after 120 second(s).'
-    timedout:
-        frame: Configure `DISPLAY_TRACEBACK` to see a traceback on timeout errors.
-        period: 120
-fatal: [cl1015remkdroropep9h-orys]: FAILED! => 
-    changed: false
-    msg: 'Task failed: Timed out after 120 second(s).'
-    timedout:
-        frame: Configure `DISPLAY_TRACEBACK` to see a traceback on timeout errors.
-        period: 120
-fatal: [cl1015remkdroropep9h-opoc]: FAILED! => 
-    changed: false
-    msg: 'Task failed: Timed out after 120 second(s).'
-    timedout:
-        frame: Configure `DISPLAY_TRACEBACK` to see a traceback on timeout errors.
-        period: 120
-
-TASK [k3s_cluster : Ожидание доступности порта API K3s Master] ***************************************
-ok: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Упрощенная Проверка доступности API K3s] *****************************************
-ok: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Пауза для стабилизации мастера перед стартом воркеров] ***************************
-ok: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Удаление Helm релиза Traefik] ****************************************************
-ok: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Удаление Deployment Traefik] *****************************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Удаление DaemonSet ServiceLB] ****************************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Удаление Deployment Metrics Server] **********************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Удаление ConfigMap ServiceLB] ****************************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Проверка статуса службы K3s] *****************************************************
-ok: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Вывод логов при ошибке запуска] **************************************************
+TASK [k3s_cluster : Инициализация K3s Agent через install.sh] ***********************
 skipping: [cl1pe91p5m9cgac980rd-uqan]
+ok: [cl1015remkdroropep9h-orys]
+ok: [cl1015remkdroropep9h-opoc]
+ok: [cl1015remkdroropep9h-ozaz]
 
-TASK [k3s_cluster : Копирование манифеста Calico на мастер-ноду] *************************************
+TASK [k3s_cluster : Перезагрузка после применения скрипта] **************************
+skipping: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1015remkdroropep9h-opoc]
+changed: [cl1015remkdroropep9h-ozaz]
+
+TASK [k3s_cluster : Обеспечение запуска службы K3s (enabled, started)] **************
 changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1015remkdroropep9h-ozaz]
+changed: [cl1015remkdroropep9h-opoc]
 
-TASK [k3s_cluster : Применение полного манифеста Calico] *********************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Ожидание появления подов Calico Node] ********************************************
+TASK [k3s_cluster : Ожидание доступности порта API K3s Master] **********************
 ok: [cl1pe91p5m9cgac980rd-uqan]
 
-TASK [k3s_cluster : Удаление дефолтного IPPool] ******************************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Развертывание манифеста Calico IPPool из шаблона] ********************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Применение корректного Calico IPPool] ********************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Очистка временного файла] ********************************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Копирование манифеста ingress-nginx на мастер-ноду] ******************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Применение полного манифеста ingress-nginx] **************************************
-changed: [cl1pe91p5m9cgac980rd-uqan]
-
-TASK [k3s_cluster : Ожидание готовности подов ingress-nginx controller] ******************************
+TASK [k3s_cluster : Упрощенная Проверка доступности API K3s] ************************
 ok: [cl1pe91p5m9cgac980rd-uqan]
 
-TASK [k3s_cluster : Очистка временного файла манифеста ingress-nginx] ********************************
+TASK [k3s_cluster : Пауза для стабилизации мастера перед стартом воркеров] **********
+ok: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Удаление Helm релиза Traefik] ***********************************
+ok: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Удаление Deployment Traefik] ************************************
 changed: [cl1pe91p5m9cgac980rd-uqan]
 
-TASK [k3s_cluster : Создание локального каталога .kube] **********************************************
+TASK [k3s_cluster : Удаление DaemonSet ServiceLB] ***********************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Удаление Deployment Metrics Server] *****************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Удаление ConfigMap ServiceLB] ***********************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Принудительный перезапуск подов kube-system для применения корректных CIDR] ***
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Проверка статуса службы K3s] ************************************
+ok: [cl1015remkdroropep9h-orys]
+ok: [cl1pe91p5m9cgac980rd-uqan]
+ok: [cl1015remkdroropep9h-opoc]
+ok: [cl1015remkdroropep9h-ozaz]
+
+TASK [k3s_cluster : Вывод логов при ошибке запуска] *********************************
+skipping: [cl1pe91p5m9cgac980rd-uqan]
+skipping: [cl1015remkdroropep9h-ozaz]
+skipping: [cl1015remkdroropep9h-opoc]
+skipping: [cl1015remkdroropep9h-orys]
+
+TASK [k3s_cluster : Остановка прогона при неудачном старте службы на мастере] *******
+skipping: [cl1pe91p5m9cgac980rd-uqan]
+skipping: [cl1015remkdroropep9h-ozaz]
+skipping: [cl1015remkdroropep9h-opoc]
+skipping: [cl1015remkdroropep9h-orys]
+
+TASK [k3s_cluster : Копирование манифеста Calico на мастер-ноду] ********************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Применение полного манифеста Calico] ****************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Ожидание появления подов Calico Node] ***************************
+ok: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Удаление дефолтного IPPool] *************************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Развертывание манифеста Calico IPPool из шаблона] ***************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Применение корректного Calico IPPool] ***************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Очистка временного файла] ***************************************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Копирование манифеста ingress-nginx на мастер-ноду] *************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Применение полного манифеста ingress-nginx] *********************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Ожидание готовности подов ingress-nginx controller] *************
+ok: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Очистка временного файла манифеста ingress-nginx] ***************
+changed: [cl1pe91p5m9cgac980rd-uqan]
+
+TASK [k3s_cluster : Создание локального каталога .kube] *****************************
 ok: [cl1pe91p5m9cgac980rd-uqan -> localhost]
+ok: [cl1015remkdroropep9h-ozaz -> localhost]
+ok: [cl1015remkdroropep9h-opoc -> localhost]
+ok: [cl1015remkdroropep9h-orys -> localhost]
 
-TASK [k3s_cluster : Получение kubeconfig с master-узла] **********************************************
+TASK [k3s_cluster : Получение kubeconfig с master-узла] *****************************
 changed: [cl1pe91p5m9cgac980rd-uqan]
 
-TASK [k3s_cluster : Замена IP сервера в kubeconfig на IP NLB] ****************************************
+TASK [k3s_cluster : Замена IP сервера в kubeconfig на IP NLB] ***********************
 changed: [cl1pe91p5m9cgac980rd-uqan -> localhost]
 
-TASK [k3s_cluster : Перемещение итогового конфига в ~/.kube/config c Принудительной перезаписью] *****
+TASK [k3s_cluster : Перемещение итогового конфига в ~/.kube/config c Принудительной перезаписью] ***
 changed: [cl1pe91p5m9cgac980rd-uqan -> localhost]
 
-RUNNING HANDLER [k3s_cluster : Перезапуск K3s] *******************************************************
+RUNNING HANDLER [k3s_cluster : Перезапуск K3s] **************************************
 changed: [cl1pe91p5m9cgac980rd-uqan]
+changed: [cl1015remkdroropep9h-orys]
+changed: [cl1015remkdroropep9h-ozaz]
+changed: [cl1015remkdroropep9h-opoc]
 
-PLAY RECAP *******************************************************************************************
-cl1015remkdroropep9h-opoc  : ok=23   changed=16   unreachable=0    failed=1    skipped=3    rescued=0    ignored=0   
-cl1015remkdroropep9h-orys  : ok=23   changed=16   unreachable=0    failed=1    skipped=3    rescued=0    ignored=0   
-cl1015remkdroropep9h-ozaz  : ok=23   changed=16   unreachable=0    failed=1    skipped=3    rescued=0    ignored=0   
-cl1pe91p5m9cgac980rd-uqan  : ok=49   changed=34   unreachable=0    failed=0    skipped=4    rescued=0    ignored=0 
+PLAY RECAP **************************************************************************
+cl1015remkdroropep9h-opoc  : ok=28   changed=19   unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+cl1015remkdroropep9h-orys  : ok=28   changed=19   unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+cl1015remkdroropep9h-ozaz  : ok=28   changed=19   unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+cl1pe91p5m9cgac980rd-uqan  : ok=50   changed=36   unreachable=0    failed=0    skipped=6    rescued=0    ignored=0 
 ```
 
 <details>
