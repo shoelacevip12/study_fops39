@@ -1,0 +1,3 @@
+---
+# Переменные по умолчанию для роли k3s_cluster
+k3s_cluster_dist_upd: true

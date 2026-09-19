@@ -1,0 +1,21 @@
+---
+- name: Подключение предварительных задач
+  ansible.builtin.import_tasks: prereq.yml
+  tags: ['prereq']
+
+- name: Подключение установки
+  ansible.builtin.import_tasks: install.yml
+  tags: ['install', 'k3s']
+
+- name: Подключение настройки
+  ansible.builtin.import_tasks: config.yml
+  tags: ['config', 'k3s']
+
+- name: Установка Calico CNI
+  ansible.builtin.import_tasks: calico.yml
+  when: "'flannel' in k3s_disable_components"
+  tags: ['network', 'calico']
+
+- name: Получение kubeconfig
+  ansible.builtin.import_tasks: fetch_kubeconfig.yml
+  tags: ['kubeconfig']
