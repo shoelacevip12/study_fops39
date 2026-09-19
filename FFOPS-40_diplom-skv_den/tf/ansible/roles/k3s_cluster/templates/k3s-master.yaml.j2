@@ -6,10 +6,12 @@ tls-san:
   - {{ hostvars[groups['masters'][0]]['ansible_host'] }}
 
 # Отключение компонентов
-{% for comp in k3s_disable_components %}
+{% if k3s_disable_components %}
 disable:
+{% for comp in k3s_disable_components %}
   - {{ comp }}
 {% endfor %}
+{% endif %}
 flannel-backend: none
 disable-network-policy: false
 cluster-cidr: {{ cluster_cidr }}

@@ -45,6 +45,14 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
+- name: Ожидание готовности API K3s на мастере (для воркеров)
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}"
+    port: 6443
+    timeout: 300
+    delay: 5
+  when: "'workers' in group_names"
+
 - name: Инициализация K3s Server через официальный скрипт install.sh
   ansible.builtin.command: >
     /bin/bash {{ role_path }}/files/install.sh server
@@ -79,7 +87,7 @@
     enabled: true
     state: started
     daemon_reload: false
-  timeout: 120
+  timeout: 600
 
 - name: Ожидание доступности порта API K3s Master
   ansible.builtin.wait_for:
@@ -97,9 +105,9 @@
     status_code: [200, 401, 403, 503]
     validate_certs: false
   register: k3s_cluster_api_check
-  retries: 5
+  retries: 30
   delay: 5
-  until: k3s_cluster_api_check is defined
+  until: k3s_cluster_api_check.status == 200
   when: "'masters' in group_names"
   run_once: true
   changed_when: false
