@@ -59,7 +59,7 @@
 - name: Установка утилиты calicoctl
   ansible.builtin.copy:
     src: kubectl-calico
-    dest: /usr/local/bin/kubectl-calico
+    dest: /usr/local/bin/calicoctl
     mode: '0755'
     owner: root
     group: root

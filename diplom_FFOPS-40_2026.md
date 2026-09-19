@@ -4282,7 +4282,7 @@ users:
     ssh_authorized_keys:
       - ${ssh_public_key}
 ssh_pwauth: false
-package_update: true
+package_update: false
 package_upgrade: false
 EOF
 ```
@@ -5024,6 +5024,11 @@ cat > ./roles/k3s_cluster/tasks/main.yml <<'EOF'
   when: "'flannel' in k3s_disable_components"
   tags: ['network', 'calico']
 
+- name: Установка Ingress Controller
+  ansible.builtin.import_tasks: ingress_nginx.yml
+  when: "'traefik' in k3s_disable_components"
+  tags: ['ingress', 'network']
+
 - name: Получение kubeconfig
   ansible.builtin.import_tasks: fetch_kubeconfig.yml
   tags: ['kubeconfig']
@@ -5168,7 +5173,7 @@ cat > ./roles/k3s_cluster/tasks/install.yml <<'EOF'
 - name: Установка утилиты calicoctl
   ansible.builtin.copy:
     src: kubectl-calico
-    dest: /usr/local/bin/kubectl-calico
+    dest: /usr/local/bin/calicoctl
     mode: '0755'
     owner: root
     group: root
@@ -5299,6 +5304,49 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
     timeout: 20
   when: "'masters' in group_names"
   run_once: true
+
+- name: Очистка лишних компонентов K3s первого запуска
+  when: "'masters' in group_names"
+  run_once: true
+  block:
+    - name: Удаление Helm релиза Traefik
+      ansible.builtin.command: >
+        helm uninstall traefik -n kube-system
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: k3s_cluster_helm_uninstall_traefik
+      changed_when: "'uninstalled' in k3s_cluster_helm_uninstall_traefik.stdout"
+      failed_when: false
+      when: "'masters' in group_names"
+      run_once: true
+
+    - name: Удаление Deployment Traefik
+      ansible.builtin.command: kubectl delete deployment traefik -n kube-system --ignore-not-found=true
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+      failed_when: false
+
+    - name: Удаление DaemonSet ServiceLB
+      ansible.builtin.command: kubectl delete daemonset svclb-traefik -n kube-system --ignore-not-found=true
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+      failed_when: false
+
+    - name: Удаление Deployment Metrics Server
+      ansible.builtin.command: kubectl delete deployment metrics-server -n kube-system --ignore-not-found=true
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+      failed_when: false
+
+    - name: Удаление ConfigMap ServiceLB
+      ansible.builtin.command: kubectl delete configmap servicelb-namespace -n kube-system --ignore-not-found=true
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+      failed_when: false
 
 - name: Проверка статуса службы K3s
   ansible.builtin.systemd:
@@ -5571,6 +5619,60 @@ EOF
 
 <details>
 
+### Установка ingress nginx через файл manifest
+
+<details>
+<summary>
+`yaml' Установка ingress nginx через файл manifest
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/tasks/ingress_nginx.yml <<'EOF'
+---
+- name: Копирование манифеста ingress-nginx на мастер-ноду
+  ansible.builtin.copy:
+    src: ingress-nginx.yaml
+    dest: /tmp/ingress-nginx-manifest.yaml
+    mode: '0644'
+  when: "'masters' in group_names"
+  run_once: true
+
+- name: Применение полного манифеста ingress-nginx
+  ansible.builtin.command: >
+    kubectl apply -f /tmp/ingress-nginx-manifest.yaml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: "'masters' in group_names"
+  run_once: true
+  register: k3s_cluster_ingress_nginx_apply_result
+  changed_when: "'created' in k3s_cluster_ingress_nginx_apply_result.stdout or 'configured' in k3s_cluster_ingress_nginx_apply_result.stdout"
+
+- name: Ожидание готовности подов ingress-nginx controller
+  ansible.builtin.command: >
+    kubectl wait --namespace ingress-nginx -l app.kubernetes.io/component=controller --for=condition=Ready pod --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: "'masters' in group_names"
+  run_once: true
+  changed_when: false
+  failed_when: false
+  register: k3s_cluster_ingress_nginx_wait_result
+  retries: 2
+  delay: 30
+  until: k3s_cluster_ingress_nginx_wait_result.rc == 0
+
+- name: Очистка временного файла манифеста ingress-nginx
+  ansible.builtin.file:
+    path: /tmp/ingress-nginx-manifest.yaml
+    state: absent
+  when: "'masters' in group_names"
+  run_once: true
+
+EOF
+```
+
+<details>
+
 ### Сборка локального `~/.kube/config`
 
 <details>
@@ -5654,11 +5756,12 @@ curl -L https://github.com/projectcalico/calico/releases/latest/download/calicoc
 
 # Скачиваем плагин cni (19.09.2026)
 curl -L "https://github.com/containernetworking/plugins/releases/download/v1.9.1/cni-plugins-linux-amd64-v1.9.1.tgz" -o roles/k3s_cluster/files/cni-plugins-linux-amd64.tgz
-z
+
 # скачиваем бинарный файл helm  (19.09.2026)
 curl -L https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz -o roles/k3s_cluster/files/helm.tar.gz
 
-"https://github.com/containernetworking/plugins/releases/download/v1.9.1/cni-plugins-linux-amd64-v1.9.1.tgz" -o roles/k3s_cluster/files/cni-plugins-linux-amd64.tgz
+# скачиваем манифест CNI ingress-nginx (19.09.2026)
+curl -L https://raw.githubusercontent.com/kubernetes/ingress-nginx/refs/heads/main/deploy/static/provider/baremetal/deploy.yaml -o roles/k3s_cluster/files/ingress-nginx.yaml
 ```
 
 ### Проверки собравшегося проекта в данном каталоге
@@ -5695,26 +5798,23 @@ ansible -m ping  all
 ```log
 playbook: playbook_main.yaml
 
-Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last profile that met the validation criteria was 'production'.
+Passed: 0 failure(s), 0 warning(s) in 12 files processed of 12 encountered. Last profile that met the validation criteria was 'production'.
 @all:
   |--@ungrouped:
   |--@masters:
   |  |--cl1pe91p5m9cgac980rd-uqan
   |--@workers:
-  |  |--cl1015remkdroropep9h-awad
   |  |--cl1015remkdroropep9h-ozaz
   |  |--cl1015remkdroropep9h-opoc
+  |  |--cl1015remkdroropep9h-orys
 {
     "_meta": {
         "hostvars": {
-            "cl1015remkdroropep9h-awad": {
-                "CNI_version": "v1.9.1",
-                "ansible_host": "10.10.10.20",
+            "cl1015remkdroropep9h-opoc": {
+                "ansible_host": "10.10.10.52",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
-                "calico_cidr": "10.20.0.0/16",
                 "cluster_cidr": "10.20.0.0/16",
-                "helm_version": "v4.3.0",
                 "k3s_disable_components": [
                     "traefik",
                     "servicelb",
@@ -5722,17 +5822,13 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
                     "flannel"
                 ],
                 "k3s_token": "DiplomK8sSecretToken2024!",
-                "k3s_version": "v1.37.0+k3s1",
                 "service_cidr": "10.21.0.0/16"
             },
-            "cl1015remkdroropep9h-opoc": {
-                "CNI_version": "v1.9.1",
-                "ansible_host": "10.10.10.62",
+            "cl1015remkdroropep9h-orys": {
+                "ansible_host": "10.10.10.26",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
-                "calico_cidr": "10.20.0.0/16",
                 "cluster_cidr": "10.20.0.0/16",
-                "helm_version": "v4.3.0",
                 "k3s_disable_components": [
                     "traefik",
                     "servicelb",
@@ -5740,17 +5836,13 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
                     "flannel"
                 ],
                 "k3s_token": "DiplomK8sSecretToken2024!",
-                "k3s_version": "v1.37.0+k3s1",
                 "service_cidr": "10.21.0.0/16"
             },
             "cl1015remkdroropep9h-ozaz": {
-                "CNI_version": "v1.9.1",
-                "ansible_host": "10.10.10.36",
+                "ansible_host": "10.10.10.37",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
-                "calico_cidr": "10.20.0.0/16",
                 "cluster_cidr": "10.20.0.0/16",
-                "helm_version": "v4.3.0",
                 "k3s_disable_components": [
                     "traefik",
                     "servicelb",
@@ -5758,17 +5850,13 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
                     "flannel"
                 ],
                 "k3s_token": "DiplomK8sSecretToken2024!",
-                "k3s_version": "v1.37.0+k3s1",
                 "service_cidr": "10.21.0.0/16"
             },
             "cl1pe91p5m9cgac980rd-uqan": {
-                "CNI_version": "v1.9.1",
                 "ansible_host": "81.26.179.3",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
-                "calico_cidr": "10.20.0.0/16",
                 "cluster_cidr": "10.20.0.0/16",
-                "helm_version": "v4.3.0",
                 "k3s_disable_components": [
                     "traefik",
                     "servicelb",
@@ -5776,7 +5864,6 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
                     "flannel"
                 ],
                 "k3s_token": "DiplomK8sSecretToken2024!",
-                "k3s_version": "v1.37.0+k3s1",
                 "service_cidr": "10.21.0.0/16"
             }
         },
@@ -5796,9 +5883,9 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
     },
     "workers": {
         "hosts": [
-            "cl1015remkdroropep9h-awad",
             "cl1015remkdroropep9h-ozaz",
-            "cl1015remkdroropep9h-opoc"
+            "cl1015remkdroropep9h-opoc",
+            "cl1015remkdroropep9h-orys"
         ]
     }
 }
@@ -5817,6 +5904,7 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
 │       │   ├── calico.yaml
 │       │   ├── cni-plugins-linux-amd64.tgz
 │       │   ├── helm.tar.gz
+│       │   ├── ingress-nginx.yaml
 │       │   ├── install.sh
 │       │   ├── k3s
 │       │   └── kubectl-calico
@@ -5829,6 +5917,7 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
 │       │   ├── calico.yml
 │       │   ├── config.yml
 │       │   ├── fetch_kubeconfig.yml
+│       │   ├── ingress_nginx.yml
 │       │   ├── install.yml
 │       │   ├── main.yml
 │       │   └── prereq.yml
@@ -5842,14 +5931,8 @@ Passed: 0 failure(s), 0 warning(s) in 11 files processed of 11 encountered. Last
 │           └── main.yml
 └── tmp
 
-13 directories, 26 files
-
+13 directories, 28 files
 cl1pe91p5m9cgac980rd-uqan | SUCCESS => 
-    ansible_facts:
-        discovered_interpreter_python: /usr/bin/python3.13
-    changed: false
-    ping: pong
-cl1015remkdroropep9h-awad | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
@@ -5860,6 +5943,11 @@ cl1015remkdroropep9h-ozaz | SUCCESS =>
     changed: false
     ping: pong
 cl1015remkdroropep9h-opoc | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.13
+    changed: false
+    ping: pong
+cl1015remkdroropep9h-orys | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
@@ -5922,6 +6010,14 @@ export ANSIBLE_CALLBACK_RESULT_FORMAT=yaml
 ### Проверка развернутого кластера
 
 ```bash
+helm uninstall traefik -n kube-system
+
+kubectl delete daemonset svclb-traefik -n kube-system
+
+kubectl delete deployment traefik -n kube-system
+
+kubectl delete deployment metrics-server -n kube-syste
+
 cat ~/.kube/config
 
 kubectl config get-contexts

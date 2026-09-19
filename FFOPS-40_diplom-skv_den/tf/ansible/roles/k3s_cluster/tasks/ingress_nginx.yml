@@ -1,0 +1,39 @@
+---
+- name: Копирование манифеста ingress-nginx на мастер-ноду
+  ansible.builtin.copy:
+    src: ingress-nginx.yaml
+    dest: /tmp/ingress-nginx-manifest.yaml
+    mode: '0644'
+  when: "'masters' in group_names"
+  run_once: true
+
+- name: Применение полного манифеста ingress-nginx
+  ansible.builtin.command: >
+    kubectl apply -f /tmp/ingress-nginx-manifest.yaml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: "'masters' in group_names"
+  run_once: true
+  register: k3s_cluster_ingress_nginx_apply_result
+  changed_when: "'created' in k3s_cluster_ingress_nginx_apply_result.stdout or 'configured' in k3s_cluster_ingress_nginx_apply_result.stdout"
+
+- name: Ожидание готовности подов ingress-nginx controller
+  ansible.builtin.command: >
+    kubectl wait --namespace ingress-nginx -l app.kubernetes.io/component=controller --for=condition=Ready pod --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: "'masters' in group_names"
+  run_once: true
+  changed_when: false
+  failed_when: false
+  register: k3s_cluster_ingress_nginx_wait_result
+  retries: 2
+  delay: 30
+  until: k3s_cluster_ingress_nginx_wait_result.rc == 0
+
+- name: Очистка временного файла манифеста ingress-nginx
+  ansible.builtin.file:
+    path: /tmp/ingress-nginx-manifest.yaml
+    state: absent
+  when: "'masters' in group_names"
+  run_once: true

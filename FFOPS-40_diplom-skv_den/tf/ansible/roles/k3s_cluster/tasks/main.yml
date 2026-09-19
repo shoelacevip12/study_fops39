@@ -16,6 +16,11 @@
   when: "'flannel' in k3s_disable_components"
   tags: ['network', 'calico']
 
+- name: Установка Ingress Controller
+  ansible.builtin.import_tasks: ingress_nginx.yml
+  when: "'traefik' in k3s_disable_components"
+  tags: ['ingress', 'network']
+
 - name: Получение kubeconfig
   ansible.builtin.import_tasks: fetch_kubeconfig.yml
   tags: ['kubeconfig']
