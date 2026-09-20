@@ -1,3 +1,31 @@
 ---
-# Переменные по умолчанию для роли k3s_cluster
+# Обновление пакетов при первом развертывании
 k3s_cluster_dist_upd: true
+
+# Сетевые настройки кластера (pod/service CIDR)
+k3s_cluster_cidr: "10.20.0.0/16"
+k3s_cluster_service_cidr: "10.21.0.0/16"
+
+# Порт API-сервера K3s (wait_for, healthcheck, конфиг воркеров)
+k3s_cluster_api_port: "6443"
+
+# Пути конфигурации K3s на узлах
+k3s_cluster_kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+k3s_cluster_config_path: "/etc/rancher/k3s/config.yaml"
+
+# Отключаемые компоненты K3s
+k3s_cluster_disable_components:
+  - traefik
+  - servicelb
+  - metrics-server
+  - flannel
+
+# Настройки мониторинга (kube-prometheus-stack)
+k3s_cluster_monitoring_namespace: "monitoring"
+k3s_cluster_monitoring_release_name: "prometheus-stack"
+k3s_cluster_monitoring_chart_version: "" # Пусто = последняя версия, или конкретная - "62.5.0"
+k3s_cluster_prometheus_community_repo_url: "https://prometheus-community.github.io/helm-charts"
+
+# Доступ к Grafana через NodePort
+k3s_cluster_grafana_service_type: "NodePort"
+k3s_cluster_grafana_node_port: 30080

@@ -3,7 +3,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: grafana-ingress
-  namespace: {{ monitoring_namespace }}
+  namespace: {{ k3s_cluster_monitoring_namespace }}
 spec:
   ingressClassName: nginx
   rules:
@@ -14,6 +14,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ monitoring_release_name }}-grafana
+            name: {{ k3s_cluster_monitoring_release_name }}-grafana
             port:
               number: 80

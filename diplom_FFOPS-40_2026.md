@@ -4970,43 +4970,17 @@ EOF
 ```yaml
 cat > ./group_vars/all.yml <<'EOF'
 ---
+# - настраиваемые параметры -> roles/k3s_cluster/defaults/main.yml
+# - константы роли -> roles/k3s_cluster/vars/main.yml
+#
+# Секреты (k3s_token, grafana_admin_user/password)
+# зашифрованы в ./group_vars/all/vault
+# расшифровываются из ansible.cfg -> vault_password_file = ./va_pa
+
 # Версии
 # k3s_version: "v1.37.0+k3s1"
 # helm_version: "v4.3.0"
 # CNI_version: "v1.9.1"
-
-# (перенесено в ./group_vars/all/vault )
-# k3s_token: "DiplomK8sFops40Token2026!"
-# grafana_admin_user: "admin"
-# grafana_admin_password: "DiplomGrafana2026!"
-
-# Сетевые настройки
-cluster_cidr: "10.20.0.0/16"
-service_cidr: "10.21.0.0/16"
-
-# Порт API-сервера K3s
-k3s_api_port: "6443"
-
-# Пути конфигурации K3s на узлах
-kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
-k3s_config_path: "/etc/rancher/k3s/config.yaml"
-
-# Отключаемые компоненты K3s
-k3s_disable_components:
-  - traefik
-  - servicelb
-  - metrics-server
-  - flannel
-
-# Настройки мониторинга
-monitoring_namespace: "monitoring"
-monitoring_release_name: "prometheus-stack"
-monitoring_chart_version: "" # Пусто = последняя версия, или конкретная как пример - "62.5.0"
-prometheus_community_repo_url: "https://prometheus-community.github.io/helm-charts"
-
-# Доступ к Grafana через NodePort
-grafana_service_type: "NodePort"
-grafana_node_port: 30080
 EOF
 ```
 
@@ -5080,8 +5054,53 @@ ansible-vault edit \
 ```yaml
 cat > ./roles/k3s_cluster/defaults/main.yml <<'EOF'
 ---
-# Переменные по умолчанию для роли k3s_cluster
+# Обновление пакетов при первом развертывании
 k3s_cluster_dist_upd: true
+
+# Сетевые настройки кластера (pod/service CIDR)
+k3s_cluster_cidr: "10.20.0.0/16"
+k3s_cluster_service_cidr: "10.21.0.0/16"
+
+# Порт API-сервера K3s (wait_for, healthcheck, конфиг воркеров)
+k3s_cluster_api_port: "6443"
+
+# Пути конфигурации K3s на узлах
+k3s_cluster_kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+k3s_cluster_config_path: "/etc/rancher/k3s/config.yaml"
+
+# Отключаемые компоненты K3s
+k3s_cluster_disable_components:
+  - traefik
+  - servicelb
+  - metrics-server
+  - flannel
+
+# Настройки мониторинга (kube-prometheus-stack)
+k3s_cluster_monitoring_namespace: "monitoring"
+k3s_cluster_monitoring_release_name: "prometheus-stack"
+k3s_cluster_monitoring_chart_version: "" # Пусто = последняя версия, или конкретная - "62.5.0"
+k3s_cluster_prometheus_community_repo_url: "https://prometheus-community.github.io/helm-charts"
+
+# Доступ к Grafana через NodePort
+k3s_cluster_grafana_service_type: "NodePort"
+k3s_cluster_grafana_node_port: 30080
+EOF
+```
+
+</details>
+
+### Внутренние константы роли (vars)
+
+<details>
+<summary>
+`yaml' внутренних констант роли (vars)
+</summary>
+
+```yaml
+cat > ./roles/k3s_cluster/vars/main.yml <<'EOF'
+---
+# Полное имя helm-чарта мониторинга (связано с k3s_cluster_prometheus_community_repo_url)
+k3s_cluster_monitoring_chart: "prometheus-community/kube-prometheus-stack"
 EOF
 ```
 
@@ -5136,12 +5155,12 @@ cat > ./roles/k3s_cluster/tasks/main.yml <<'EOF'
 
 - name: Установка Calico CNI
   ansible.builtin.import_tasks: calico.yml
-  when: "'flannel' in k3s_disable_components"
+  when: "'flannel' in k3s_cluster_disable_components"
   tags: ['network', 'calico']
 
 - name: Установка Ingress Controller
   ansible.builtin.import_tasks: ingress_nginx.yml
-  when: "'traefik' in k3s_disable_components"
+  when: "'traefik' in k3s_cluster_disable_components"
   tags: ['ingress', 'network']
 
 - name: Установка системы мониторинга (Prometheus/Grafana)
@@ -5316,14 +5335,14 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
 ---
 - name: Создание каталога конфигурации K3s
   ansible.builtin.file:
-    path: "{{ k3s_config_path | dirname }}"
+    path: "{{ k3s_cluster_config_path | dirname }}"
     state: directory
     mode: '0755'
 
 - name: Развертывание конфигурации master-узла
   ansible.builtin.template:
     src: k3s-master.yaml.j2
-    dest: "{{ k3s_config_path }}"
+    dest: "{{ k3s_cluster_config_path }}"
     mode: '0600'
   when: "'masters' in group_names"
   notify: Перезапуск K3s
@@ -5331,7 +5350,7 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
 - name: Развертывание конфигурации worker-узла
   ansible.builtin.template:
     src: k3s-worker.yaml.j2
-    dest: "{{ k3s_config_path }}"
+    dest: "{{ k3s_cluster_config_path }}"
     mode: '0600'
   when: "'workers' in group_names"
   notify: Перезапуск K3s
@@ -5390,7 +5409,7 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
 - name: Ожидание готовности API K3s на мастере
   ansible.builtin.wait_for:
     host: "{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}"
-    port: "{{ k3s_api_port }}"
+    port: "{{ k3s_cluster_api_port }}"
     timeout: 600
     delay: 5
   when: "'workers' in group_names"
@@ -5428,7 +5447,7 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
 - name: Ожидание доступности порта API K3s Master
   ansible.builtin.wait_for:
     host: 127.0.0.1
-    port: "{{ k3s_api_port }}"
+    port: "{{ k3s_cluster_api_port }}"
     timeout: 120
     delay: 5
   when: "'masters' in group_names"
@@ -5436,7 +5455,7 @@ cat > ./roles/k3s_cluster/tasks/config.yml <<'EOF'
 
 - name: Упрощенная Проверка доступности API K3s
   ansible.builtin.uri:
-    url: "https://127.0.0.1:{{ k3s_api_port }}/livez"
+    url: "https://127.0.0.1:{{ k3s_cluster_api_port }}/livez"
     method: GET
     status_code: [200, 401, 403, 503]
     validate_certs: false
@@ -5550,16 +5569,16 @@ tls-san:
   - {{ hostvars[groups['masters'][0]]['ansible_host'] }}
 
 # Отключение компонентов
-{% if k3s_disable_components %}
+{% if k3s_cluster_disable_components %}
 disable:
-{% for comp in k3s_disable_components %}
+{% for comp in k3s_cluster_disable_components %}
   - {{ comp }}
 {% endfor %}
 {% endif %}
 flannel-backend: none
 disable-network-policy: false
-cluster-cidr: {{ cluster_cidr }}
-service-cidr: {{ service_cidr }}
+cluster-cidr: {{ k3s_cluster_cidr }}
+service-cidr: {{ k3s_cluster_service_cidr }}
 
 # Аргументы API сервера (нужны для Prometheus)
 kube-apiserver-arg:
@@ -5583,7 +5602,7 @@ jinja2 шаблон воркер конфиг ноды
 ```j2
 cat > ./roles/k3s_cluster/templates/k3s-worker.yaml.j2 <<'EOF'
 # Конфигурация K3s Worker Node
-server: https://{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}:{{ k3s_api_port }}
+server: https://{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}:{{ k3s_cluster_api_port }}
 token: {{ k3s_token }}
 node-ip: {{ ansible_default_ipv4.address }}
 
@@ -5695,7 +5714,7 @@ kind: IPPool
 metadata:
   name: default-ipv4-ippool
 spec:
-  cidr: {{ cluster_cidr }}
+  cidr: {{ k3s_cluster_cidr }}
   natOutgoing: true
   # VXLAN overlay обязателен: без него кросс-нодовые маршруты уходят
   # через облачный шлюз (via 10.10.10.1) и поды других нод недоступны
@@ -5754,9 +5773,9 @@ grafana:
   adminUser: {{ grafana_admin_user }}
   adminPassword: {{ grafana_admin_password }}
   service:
-    type: {{ grafana_service_type | default('ClusterIP') }}
+    type: {{ k3s_cluster_grafana_service_type | default('ClusterIP') }}
     port: 80
-    nodePort: {{ grafana_node_port | default(30080) }}
+    nodePort: {{ k3s_cluster_grafana_node_port | default(30080) }}
   sidecar:
     dashboards:
       enabled: true
@@ -5819,7 +5838,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: grafana-ingress
-  namespace: {{ monitoring_namespace }}
+  namespace: {{ k3s_cluster_monitoring_namespace }}
 spec:
   ingressClassName: nginx
   rules:
@@ -5830,7 +5849,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ monitoring_release_name }}-grafana
+            name: {{ k3s_cluster_monitoring_release_name }}-grafana
             port:
               number: 80
 EOF
@@ -6023,7 +6042,7 @@ cat > ./roles/k3s_cluster/tasks/monitoring.yml <<'EOF'
   changed_when: true
 
 - name: Создание неймспейса для мониторинга
-  ansible.builtin.shell: set -o pipefail && kubectl create namespace {{ monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+  ansible.builtin.shell: set -o pipefail && kubectl create namespace {{ k3s_cluster_monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
@@ -6049,9 +6068,9 @@ cat > ./roles/k3s_cluster/tasks/monitoring.yml <<'EOF'
 
 - name: Установка kube-prometheus-stack через Helm
   ansible.builtin.command: >
-    helm upgrade --install {{ monitoring_release_name }} prometheus-community/kube-prometheus-stack
-    --namespace {{ monitoring_namespace }}
-    {% if monitoring_chart_version %}--version {{ monitoring_chart_version }}{% endif %}
+    helm upgrade --install {{ k3s_cluster_monitoring_release_name }} {{ k3s_cluster_monitoring_chart }}
+    --namespace {{ k3s_cluster_monitoring_namespace }}
+    {% if k3s_cluster_monitoring_chart_version %}--version {{ k3s_cluster_monitoring_chart_version }}{% endif %}
     -f /tmp/monitoring-values.yaml
     --wait
     --timeout 15m
@@ -6066,7 +6085,7 @@ cat > ./roles/k3s_cluster/tasks/monitoring.yml <<'EOF'
 
 - name: Ожидание готовности подов Prometheus
   ansible.builtin.command: >
-    kubectl wait --namespace {{ monitoring_namespace }}
+    kubectl wait --namespace {{ k3s_cluster_monitoring_namespace }}
     -l app.kubernetes.io/name=prometheus
     --for=condition=Ready pod
     --timeout=300s
@@ -6081,7 +6100,7 @@ cat > ./roles/k3s_cluster/tasks/monitoring.yml <<'EOF'
 
 - name: Ожидание готовности подов Grafana
   ansible.builtin.command: >
-    kubectl wait --namespace {{ monitoring_namespace }}
+    kubectl wait --namespace {{ k3s_cluster_monitoring_namespace }}
     -l app.kubernetes.io/name=grafana
     --for=condition=Ready pod
     --timeout=300s
@@ -6096,7 +6115,7 @@ cat > ./roles/k3s_cluster/tasks/monitoring.yml <<'EOF'
 
 - name: Ожидание готовности Alertmanager
   ansible.builtin.command: >
-    kubectl wait --namespace {{ monitoring_namespace }}
+    kubectl wait --namespace {{ k3s_cluster_monitoring_namespace }}
     -l app.kubernetes.io/name=alertmanager
     --for=condition=Ready pod
     --timeout=300s
@@ -6171,8 +6190,8 @@ cat > ./roles/k3s_cluster/tasks/fetch_kubeconfig.yml <<'EOF'
 - name: Замена IP сервера в kubeconfig на IP NLB
   ansible.builtin.replace:
     path: "./tmp_kubeconfig_raw"
-    regexp: 'https://127.0.0.1:{{ k3s_api_port }}'
-    replace: "https://{{ hostvars[groups['masters'][0]]['ansible_host'] }}:{{ k3s_api_port }}"
+    regexp: 'https://127.0.0.1:{{ k3s_cluster_api_port }}'
+    replace: "https://{{ hostvars[groups['masters'][0]]['ansible_host'] }}:{{ k3s_cluster_api_port }}"
   become: false
   delegate_to: localhost
   run_once: true
@@ -6192,17 +6211,17 @@ cat > ./roles/k3s_cluster/tasks/fetch_kubeconfig.yml <<'EOF'
       =================================================================
       Система мониторинга развернута!
 
-      Grafana Dashboard (NodePort {{ grafana_node_port }}, внешний доступ):
-      URL: http://{{ hostvars[groups['masters'][0]]['ansible_host'] }}:{{ grafana_node_port }}
+      Grafana Dashboard (NodePort {{ k3s_cluster_grafana_node_port }}, внешний доступ):
+      URL: http://{{ hostvars[groups['masters'][0]]['ansible_host'] }}:{{ k3s_cluster_grafana_node_port }}
 
       Login: {{ grafana_admin_user }}
       Password: {{ grafana_admin_password }}
 
       Prometheus UI (ClusterIP, только изнутри кластера):
-      kubectl -n {{ monitoring_namespace }} port-forward svc/{{ monitoring_release_name }}-kube-prom-prometheus 9090:9090
+      kubectl -n {{ k3s_cluster_monitoring_namespace }} port-forward svc/{{ k3s_cluster_monitoring_release_name }}-kube-prom-prometheus 9090:9090
 
       Alertmanager UI (ClusterIP, только изнутри кластера):
-      kubectl -n {{ monitoring_namespace }} port-forward svc/{{ monitoring_release_name }}-kube-prom-alertmanager 9093:9093
+      kubectl -n {{ k3s_cluster_monitoring_namespace }} port-forward svc/{{ k3s_cluster_monitoring_release_name }}-kube-prom-alertmanager 9093:9093
       =================================================================
   run_once: true
 EOF

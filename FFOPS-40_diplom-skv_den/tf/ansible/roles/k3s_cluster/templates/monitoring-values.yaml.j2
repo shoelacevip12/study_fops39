@@ -35,9 +35,9 @@ grafana:
   adminUser: {{ grafana_admin_user }}
   adminPassword: {{ grafana_admin_password }}
   service:
-    type: {{ grafana_service_type | default('ClusterIP') }}
+    type: {{ k3s_cluster_grafana_service_type | default('ClusterIP') }}
     port: 80
-    nodePort: {{ grafana_node_port | default(30080) }}
+    nodePort: {{ k3s_cluster_grafana_node_port | default(30080) }}
   sidecar:
     dashboards:
       enabled: true

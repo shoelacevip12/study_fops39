@@ -6,16 +6,16 @@ tls-san:
   - {{ hostvars[groups['masters'][0]]['ansible_host'] }}
 
 # Отключение компонентов
-{% if k3s_disable_components %}
+{% if k3s_cluster_disable_components %}
 disable:
-{% for comp in k3s_disable_components %}
+{% for comp in k3s_cluster_disable_components %}
   - {{ comp }}
 {% endfor %}
 {% endif %}
 flannel-backend: none
 disable-network-policy: false
-cluster-cidr: {{ cluster_cidr }}
-service-cidr: {{ service_cidr }}
+cluster-cidr: {{ k3s_cluster_cidr }}
+service-cidr: {{ k3s_cluster_service_cidr }}
 
 # Аргументы API сервера (нужны для Prometheus)
 kube-apiserver-arg:

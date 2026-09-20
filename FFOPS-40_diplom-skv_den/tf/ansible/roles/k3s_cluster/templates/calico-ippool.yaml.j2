@@ -4,7 +4,7 @@ kind: IPPool
 metadata:
   name: default-ipv4-ippool
 spec:
-  cidr: {{ cluster_cidr }}
+  cidr: {{ k3s_cluster_cidr }}
   natOutgoing: true
   # VXLAN overlay обязателен: без него кросс-нодовые маршруты уходят
   # через облачный шлюз (via 10.10.10.1) и поды других нод недоступны

@@ -1,5 +1,5 @@
 # Конфигурация K3s Worker Node
-server: https://{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}:{{ k3s_api_port }}
+server: https://{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}:{{ k3s_cluster_api_port }}
 token: {{ k3s_token }}
 node-ip: {{ ansible_default_ipv4.address }}
 

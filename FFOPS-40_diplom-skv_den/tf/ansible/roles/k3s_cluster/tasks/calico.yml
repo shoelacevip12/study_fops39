@@ -11,7 +11,7 @@
   ansible.builtin.command: >
     kubectl apply -f /tmp/calico-manifest.yaml
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   when: "'masters' in group_names"
   run_once: true
   register: k3s_cluster_calico_apply_result
@@ -21,7 +21,7 @@
   ansible.builtin.command: >
     kubectl wait --namespace kube-system -l k8s-app=calico-node --for=condition=Ready pod --timeout=300s
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   when: "'masters' in group_names"
   run_once: true
   changed_when: false
@@ -39,7 +39,7 @@
       ansible.builtin.command: >
         kubectl delete ippool default-ipv4-ippool --ignore-not-found=true
       environment:
-        KUBECONFIG: "{{ kubeconfig_path }}"
+        KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
       changed_when: true
       failed_when: false
       run_once: true
@@ -55,7 +55,7 @@
       ansible.builtin.command: >
         kubectl apply -f /tmp/calico-ippool.yaml
       environment:
-        KUBECONFIG: "{{ kubeconfig_path }}"
+        KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
       register: k3s_cluster_calico_ippool_result
       changed_when: "'created' in k3s_cluster_calico_ippool_result.stdout or 'configured' in k3s_cluster_calico_ippool_result.stdout"
       run_once: true
@@ -70,7 +70,7 @@
   ansible.builtin.command: >
     kubectl delete pods --all -n kube-system --force --grace-period=0
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   register: k3s_cluster_pods_reset
   changed_when: true
   failed_when: false
@@ -80,7 +80,7 @@
 - name: Ожидание готовности узлов кластера после применения IPPool
   ansible.builtin.command: kubectl wait --for=condition=Ready node --all --timeout=300s
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   register: k3s_cluster_nodes_ready
   changed_when: false
   failed_when: false

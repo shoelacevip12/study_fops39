@@ -1,9 +1,9 @@
 ---
 - name: Добавление Helm репозитория Prometheus Community
   ansible.builtin.command: >
-    helm repo add prometheus-community {{ prometheus_community_repo_url }}
+    helm repo add prometheus-community {{ k3s_cluster_prometheus_community_repo_url }}
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   register: k3s_cluster_helm_repo_add
   changed_when: "'has been added' in k3s_cluster_helm_repo_add.stdout"
   failed_when: false
@@ -11,19 +11,19 @@
 - name: Обновление Helm репозиториев
   ansible.builtin.command: helm repo update
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   changed_when: true
 
 - name: Создание неймспейса для мониторинга
-  ansible.builtin.shell: set -o pipefail && kubectl create namespace {{ monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+  ansible.builtin.shell: set -o pipefail && kubectl create namespace {{ k3s_cluster_monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   changed_when: true
 
 - name: Ожидание готовности узлов кластера перед установкой мониторинга
   ansible.builtin.command: kubectl wait --for=condition=Ready node --all --timeout=600s
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   register: k3s_cluster_monitoring_nodes_ready
   changed_when: false
   failed_when: false
@@ -41,15 +41,15 @@
 
 - name: Установка kube-prometheus-stack через Helm
   ansible.builtin.command: >
-    helm upgrade --install {{ monitoring_release_name }} prometheus-community/kube-prometheus-stack
-    --namespace {{ monitoring_namespace }}
-    {% if monitoring_chart_version %}--version {{ monitoring_chart_version }}{% endif %}
+    helm upgrade --install {{ k3s_cluster_monitoring_release_name }} {{ k3s_cluster_monitoring_chart }}
+    --namespace {{ k3s_cluster_monitoring_namespace }}
+    {% if k3s_cluster_monitoring_chart_version %}--version {{ k3s_cluster_monitoring_chart_version }}{% endif %}
     -f /tmp/monitoring-values.yaml
     --wait
     --timeout 15m
     --atomic
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   register: k3s_cluster_helm_install_monitoring
   changed_when: "'has been upgraded' in k3s_cluster_helm_install_monitoring.stdout or 'installed' in k3s_cluster_helm_install_monitoring.stdout"
   retries: 2
@@ -58,12 +58,12 @@
 
 - name: Ожидание готовности подов Prometheus
   ansible.builtin.command: >
-    kubectl wait --namespace {{ monitoring_namespace }}
+    kubectl wait --namespace {{ k3s_cluster_monitoring_namespace }}
     -l app.kubernetes.io/name=prometheus
     --for=condition=Ready pod
     --timeout=300s
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   changed_when: false
   failed_when: false
   register: k3s_cluster_monitoring_wait_prometheus
@@ -73,12 +73,12 @@
 
 - name: Ожидание готовности подов Grafana
   ansible.builtin.command: >
-    kubectl wait --namespace {{ monitoring_namespace }}
+    kubectl wait --namespace {{ k3s_cluster_monitoring_namespace }}
     -l app.kubernetes.io/name=grafana
     --for=condition=Ready pod
     --timeout=300s
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   changed_when: false
   failed_when: false
   register: k3s_cluster_monitoring_wait_grafana
@@ -88,12 +88,12 @@
 
 - name: Ожидание готовности Alertmanager
   ansible.builtin.command: >
-    kubectl wait --namespace {{ monitoring_namespace }}
+    kubectl wait --namespace {{ k3s_cluster_monitoring_namespace }}
     -l app.kubernetes.io/name=alertmanager
     --for=condition=Ready pod
     --timeout=300s
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   changed_when: false
   failed_when: false
   register: k3s_cluster_monitoring_wait_alertmanager
@@ -111,7 +111,7 @@
 - name: Применение Ingress для Grafana
   ansible.builtin.command: kubectl apply -f /tmp/grafana-ingress.yaml
   environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
+    KUBECONFIG: "{{ k3s_cluster_kubeconfig_path }}"
   register: k3s_cluster_grafana_ingress_apply
   changed_when: "'created' in k3s_cluster_grafana_ingress_apply.stdout or 'configured' in k3s_cluster_grafana_ingress_apply.stdout"
   # Admission-webhook ingress-nginx бывает недоступен сразу после рестарта
