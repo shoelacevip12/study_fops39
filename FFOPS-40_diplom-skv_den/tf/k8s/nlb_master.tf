@@ -13,10 +13,14 @@ resource "yandex_lb_target_group" "tg-k8s-master" {
 }
 
 resource "yandex_lb_network_load_balancer" "nlb-k8s-master" {
-  description         = "Network Load Balancer для доступа к мастер-ноде k8s (kubectl/ssh)"
+  description         = "Network Load Balancer для доступа к мастер-ноде k8s (kubectl/ssh/grafana)"
   name                = "nlb-k8s-master"
   folder_id           = var.folder_id
   deletion_protection = false
+
+  # lifecycle {
+  #   ignore_changes = [listener]
+  # }
 
   # Обработчик для kube-apiserver
   listener {
@@ -41,6 +45,30 @@ resource "yandex_lb_network_load_balancer" "nlb-k8s-master" {
       ip_version = "ipv4"
     }
   }
+
+  # Обработчик для Grafana NodePort
+  listener {
+    name        = "listener-grafana-nodeport"
+    port        = 30080 # внешний порт балансировщика
+    target_port = 30080 # NodePort сервиса grafana на мастер-ноде
+    protocol    = "tcp"
+
+    external_address_spec {
+      ip_version = "ipv4"
+    }
+  }
+
+  # Обработчик для Grafana по HTTP (http://grafana.<NLB_IP>.nip.io, порт 80)
+  # listener {
+  #   name        = "listener-grafana-http"
+  #   port        = 80
+  #   target_port = 30080
+  #   protocol    = "tcp"
+
+  #   external_address_spec {
+  #     ip_version = "ipv4"
+  #   }
+  # }
 
   # Подключение целевой группы и healthcheck
   attached_target_group {

@@ -1,14 +1,14 @@
 ---
 - name: Создание каталога конфигурации K3s
   ansible.builtin.file:
-    path: /etc/rancher/k3s
+    path: "{{ k3s_config_path | dirname }}"
     state: directory
     mode: '0755'
 
 - name: Развертывание конфигурации master-узла
   ansible.builtin.template:
     src: k3s-master.yaml.j2
-    dest: /etc/rancher/k3s/config.yaml
+    dest: "{{ k3s_config_path }}"
     mode: '0600'
   when: "'masters' in group_names"
   notify: Перезапуск K3s
@@ -16,7 +16,7 @@
 - name: Развертывание конфигурации worker-узла
   ansible.builtin.template:
     src: k3s-worker.yaml.j2
-    dest: /etc/rancher/k3s/config.yaml
+    dest: "{{ k3s_config_path }}"
     mode: '0600'
   when: "'workers' in group_names"
   notify: Перезапуск K3s
@@ -75,7 +75,7 @@
 - name: Ожидание готовности API K3s на мастере
   ansible.builtin.wait_for:
     host: "{{ hostvars[groups['masters'][0]]['ansible_default_ipv4']['address'] }}"
-    port: 6443
+    port: "{{ k3s_api_port }}"
     timeout: 600
     delay: 5
   when: "'workers' in group_names"
@@ -113,7 +113,7 @@
 - name: Ожидание доступности порта API K3s Master
   ansible.builtin.wait_for:
     host: 127.0.0.1
-    port: 6443
+    port: "{{ k3s_api_port }}"
     timeout: 120
     delay: 5
   when: "'masters' in group_names"
@@ -121,7 +121,7 @@
 
 - name: Упрощенная Проверка доступности API K3s
   ansible.builtin.uri:
-    url: "https://127.0.0.1:6443/livez"
+    url: "https://127.0.0.1:{{ k3s_api_port }}/livez"
     method: GET
     status_code: [200, 401, 403, 503]
     validate_certs: false
@@ -147,7 +147,7 @@
       ansible.builtin.command: >
         helm uninstall traefik -n kube-system
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: "{{ kubeconfig_path }}"
       register: k3s_cluster_helm_uninstall_traefik
       changed_when: "'uninstalled' in k3s_cluster_helm_uninstall_traefik.stdout"
       failed_when: false
@@ -157,28 +157,28 @@
     - name: Удаление Deployment Traefik
       ansible.builtin.command: kubectl delete deployment traefik -n kube-system --ignore-not-found=true
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: "{{ kubeconfig_path }}"
       changed_when: true
       failed_when: false
 
     - name: Удаление DaemonSet ServiceLB
       ansible.builtin.command: kubectl delete daemonset svclb-traefik -n kube-system --ignore-not-found=true
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: "{{ kubeconfig_path }}"
       changed_when: true
       failed_when: false
 
     - name: Удаление Deployment Metrics Server
       ansible.builtin.command: kubectl delete deployment metrics-server -n kube-system --ignore-not-found=true
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: "{{ kubeconfig_path }}"
       changed_when: true
       failed_when: false
 
     - name: Удаление ConfigMap ServiceLB
       ansible.builtin.command: kubectl delete configmap servicelb-namespace -n kube-system --ignore-not-found=true
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: "{{ kubeconfig_path }}"
       changed_when: true
       failed_when: false
 
