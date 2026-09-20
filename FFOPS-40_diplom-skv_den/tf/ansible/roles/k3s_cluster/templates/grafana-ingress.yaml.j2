@@ -1,0 +1,19 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: {{ monitoring_namespace }}
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: grafana.{{ hostvars[groups['masters'][0]]['ansible_host'] }}.nip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ monitoring_release_name }}-grafana
+            port:
+              number: 80

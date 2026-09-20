@@ -1,0 +1,114 @@
+---
+- name: Добавление Helm репозитория Prometheus Community
+  ansible.builtin.command: >
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_cluster_helm_repo_add
+  changed_when: "'has been added' in k3s_cluster_helm_repo_add.stdout"
+  failed_when: false
+
+- name: Обновление Helm репозиториев
+  ansible.builtin.command: helm repo update
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Создание неймспейса для мониторинга
+  ansible.builtin.command: kubectl create namespace {{ monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Генерация файла values для kube-prometheus-stack
+  ansible.builtin.template:
+    src: monitoring-values.yaml.j2
+    dest: /tmp/monitoring-values.yaml
+    mode: '0644'
+  run_once: true
+
+- name: Установка kube-prometheus-stack через Helm
+  ansible.builtin.command: >
+    helm upgrade --install {{ monitoring_release_name }} prometheus-community/kube-prometheus-stack
+    --namespace {{ monitoring_namespace }}
+    {% if monitoring_chart_version %}--version {{ monitoring_chart_version }}{% endif %}
+    -f /tmp/monitoring-values.yaml
+    --wait
+    --timeout 15m
+    --atomic
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_cluster_helm_install_monitoring
+  changed_when: "'has been upgraded' in k3s_cluster_helm_install_monitoring.stdout or 'installed' in k3s_cluster_helm_install_monitoring.stdout"
+  retries: 2
+  delay: 30
+  until: k3s_cluster_helm_install_monitoring is succeeded
+
+- name: Ожидание готовности подов Prometheus
+  ansible.builtin.command: >
+    kubectl wait --namespace {{ monitoring_namespace }}
+    -l app.kubernetes.io/name=prometheus
+    --for=condition=Ready pod
+    --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+  failed_when: false
+  register: k3s_cluster_monitoring_wait_prometheus
+  retries: 2
+  delay: 30
+  until: k3s_cluster_monitoring_wait_prometheus.rc == 0
+
+- name: Ожидание готовности подов Grafana
+  ansible.builtin.command: >
+    kubectl wait --namespace {{ monitoring_namespace }}
+    -l app.kubernetes.io/name=grafana
+    --for=condition=Ready pod
+    --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+  failed_when: false
+  register: k3s_cluster_monitoring_wait_grafana
+  retries: 2
+  delay: 30
+  until: k3s_cluster_monitoring_wait_grafana.rc == 0
+
+- name: Ожидание готовности Alertmanager
+  ansible.builtin.command: >
+    kubectl wait --namespace {{ monitoring_namespace }}
+    -l app.kubernetes.io/name=alertmanager
+    --for=condition=Ready pod
+    --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+  failed_when: false
+  register: k3s_cluster_monitoring_wait_alertmanager
+  retries: 2
+  delay: 30
+  until: k3s_cluster_monitoring_wait_alertmanager.rc == 0
+
+- name: Развертывание Ingress для Grafana
+  ansible.builtin.template:
+    src: grafana-ingress.yaml.j2
+    dest: /tmp/grafana-ingress.yaml
+    mode: '0644'
+  run_once: true
+
+- name: Применение Ingress для Grafana
+  ansible.builtin.command: kubectl apply -f /tmp/grafana-ingress.yaml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_cluster_grafana_ingress_apply
+  changed_when: "'created' in k3s_cluster_grafana_ingress_apply.stdout or 'configured' in k3s_cluster_grafana_ingress_apply.stdout"
+  run_once: true
+
+- name: Очистка временных файлов
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/monitoring-values.yaml
+    - /tmp/grafana-ingress.yaml
+  run_once: true

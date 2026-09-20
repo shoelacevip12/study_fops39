@@ -21,6 +21,12 @@
   when: "'traefik' in k3s_disable_components"
   tags: ['ingress', 'network']
 
+- name: Установка системы мониторинга (Prometheus/Grafana)
+  ansible.builtin.import_tasks: monitoring.yml
+  when: "'masters' in group_names"
+  tags: ['monitoring', 'prometheus', 'grafana']
+  run_once: true
+
 - name: Получение kubeconfig
   ansible.builtin.import_tasks: fetch_kubeconfig.yml
   tags: ['kubeconfig']

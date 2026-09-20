@@ -17,3 +17,15 @@ k3s_disable_components:
   - servicelb
   - metrics-server
   - flannel
+
+# Настройки мониторинга
+monitoring_namespace: "monitoring"
+monitoring_release_name: "prometheus-stack"
+monitoring_chart_version: "" # Пусто = последняя версия, или конкретная как пример - "62.5.0"
+
+# Доступ к Grafana через NodePort
+grafana_service_type: "NodePort"
+grafana_node_port: 30080
+grafana_admin_user: "admin"
+
+grafana_admin_password: "DiplomGrafana2026!"
