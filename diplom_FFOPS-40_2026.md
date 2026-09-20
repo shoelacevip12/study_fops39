@@ -4899,15 +4899,16 @@ CFG настроек работы ansible
 ```toml
 cat > ansible.cfg <<'EOF'
 [defaults]
-home=./
-inventory=./hosts.ini
-roles_path=./roles
+home = ./
+inventory = ./hosts.ini
+roles_path = ./roles
+vault_password_file =./va_pa
 host_key_checking = False
 retry_files_enabled = False
 stdout_callback = default
-callback_result_format = yaml
+result_format = yaml
 interpreter_python = auto_silent
-deprecation_warnings=False
+deprecation_warnings = False
 ssh_args = -F ~/.ssh/config_yc_k8s -o ControlMaster=auto -o ControlPersist=60s
 forks = 10
 
@@ -4929,8 +4930,8 @@ EOF
 ```yaml
 cat > ./group_vars/all.yml <<'EOF'
 ---
-# Токен кластера
-k3s_token: "DiplomK8sSecretToken2024!"
+# Токен кластера (перенесен в ./group_vars/all/vault )
+# k3s_token: "DiplomK8sFops40Token2026!"
 
 # Версии
 # k3s_version: "v1.37.0+k3s1"
@@ -4951,6 +4952,60 @@ EOF
 ```
 
 <details>
+
+### Создание Ansible vault секрета
+
+```bash
+# Утилита на Archlinux
+# Генерация пароля (pwgen) в файл, для обращения 
+# к зашифрованному файлу переменных vault.yml.
+
+tee ./va_pa <<< $(pwgen -1) \
+&& chmod -x ./va_pa
+
+# Создание зашифрованного файла vault.yml с паролями
+# и переход сразу к редактированию
+EDITOR=nano \
+ansible-vault create \
+--encrypt-vault-id default \
+--vault-password-file ./va_pa \
+./group_vars/all/vault
+```
+
+<details>
+<summary>
+Возможный лог при создании
+</summary>
+
+```log
+[WARNING]: Ansible is being run in a world writable directory (/home/shoel/nfs_git/gited/FFOPS-40_diplom-skv_den/tf/ansible), ignoring it as an ansible.cfg source. For more information see https://docs.ansible.com/ansible/devel/reference_appendices/config.html#cfg-in-world-writable-dir
+[WARNING]: ./group_vars/all does not exist, creating...
+```
+
+</details>
+
+<details>
+<summary>
+Содержимое vault
+</summary>
+
+```yaml
+---
+# Токен кластера
+k3s_token: "DiplomK8sFops40Token2026!"
+...
+```
+
+</details>
+
+#### Команда вызова редактирования файла с паролями
+
+```bash
+EDITOR=nano \
+ansible-vault edit \
+./group_vars/all/vault \
+--vault-password-file ./va_pa
+```
 
 ### Распределение значений переменных поумолчанию роли
 
@@ -5034,7 +5089,7 @@ EOF
 
 <details>
 
-### Задачи проверки настроек cgroups, отключения swap и 
+### Задачи настроек cgroups, отключения swap
 
 <details>
 <summary>
@@ -5863,60 +5918,28 @@ Passed: 0 failure(s), 0 warning(s) in 12 files processed of 12 encountered. Last
     "_meta": {
         "hostvars": {
             "cl1015remkdroropep9h-opoc": {
-                "ansible_host": "10.10.10.52",
+                "ansible_host": "10.10.10.60",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
-                "cluster_cidr": "10.20.0.0/16",
-                "k3s_disable_components": [
-                    "traefik",
-                    "servicelb",
-                    "metrics-server",
-                    "flannel"
-                ],
-                "k3s_token": "DiplomK8sSecretToken2024!",
-                "service_cidr": "10.21.0.0/16"
+                "k3s_token": "DiplomK8sFops40Token2026!"
             },
             "cl1015remkdroropep9h-orys": {
-                "ansible_host": "10.10.10.26",
+                "ansible_host": "10.10.10.25",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
-                "cluster_cidr": "10.20.0.0/16",
-                "k3s_disable_components": [
-                    "traefik",
-                    "servicelb",
-                    "metrics-server",
-                    "flannel"
-                ],
-                "k3s_token": "DiplomK8sSecretToken2024!",
-                "service_cidr": "10.21.0.0/16"
+                "k3s_token": "DiplomK8sFops40Token2026!"
             },
             "cl1015remkdroropep9h-ozaz": {
-                "ansible_host": "10.10.10.37",
+                "ansible_host": "10.10.10.38",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
-                "cluster_cidr": "10.20.0.0/16",
-                "k3s_disable_components": [
-                    "traefik",
-                    "servicelb",
-                    "metrics-server",
-                    "flannel"
-                ],
-                "k3s_token": "DiplomK8sSecretToken2024!",
-                "service_cidr": "10.21.0.0/16"
+                "k3s_token": "DiplomK8sFops40Token2026!"
             },
             "cl1pe91p5m9cgac980rd-uqan": {
                 "ansible_host": "81.26.179.3",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
-                "cluster_cidr": "10.20.0.0/16",
-                "k3s_disable_components": [
-                    "traefik",
-                    "servicelb",
-                    "metrics-server",
-                    "flannel"
-                ],
-                "k3s_token": "DiplomK8sSecretToken2024!",
-                "service_cidr": "10.21.0.0/16"
+                "k3s_token": "DiplomK8sFops40Token2026!"
             }
         },
         "profile": "inventory_legacy"
@@ -5945,6 +5968,8 @@ Passed: 0 failure(s), 0 warning(s) in 12 files processed of 12 encountered. Last
 ├── ansible.cfg
 ├── galaxy_cache
 ├── group_vars
+│   ├── all
+│   │   └── vault
 │   └── all.yml
 ├── hosts.ini
 ├── playbook_main.yaml
@@ -5981,15 +6006,11 @@ Passed: 0 failure(s), 0 warning(s) in 12 files processed of 12 encountered. Last
 │       │   └── k3s-worker.yaml.j2
 │       └── vars
 │           └── main.yml
-└── tmp
+├── tmp
+└── va_pa
 
-13 directories, 28 files
+14 directories, 30 files
 cl1pe91p5m9cgac980rd-uqan | SUCCESS => 
-    ansible_facts:
-        discovered_interpreter_python: /usr/bin/python3.13
-    changed: false
-    ping: pong
-cl1015remkdroropep9h-ozaz | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
@@ -6000,6 +6021,11 @@ cl1015remkdroropep9h-opoc | SUCCESS =>
     changed: false
     ping: pong
 cl1015remkdroropep9h-orys | SUCCESS => 
+    ansible_facts:
+        discovered_interpreter_python: /usr/bin/python3.13
+    changed: false
+    ping: pong
+cl1015remkdroropep9h-ozaz | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false

@@ -1,6 +1,6 @@
 ---
-# Токен кластера
-k3s_token: "DiplomK8sSecretToken2024!"
+# Токен кластера (перенесен в ./group_vars/all/vault )
+# k3s_token: "DiplomK8sFops40Token2026!"
 
 # Версии
 # k3s_version: "v1.37.0+k3s1"
