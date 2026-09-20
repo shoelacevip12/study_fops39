@@ -15,10 +15,22 @@
   changed_when: true
 
 - name: Создание неймспейса для мониторинга
-  ansible.builtin.command: kubectl create namespace {{ monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+  ansible.builtin.shell: set -o pipefail && kubectl create namespace {{ monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
+
+- name: Ожидание готовности узлов кластера перед установкой мониторинга
+  ansible.builtin.command: kubectl wait --for=condition=Ready node --all --timeout=600s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_cluster_monitoring_nodes_ready
+  changed_when: false
+  failed_when: false
+  run_once: true
+  retries: 5
+  delay: 15
+  until: k3s_cluster_monitoring_nodes_ready.rc == 0
 
 - name: Генерация файла values для kube-prometheus-stack
   ansible.builtin.template:
@@ -102,6 +114,11 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: k3s_cluster_grafana_ingress_apply
   changed_when: "'created' in k3s_cluster_grafana_ingress_apply.stdout or 'configured' in k3s_cluster_grafana_ingress_apply.stdout"
+  # Admission-webhook ingress-nginx бывает недоступен сразу после рестарта
+  # контроллера ("context deadline exceeded") — применяем с повторами.
+  retries: 5
+  delay: 10
+  until: k3s_cluster_grafana_ingress_apply is succeeded
   run_once: true
 
 - name: Очистка временных файлов

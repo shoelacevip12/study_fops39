@@ -5658,6 +5658,11 @@ metadata:
 spec:
   cidr: {{ cluster_cidr }}
   natOutgoing: true
+  # VXLAN overlay обязателен: без него кросс-нодовые маршруты уходят
+  # через облачный шлюз (via 10.10.10.1) и поды других нод недоступны
+  # (kube-apiserver -> webhook/поды висят в "context deadline exceeded")
+  vxlanMode: Always
+  ipipMode: Never
   blockSize: 26
 EOF
 ```
@@ -5870,6 +5875,30 @@ cat > ./roles/k3s_cluster/tasks/calico.yml <<'EOF'
         path: /tmp/calico-ippool.yaml
         state: absent
       run_once: true
+
+- name: Применение корректных CIDR — пересоздание подов kube-system
+  ansible.builtin.command: >
+    kubectl delete pods --all -n kube-system --force --grace-period=0
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_cluster_pods_reset
+  changed_when: true
+  failed_when: false
+  when: "'masters' in group_names"
+  run_once: true
+
+- name: Ожидание готовности узлов кластера после применения IPPool
+  ansible.builtin.command: kubectl wait --for=condition=Ready node --all --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_cluster_nodes_ready
+  changed_when: false
+  failed_when: false
+  when: "'masters' in group_names"
+  run_once: true
+  retries: 5
+  delay: 15
+  until: k3s_cluster_nodes_ready.rc == 0
 EOF
 ```
 
@@ -5955,10 +5984,22 @@ cat > ./roles/k3s_cluster/tasks/monitoring.yml <<'EOF'
   changed_when: true
 
 - name: Создание неймспейса для мониторинга
-  ansible.builtin.command: kubectl create namespace {{ monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+  ansible.builtin.shell: set -o pipefail && kubectl create namespace {{ monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
+
+- name: Ожидание готовности узлов кластера перед установкой мониторинга
+  ansible.builtin.command: kubectl wait --for=condition=Ready node --all --timeout=600s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_cluster_monitoring_nodes_ready
+  changed_when: false
+  failed_when: false
+  run_once: true
+  retries: 5
+  delay: 15
+  until: k3s_cluster_monitoring_nodes_ready.rc == 0
 
 - name: Генерация файла values для kube-prometheus-stack
   ansible.builtin.template:
@@ -6042,6 +6083,11 @@ cat > ./roles/k3s_cluster/tasks/monitoring.yml <<'EOF'
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: k3s_cluster_grafana_ingress_apply
   changed_when: "'created' in k3s_cluster_grafana_ingress_apply.stdout or 'configured' in k3s_cluster_grafana_ingress_apply.stdout"
+  # Admission-webhook ingress-nginx бывает недоступен сразу после рестарта
+  # контроллера ("context deadline exceeded") — применяем с повторами.
+  retries: 5
+  delay: 10
+  until: k3s_cluster_grafana_ingress_apply is succeeded
   run_once: true
 
 - name: Очистка временных файлов
@@ -6067,16 +6113,9 @@ EOF
 ```yaml
 cat > ./roles/k3s_cluster/tasks/fetch_kubeconfig.yml <<'EOF'
 ---
-- name: Принудительный перезапуск подов kube-system для применения корректных CIDR
-  ansible.builtin.command: >
-    kubectl delete pods --all -n kube-system --force --grace-period=0
-  environment:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  register: k3s_cluster_pods_reset
-  changed_when: true
-  failed_when: false
-  when: "'masters' in group_names"
-  run_once: true
+# Пересоздание подов kube-system выполняется в calico.yml сразу после
+# применения IPPool (задача "Применение корректных CIDR ..."), чтобы все
+# workload'ы (ingress, мониторинг) получали адреса из cluster_cidr.
 
 - name: Создание локального каталога .kube
   ansible.builtin.file:
@@ -6196,11 +6235,13 @@ ansible-lint *.yaml
 
 yamllint *.yaml
 
+tree
+
 ansible-inventory all --graph
 
 ansible-inventory all --list
 
-tree
+./playbook_main.yaml --list-tasks
 
 ansible -m ping  all
 ```
@@ -6214,64 +6255,6 @@ ansible -m ping  all
 playbook: playbook_main.yaml
 
 Passed: 0 failure(s), 0 warning(s) in 13 files processed of 13 encountered. Last profile that met the validation criteria was 'production'.
-@all:
-  |--@ungrouped:
-  |--@masters:
-  |  |--cl1pe91p5m9cgac980rd-uqan
-  |--@workers:
-  |  |--cl1015remkdroropep9h-ozaz
-  |  |--cl1015remkdroropep9h-opoc
-  |  |--cl1015remkdroropep9h-orys
-{
-    "_meta": {
-        "hostvars": {
-            "cl1015remkdroropep9h-opoc": {
-                "ansible_host": "10.10.10.60",
-                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
-                "ansible_user": "skv",
-                "k3s_token": "DiplomK8sFops40Token2026!"
-            },
-            "cl1015remkdroropep9h-orys": {
-                "ansible_host": "10.10.10.25",
-                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
-                "ansible_user": "skv",
-                "k3s_token": "DiplomK8sFops40Token2026!"
-            },
-            "cl1015remkdroropep9h-ozaz": {
-                "ansible_host": "10.10.10.38",
-                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
-                "ansible_user": "skv",
-                "k3s_token": "DiplomK8sFops40Token2026!"
-            },
-            "cl1pe91p5m9cgac980rd-uqan": {
-                "ansible_host": "81.26.179.3",
-                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
-                "ansible_user": "skv",
-                "k3s_token": "DiplomK8sFops40Token2026!"
-            }
-        },
-        "profile": "inventory_legacy"
-    },
-    "all": {
-        "children": [
-            "ungrouped",
-            "masters",
-            "workers"
-        ]
-    },
-    "masters": {
-        "hosts": [
-            "cl1pe91p5m9cgac980rd-uqan"
-        ]
-    },
-    "workers": {
-        "hosts": [
-            "cl1015remkdroropep9h-ozaz",
-            "cl1015remkdroropep9h-opoc",
-            "cl1015remkdroropep9h-orys"
-        ]
-    }
-}
 .
 ├── ansible.cfg
 ├── galaxy_cache
@@ -6321,12 +6304,143 @@ Passed: 0 failure(s), 0 warning(s) in 13 files processed of 13 encountered. Last
 └── va_pa
 
 14 directories, 33 files
+@all:
+  |--@ungrouped:
+  |--@masters:
+  |  |--cl1pe91p5m9cgac980rd-uqan
+  |--@workers:
+  |  |--cl1015remkdroropep9h-ozaz
+  |  |--cl1015remkdroropep9h-opoc
+  |  |--cl1015remkdroropep9h-orys
+{
+    "_meta": {
+        "hostvars": {
+            "cl1015remkdroropep9h-opoc": {
+                "ansible_host": "10.10.10.58",
+                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
+                "ansible_user": "skv",
+                "k3s_token": "DiplomK8sFops40Token2026!"
+            },
+            "cl1015remkdroropep9h-orys": {
+                "ansible_host": "10.10.10.22",
+                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
+                "ansible_user": "skv",
+                "k3s_token": "DiplomK8sFops40Token2026!"
+            },
+            "cl1015remkdroropep9h-ozaz": {
+                "ansible_host": "10.10.10.45",
+                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
+                "ansible_user": "skv",
+                "k3s_token": "DiplomK8sFops40Token2026!"
+            },
+            "cl1pe91p5m9cgac980rd-uqan": {
+                "ansible_host": "81.26.179.3",
+                "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
+                "ansible_user": "skv",
+                "k3s_token": "DiplomK8sFops40Token2026!"
+            }
+        },
+        "profile": "inventory_legacy"
+    },
+    "all": {
+        "children": [
+            "ungrouped",
+            "masters",
+            "workers"
+        ]
+    },
+    "masters": {
+        "hosts": [
+            "cl1pe91p5m9cgac980rd-uqan"
+        ]
+    },
+    "workers": {
+        "hosts": [
+            "cl1015remkdroropep9h-ozaz",
+            "cl1015remkdroropep9h-opoc",
+            "cl1015remkdroropep9h-orys"
+        ]
+    }
+}
+
+playbook: ./playbook_main.yaml
+
+  play #1 (all): Развертывание кластера K3s с Calico    TAGS: []
+    tasks:
+      k3s_cluster : Обновление кэша apt TAGS: [prereq]
+      k3s_cluster : Обновление пакетов (dist-upgrade)   TAGS: [prereq]
+      k3s_cluster : Отключение swap     TAGS: [prereq]
+      k3s_cluster : Удаление записи swap из /etc/fstab  TAGS: [prereq]
+      k3s_cluster : Загрузка необходимых модулей ядра   TAGS: [prereq]
+      k3s_cluster : Сохранение модулей ядра для автозагрузки    TAGS: [prereq]
+      k3s_cluster : Настройка параметров sysctl для сети Kubernetes     TAGS: [prereq]
+      k3s_cluster : Копирование бинарного файла K3s     TAGS: [install, k3s]
+      k3s_cluster : Создание символической ссылки для kubectl   TAGS: [install, k3s]
+      k3s_cluster : Копирование архива Helm     TAGS: [install, k3s]
+      k3s_cluster : Распаковка Helm     TAGS: [install, k3s]
+      k3s_cluster : Перемещение Helm в /usr/local/bin   TAGS: [install, k3s]
+      k3s_cluster : Копирование архива CNI плагинов     TAGS: [cni, install, k3s]
+      k3s_cluster : Создание директории для CNI плагинов        TAGS: [cni, install, k3s]
+      k3s_cluster : Распаковка CNI плагинов в /opt/cni/bin      TAGS: [cni, install, k3s]
+      k3s_cluster : Установка утилиты calicoctl TAGS: [calico, install, k3s]
+      k3s_cluster : Создание каталога конфигурации K3s  TAGS: [config, k3s]
+      k3s_cluster : Развертывание конфигурации master-узла      TAGS: [config, k3s]
+      k3s_cluster : Развертывание конфигурации worker-узла      TAGS: [config, k3s]
+      k3s_cluster : Определение имени службы K3s через facts    TAGS: [config, k3s]
+      k3s_cluster : Копирование скрипта установки K3s на узел   TAGS: [config, k3s]
+      k3s_cluster : Инициализация K3s Server через официальный скрипт install.sh        TAGS: [config, k3s]
+      k3s_cluster : Обеспечение первого запуска службы K3s на мастер    TAGS: [config, k3s]
+      k3s_cluster : Ожидание готовности API K3s на мастере      TAGS: [config, k3s]
+      k3s_cluster : Инициализация K3s Agent через install.sh    TAGS: [config, k3s]
+      k3s_cluster : Перезагрузка после применения скрипта       TAGS: [config, k3s]
+      k3s_cluster : Обеспечение запуска службы K3s (enabled, started)   TAGS: [config, k3s]
+      k3s_cluster : Ожидание доступности порта API K3s Master   TAGS: [config, k3s]
+      k3s_cluster : Упрощенная Проверка доступности API K3s     TAGS: [config, k3s]
+      k3s_cluster : Пауза для стабилизации мастера перед стартом воркеров       TAGS: [config, k3s]
+      k3s_cluster : Удаление Helm релиза Traefik        TAGS: [config, k3s]
+      k3s_cluster : Удаление Deployment Traefik TAGS: [config, k3s]
+      k3s_cluster : Удаление DaemonSet ServiceLB        TAGS: [config, k3s]
+      k3s_cluster : Удаление Deployment Metrics Server  TAGS: [config, k3s]
+      k3s_cluster : Удаление ConfigMap ServiceLB        TAGS: [config, k3s]
+      k3s_cluster : Проверка статуса службы K3s TAGS: [config, k3s]
+      k3s_cluster : Вывод логов при ошибке запуска      TAGS: [config, k3s]
+      k3s_cluster : Остановка прогона при неудачном старте службы на мастере    TAGS: [config, k3s]
+      k3s_cluster : Копирование манифеста Calico на мастер-ноду TAGS: [calico, network]
+      k3s_cluster : Применение полного манифеста Calico TAGS: [calico, network]
+      k3s_cluster : Ожидание появления подов Calico Node        TAGS: [calico, network]
+      k3s_cluster : Удаление дефолтного IPPool  TAGS: [calico, network]
+      k3s_cluster : Развертывание манифеста Calico IPPool из шаблона    TAGS: [calico, network]
+      k3s_cluster : Применение корректного Calico IPPool        TAGS: [calico, network]
+      k3s_cluster : Очистка временного файла    TAGS: [calico, network]
+      k3s_cluster : Применение корректных CIDR — пересоздание подов kube-system TAGS: [calico, network]
+      k3s_cluster : Ожидание готовности узлов кластера после применения IPPool  TAGS: [calico, network]
+      k3s_cluster : Копирование манифеста ingress-nginx на мастер-ноду  TAGS: [ingress, network]
+      k3s_cluster : Применение полного манифеста ingress-nginx  TAGS: [ingress, network]
+      k3s_cluster : Ожидание готовности подов ingress-nginx controller  TAGS: [ingress, network]
+      k3s_cluster : Очистка временного файла манифеста ingress-nginx    TAGS: [ingress, network]
+      k3s_cluster : Добавление Helm репозитория Prometheus Community    TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Обновление Helm репозиториев        TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Создание неймспейса для мониторинга TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Ожидание готовности узлов кластера перед установкой мониторинга     TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Генерация файла values для kube-prometheus-stack    TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Установка kube-prometheus-stack через Helm  TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Ожидание готовности подов Prometheus        TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Ожидание готовности подов Grafana   TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Ожидание готовности Alertmanager    TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Развертывание Ingress для Grafana   TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Применение Ingress для Grafana      TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Очистка временных файлов    TAGS: [grafana, monitoring, prometheus]
+      k3s_cluster : Создание локального каталога .kube  TAGS: [kubeconfig]
+      k3s_cluster : Получение kubeconfig с master-узла  TAGS: [kubeconfig]
+      k3s_cluster : Замена IP сервера в kubeconfig на IP NLB    TAGS: [kubeconfig]
+      k3s_cluster : Перемещение итогового конфига в ~/.kube/config c Принудительной перезаписью TAGS: [kubeconfig]
+      k3s_cluster : Вывод информации о доступе к Grafana        TAGS: [kubeconfig]
 cl1pe91p5m9cgac980rd-uqan | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
     ping: pong
-cl1015remkdroropep9h-orys | SUCCESS => 
+cl1015remkdroropep9h-ozaz | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
@@ -6336,7 +6450,7 @@ cl1015remkdroropep9h-opoc | SUCCESS =>
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
     ping: pong
-cl1015remkdroropep9h-ozaz | SUCCESS => 
+cl1015remkdroropep9h-orys | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
@@ -6693,6 +6807,10 @@ cl1pe91p5m9cgac980rd-uqan  : ok=50   changed=35   unreachable=0    failed=0    s
 ### Проверка развернутого кластера
 
 ```bash
+ansible-playbook playbook_main.yaml \
+--start-at-task "k3s_cluster : Добавление Helm репозитория Prometheus Community"
+
+
 cat ~/.kube/config
 
 kubectl config get-contexts

@@ -6,4 +6,9 @@ metadata:
 spec:
   cidr: {{ cluster_cidr }}
   natOutgoing: true
+  # VXLAN overlay обязателен: без него кросс-нодовые маршруты уходят
+  # через облачный шлюз (via 10.10.10.1) и поды других нод недоступны
+  # (kube-apiserver -> webhook/поды висят в "context deadline exceeded")
+  vxlanMode: Always
+  ipipMode: Never
   blockSize: 26
