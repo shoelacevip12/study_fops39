@@ -6361,36 +6361,44 @@ Passed: 0 failure(s), 0 warning(s) in 13 files processed of 13 encountered. Last
 @all:
   |--@ungrouped:
   |--@masters:
-  |  |--cl1pe91p5m9cgac980rd-uqan
+  |  |--cl1k6rbj55uciq502a8d-ezoj
   |--@workers:
-  |  |--cl1015remkdroropep9h-ozaz
-  |  |--cl1015remkdroropep9h-opoc
-  |  |--cl1015remkdroropep9h-orys
+  |  |--cl1k5hfe7kldnrkfssop-orac
+  |  |--cl1k5hfe7kldnrkfssop-uher
+  |  |--cl1k5hfe7kldnrkfssop-onin
 {
     "_meta": {
         "hostvars": {
-            "cl1015remkdroropep9h-opoc": {
-                "ansible_host": "10.10.10.58",
+            "cl1k5hfe7kldnrkfssop-onin": {
+                "ansible_host": "10.10.10.54",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
+                "grafana_admin_password": "DiplomGrafana2026!",
+                "grafana_admin_user": "admin",
                 "k3s_token": "DiplomK8sFops40Token2026!"
             },
-            "cl1015remkdroropep9h-orys": {
-                "ansible_host": "10.10.10.22",
+            "cl1k5hfe7kldnrkfssop-orac": {
+                "ansible_host": "10.10.10.26",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
+                "grafana_admin_password": "DiplomGrafana2026!",
+                "grafana_admin_user": "admin",
                 "k3s_token": "DiplomK8sFops40Token2026!"
             },
-            "cl1015remkdroropep9h-ozaz": {
-                "ansible_host": "10.10.10.45",
+            "cl1k5hfe7kldnrkfssop-uher": {
+                "ansible_host": "10.10.10.38",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
+                "grafana_admin_password": "DiplomGrafana2026!",
+                "grafana_admin_user": "admin",
                 "k3s_token": "DiplomK8sFops40Token2026!"
             },
-            "cl1pe91p5m9cgac980rd-uqan": {
-                "ansible_host": "81.26.179.3",
+            "cl1k6rbj55uciq502a8d-ezoj": {
+                "ansible_host": "51.250.38.106",
                 "ansible_ssh_private_key_file": "~/.ssh/id_lab22_1_fops40_ed25519",
                 "ansible_user": "skv",
+                "grafana_admin_password": "DiplomGrafana2026!",
+                "grafana_admin_user": "admin",
                 "k3s_token": "DiplomK8sFops40Token2026!"
             }
         },
@@ -6405,14 +6413,14 @@ Passed: 0 failure(s), 0 warning(s) in 13 files processed of 13 encountered. Last
     },
     "masters": {
         "hosts": [
-            "cl1pe91p5m9cgac980rd-uqan"
+            "cl1k6rbj55uciq502a8d-ezoj"
         ]
     },
     "workers": {
         "hosts": [
-            "cl1015remkdroropep9h-ozaz",
-            "cl1015remkdroropep9h-opoc",
-            "cl1015remkdroropep9h-orys"
+            "cl1k5hfe7kldnrkfssop-orac",
+            "cl1k5hfe7kldnrkfssop-uher",
+            "cl1k5hfe7kldnrkfssop-onin"
         ]
     }
 }
@@ -6489,22 +6497,22 @@ playbook: ./playbook_main.yaml
       k3s_cluster : Замена IP сервера в kubeconfig на IP NLB    TAGS: [kubeconfig]
       k3s_cluster : Перемещение итогового конфига в ~/.kube/config c Принудительной перезаписью TAGS: [kubeconfig]
       k3s_cluster : Вывод информации о доступе к Grafana        TAGS: [kubeconfig]
-cl1pe91p5m9cgac980rd-uqan | SUCCESS => 
+cl1k6rbj55uciq502a8d-ezoj | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
     ping: pong
-cl1015remkdroropep9h-ozaz | SUCCESS => 
+cl1k5hfe7kldnrkfssop-orac | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
     ping: pong
-cl1015remkdroropep9h-opoc | SUCCESS => 
+cl1k5hfe7kldnrkfssop-uher | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
     ping: pong
-cl1015remkdroropep9h-orys | SUCCESS => 
+cl1k5hfe7kldnrkfssop-onin | SUCCESS => 
     ansible_facts:
         discovered_interpreter_python: /usr/bin/python3.13
     changed: false
