@@ -13,7 +13,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  TF_VERSION: '1.11.4'
+  TF_VERSION: '1.15.9'
   TF_IN_AUTOMATION: 'true'
 
 jobs:
