@@ -1311,68 +1311,6 @@ git push
 git tag v1.0.0
 git push ffops40-diplom v1.0.0
 ```
-
-### Terraform pipeline'ы
-
-"Деплой инфраструктуры в terraform pipeline"
-в отдельных репозитория на self-hosted forgejo (`git.den-skv.ru`) со своими workflow:
-
-- `tf-net-S3-store` — содержимое `tf/net_S3-store` + `.forgejo/workflows/terraform.yml`;
-- `tf-k8s` — содержимое `tf/k8s` + `.forgejo/workflows/terraform.yml`;
-- репозиторий приложения — `.forgejo/workflows/ci.yaml`.
-
-Каждый terraform-репозиторий выполняет `terraform plan` (pull request) и
-`terraform apply` (push в main/master). Секреты репозитория
-(Settings -> Actions -> Secrets): `SA_STORAGE_KEY` (содержимое
-`~/.sa_storage.key`), `YC_AUTHORIZED_KEY` (содержимое
-`~/.authorized_key.json`), `TF_VARS_SECRET` (содержимое
-`terraform.tfvars.secret`).
-
-```yaml
-# tf/net_S3-store/.forgejo/workflows/terraform.yml для terraform репозиториев
-cat > .forgejo/workflows/terraform.yml <<'EOF'
----
-name: Terraform net_S3-store
-
-on:
-  push:
-    branches: ['main', 'master']
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-env:
-  TF_VERSION: '1.15.9'
-  TF_IN_AUTOMATION: 'true'
-
-jobs:
-  terraform:
-    runs-on: docker
-    container:
-      image: ghcr.io/catthehacker/ubuntu:act-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Terraform
-        run: |
-          curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
-          command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
-          unzip -o /tmp/tf.zip -d /usr/local/bin
-          terraform version
-      - name: Prepare credentials
-        run: |
-          umask 077
-          echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
-          echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
-          echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
-      - name: Terraform Init
-        run: terraform init -reconfigure
-      - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars -var-file=terraform.tfvars.secret -out=tfplan
-      - name: Terraform Apply
-        if: github.event_name == 'push'
-        run: terraform apply -input=false tfplan
-EOF
-```
-
 ---
 
 ## Создание terraform ресурсов
@@ -7080,6 +7018,53 @@ FFOPS-40_diplom-skv_den
 ```
 
 ## commit_12,`FFOPS-40_diplom-skv_den`
+
+### Terraform pipeline'ы для terraform репозиториев
+
+```yaml
+cat > .forgejo/workflows/terraform.yml <<'EOF'
+---
+name: Terraform net_S3-store
+
+on:
+  push:
+    branches: ['main', 'master']
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  TF_VERSION: '1.15.9'
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  terraform:
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Terraform
+        run: |
+          curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
+          command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
+          unzip -o /tmp/tf.zip -d /usr/local/bin
+          terraform version
+      - name: Prepare credentials
+        run: |
+          umask 077
+          echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
+          echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
+          echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
+      - name: Terraform Init
+        run: terraform init -reconfigure
+      - name: Terraform Plan
+        run: terraform plan -var-file=terraform.tfvars -var-file=terraform.tfvars.secret -out=tfplan
+      - name: Terraform Apply
+        if: github.event_name == 'push'
+        run: terraform apply -input=false tfplan
+EOF
+```
+
 
 
 ```bash
