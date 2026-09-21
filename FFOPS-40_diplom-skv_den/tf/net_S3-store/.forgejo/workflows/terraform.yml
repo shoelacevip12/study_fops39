@@ -1,0 +1,58 @@
+---
+# Terraform pipeline для репозитория tf/net_S3-store
+#
+# Секреты (forgejo -> Settings -> Actions -> Secrets):
+#   SA_STORAGE_KEY   - содержимое ~/.sa_storage.key (static S3-ключи для backend)
+#   YC_AUTHORIZED_KEY- содержимое ~/.authorized_key.json (ключ сервисного аккаунта)
+#   TF_VARS_SECRET   - содержимое terraform.tfvars.secret (cloud_id/folder_id/zone)
+name: Terraform net_S3-store
+
+on:
+  push:
+    branches: ['main', 'master']
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  TF_VERSION: '1.11.4'
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  terraform:
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Terraform
+        run: |
+          curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
+          command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
+          unzip -o /tmp/tf.zip -d /usr/local/bin
+          terraform version
+
+      - name: Prepare credentials
+        run: |
+          umask 077
+          echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
+          echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
+          echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
+          test -s ~/.sa_storage.key && test -s ~/.authorized_key.json && test -s terraform.tfvars.secret
+          ls -la terraform.tfvars*
+
+      - name: Terraform Init
+        run: terraform init -reconfigure
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -var-file=terraform.tfvars -var-file=terraform.tfvars.secret -out=tfplan
+
+      - name: Terraform Apply
+        if: github.event_name == 'push'
+        run: terraform apply -input=false tfplan
+
+      - name: Terraform Output
+        if: always()
+        run: terraform output || true

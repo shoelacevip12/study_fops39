@@ -8,7 +8,15 @@ services:
         condition: service_started
     container_name: 'docker_dind'
     privileged: 'true'
-    command: ['dockerd', '-H', 'tcp://0.0.0.0:2375', '--tls=false']
+    command:
+      - 'dockerd'
+      - '-H'
+      - 'tcp://0.0.0.0:2375'
+      - '--tls=false'
+      - '--insecure-registry=10.8.0.1:3000'
+      - '--insecure-registry=git.den-skv.ru:3000'
+    extra_hosts:
+      - 'git.den-skv.ru:10.8.0.1'
     restart: 'unless-stopped'
 
   runner:

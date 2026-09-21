@@ -1058,7 +1058,15 @@ services:
         condition: service_started
     container_name: 'docker_dind'
     privileged: 'true'
-    command: ['dockerd', '-H', 'tcp://0.0.0.0:2375', '--tls=false']
+    command:
+      - 'dockerd'
+      - '-H'
+      - 'tcp://0.0.0.0:2375'
+      - '--tls=false'
+      - '--insecure-registry=10.8.0.1:3000'
+      - '--insecure-registry=git.den-skv.ru:3000'
+    extra_hosts:
+      - 'git.den-skv.ru:10.8.0.1'
     restart: 'unless-stopped'
 
   runner:
@@ -1158,23 +1166,33 @@ mkdir -p .forgejo/workflows
 
 ``` bash
 cat > .forgejo/workflows/ci.yaml <<'EOF'
-name: CI/CD Pipeline
+---
+# Заготовка CI/CD pipeline для репозитория тестового приложения.
+#
+# Секреты (forgejo -> Settings -> Actions -> Secrets):
+#   FORGEJO_TOKEN - токен пользователя с правами write:package
+#   KUBE_CONFIG   - base64 от ~/.kube/config (доступ к кластеру K3s)
+#
+# Registry forgejo работает по HTTP -> dind запущен с --insecure-registry.
+name: CI/CD Pipeline App
 
 on:
   push:
-    branches:
-      - '**'  # Любой коммит в любую ветку
-    tags:
-      - 'v*'  # Любой тег вида v1.0.0, v2.3.4 и т.д.
+    branches: ['main', 'master']
+    tags: ['v*']
 
 env:
-  REGISTRY: git.den-skv.ru:3000
+  # Registry forgejo (HTTP, только внутри VPN)
+  REGISTRY: 10.8.0.1:3000
   IMAGE_NAME: ${{ forgejo.repository }}
+  # Параметры деплоя (заменить на реальные deployment/namespace/контейнер)
+  APP_NAMESPACE: apps
+  APP_DEPLOYMENT: skv-app
+  APP_CONTAINER: skv-app
 
 jobs:
   # ========================================
   # Job 1: Сборка и push Docker образа
-  # Запускается при любом коммите и создании тега
   # ========================================
   build:
     runs-on: docker
@@ -1203,15 +1221,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # При push тега v1.0.0 → образ с тегом v1.0.0 и latest
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            # При push в ветку → образ с тегом ветки
             type=ref,event=branch
-            # При push тега → также latest
             type=raw,value=latest,enable=${{ startsWith(forgejo.ref, 'refs/tags/v') }}
-            # Всегда добавлять SHA коммита
             type=sha,prefix=
 
       - name: Build and push Docker image
@@ -1228,8 +1242,7 @@ jobs:
         run: echo "Image pushed with tags ${{ steps.meta.outputs.tags }}"
 
   # ========================================
-  # Job 2: Деплой в Kubernetes
-  # Запускается ТОЛЬКО при создании тега v*
+  # Job 2: Деплой в Kubernetes (только тег v*)
   # ========================================
   deploy:
     runs-on: docker
@@ -1244,48 +1257,35 @@ jobs:
       - name: Extract version from tag
         id: version
         run: |
-          # Извлекаем версию из тега (v1.0.0 → 1.0.0)
           VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Deploying version: $VERSION"
 
       - name: Install kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          mv kubectl /usr/local/bin/
+          install -m 0755 kubectl /usr/local/bin/
 
       - name: Configure kubectl
         run: |
-          # Создаём директорию для kubeconfig
-          mkdir -p $HOME/.kube
-
-          # Декодируем kubeconfig из secrets
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
 
       - name: Deploy to Kubernetes
         run: |
-          VERSION=${{ steps.version.outputs.version }}
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION"
-
-          echo "Deploying image: $IMAGE"
-
-          # Обновляем образ в deployment
-          # Заменить 'your-deployment-name' и 'your-namespace' на новые значения
-          kubectl set image deployment/your-deployment-name \
-            your-container-name=$IMAGE \
-            -n your-namespace
-
-          # Ждём завершения rollout
-          kubectl rollout status deployment/your-deployment-name -n your-namespace --timeout=300s
-
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
+          kubectl -n "${{ env.APP_NAMESPACE }}" set image \
+            deployment/${{ env.APP_DEPLOYMENT }} \
+            ${{ env.APP_CONTAINER }}=$IMAGE
+          kubectl -n "${{ env.APP_NAMESPACE }}" rollout status \
+            deployment/${{ env.APP_DEPLOYMENT }} --timeout=300s
           echo "Deployment completed successfully!"
 
       - name: Verify deployment
         run: |
-          kubectl get pods -n your-namespace
-          kubectl get services -n your-namespace
+          kubectl -n "${{ env.APP_NAMESPACE }}" get pods
+          kubectl -n "${{ env.APP_NAMESPACE }}" get svc,ingress
 
   # ========================================
   # Job 3: Уведомление об успехе
@@ -1310,6 +1310,67 @@ git push
 
 git tag v1.0.0
 git push ffops40-diplom v1.0.0
+```
+
+### Terraform pipeline'ы
+
+"Деплой инфраструктуры в terraform pipeline"
+в отдельных репозитория на self-hosted forgejo (`git.den-skv.ru`) со своими workflow:
+
+- `tf-net-S3-store` — содержимое `tf/net_S3-store` + `.forgejo/workflows/terraform.yml`;
+- `tf-k8s` — содержимое `tf/k8s` + `.forgejo/workflows/terraform.yml`;
+- репозиторий приложения — `.forgejo/workflows/ci.yaml`.
+
+Каждый terraform-репозиторий выполняет `terraform plan` (pull request) и
+`terraform apply` (push в main/master). Секреты репозитория
+(Settings -> Actions -> Secrets): `SA_STORAGE_KEY` (содержимое
+`~/.sa_storage.key`), `YC_AUTHORIZED_KEY` (содержимое
+`~/.authorized_key.json`), `TF_VARS_SECRET` (содержимое
+`terraform.tfvars.secret`).
+
+```yaml
+# tf/net_S3-store/.forgejo/workflows/terraform.yml для terraform репозиториев
+cat > .forgejo/workflows/terraform.yml <<'EOF'
+---
+name: Terraform net_S3-store
+
+on:
+  push:
+    branches: ['main', 'master']
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  TF_VERSION: '1.11.4'
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  terraform:
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Terraform
+        run: |
+          curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
+          command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
+          unzip -o /tmp/tf.zip -d /usr/local/bin
+          terraform version
+      - name: Prepare credentials
+        run: |
+          umask 077
+          echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
+          echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
+          echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
+      - name: Terraform Init
+        run: terraform init -reconfigure
+      - name: Terraform Plan
+        run: terraform plan -var-file=terraform.tfvars -var-file=terraform.tfvars.secret -out=tfplan
+      - name: Terraform Apply
+        if: github.event_name == 'push'
+        run: terraform apply -input=false tfplan
+EOF
 ```
 
 ---
