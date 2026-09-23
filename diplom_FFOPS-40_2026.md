@@ -7553,7 +7553,15 @@ branch 'main' set up to track 'origin/main'.
 
 </details>
 
+```bash
+git commit --allow-empty -m "ci: rerun after runner web fix5" && git push -u origin main
 
+curl -s "http://10.8.0.1:3000/api/v1/repos/diplom/tf-k8s/actions/runs/19/logs" \
+-H "Authorization: token 984e506e8226f1a1f1663ec98c46cd194eaad5ca" \
+-o /tmp/r.zip
+
+unzip -p /tmp/r.zip
+```
 
 ```bash
 terraform destroy \
