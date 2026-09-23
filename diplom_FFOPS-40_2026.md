@@ -1092,6 +1092,9 @@ EOF
 sudo tee ~/data-runner/runner-config.yml <<'EOF'
 runner:
   labels: ["docker:docker://ghcr.io/catthehacker/ubuntu:act-latest"]
+  web:
+    listen-address: 0.0.0.0:8080
+    address: http://10.8.0.1:8080/
 
 server:
   connections:
@@ -1201,7 +1204,13 @@ jobs:
       options: --privileged
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -1252,7 +1261,13 @@ jobs:
     if: startsWith(forgejo.ref, 'refs/tags/v')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
 
       - name: Extract version from tag
         id: version
@@ -1311,6 +1326,7 @@ git push
 git tag v1.0.0
 git push ffops40-diplom v1.0.0
 ```
+
 ---
 
 ## Создание terraform ресурсов
@@ -6986,7 +7002,6 @@ monitoring      prometheus-stack-prometheus-node-exporter-r8wtn          1/1    
 
 ![](./FFOPS-40_diplom-skv_den/img/8.gif)
 
-
 ### Git Commit изменений
 
 ```bash
@@ -7019,10 +7034,375 @@ FFOPS-40_diplom-skv_den
 
 ## commit_12,`FFOPS-40_diplom-skv_den`
 
-### Terraform pipeline'ы для terraform репозиториев
+### Terraform репозитории на self-hosted git
+
+```bash
+cd ../../../../
+
+pwd
+
+mkdir -vp ./self-repos/tf-{net-S3-store,k8s}
+
+cd ./self-repos/tf-net-S3-store
+
+tee .gitignore <<'EOF'
+
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars.secret
+personal.auto.tfvars
+tfplan
+*.tfstate
+*.tfstate.*backup
+errored.tfstate
+authorized_key.json
+.sa_storage.key
+
+EOF
+
+touch README.md
+git init
+git config --global --add safe.directory /home/shoel/nfs_git/self-repos/tf-net-S3-store
+git switch -c main
+
+cp -vr ../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/* ./
+
+git add . && git status
+git commit -m "first commit"
+git remote add origin ssh://git@git.den-skv.ru:6722/diplom/tf-net-S3-store.git
+git push -u origin main
+```
+
+<details>
+<summary>
+Создание репозиториев
+</summary>
+
+```log
+/home/shoel/nfs_git
+
+mkdir: создан каталог './self-repos'
+mkdir: создан каталог './self-repos/tf-net-S3-store'
+mkdir: создан каталог './self-repos/tf-k8s'
+
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars.secret
+personal.auto.tfvars
+tfplan
+*.tfstate
+*.tfstate.*backup
+errored.tfstate
+authorized_key.json
+.sa_storage.key
+
+Инициализирован пустой репозиторий Git в /home/shoel/nfs_git/self-repos/tf-net-S3-store/.git/
+
+Переключились на новую ветку «main»
+
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/kms.tf' -> './kms.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/locals.tf' -> './locals.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/network_vpc.tf' -> './network_vpc.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/output.tf' -> './output.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/providers_backend-S3.tf' -> './providers_backend-S3.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/s3.tf' -> './s3.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/sa_storage.tf' -> './sa_storage.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/security_groups.tf' -> './security_groups.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/sleep_timer.tf' -> './sleep_timer.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/terraform.tfvars' -> './terraform.tfvars'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/terraform.tfvars.secret' -> './terraform.tfvars.secret'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/tfplan' -> './tfplan'
+'../../gited/FFOPS-40_diplom-skv_den/tf/net_S3-store/variables.tf' -> './variables.tf'
+
+Текущая ветка: main
+
+Еще нет коммитов
+
+Изменения, которые будут включены в коммит:
+  (используйте «git rm --cached <файл>...», чтобы убрать из индекса)
+        новый файл:    .gitignore
+        новый файл:    README.md
+        новый файл:    kms.tf
+        новый файл:    locals.tf
+        новый файл:    network_vpc.tf
+        новый файл:    output.tf
+        новый файл:    providers_backend-S3.tf
+        новый файл:    s3.tf
+        новый файл:    sa_storage.tf
+        новый файл:    security_groups.tf
+        новый файл:    sleep_timer.tf
+        новый файл:    terraform.tfvars
+        новый файл:    variables.tf
+
+git remote add origin ssh://git@git.den-skv.ru:6722/diplom/tf-net-S3-store.git
+git push -u origin main
+[main (корневой коммит) 80dfd32] first commit
+ 13 files changed, 490 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 README.md
+ create mode 100644 kms.tf
+ create mode 100644 locals.tf
+ create mode 100644 network_vpc.tf
+ create mode 100644 output.tf
+ create mode 100644 providers_backend-S3.tf
+ create mode 100644 s3.tf
+ create mode 100644 sa_storage.tf
+ create mode 100644 security_groups.tf
+ create mode 100644 sleep_timer.tf
+ create mode 100644 terraform.tfvars
+ create mode 100644 variables.tf
+Перечисление объектов: 15, готово.
+Подсчет объектов: 100% (15/15), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (14/14), готово.
+Запись объектов: 100% (15/15), 5.71 KiB | 5.71 MiB/s, готово.
+Total 15 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/tf-net-S3-store.git
+ * [new branch]      main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+![](./FFOPS-40_diplom-skv_den/img/9.gif)
+
+</details>
+
+```bash
+cd ../tf-k8s/
+
+pwd
+
+tee .gitignore <<'EOF'
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars.secret
+personal.auto.tfvars
+tfplan
+*.tfstate
+*.tfstate.*backup
+errored.tfstate
+authorized_key.json
+.sa_storage.key
+EOF
+
+touch README.md
+git init
+git config --global --add safe.directory /home/shoel/nfs_git/self-repos/tf-k8s
+git switch -c main
+
+cp -vr ../../gited/FFOPS-40_diplom-skv_den/tf/k8s/* ./
+git add . && git status
+git commit -m "first commit"
+git remote add origin ssh://git@git.den-skv.ru:6722/diplom/tf-k8s.git
+git push -u origin main
+```
+
+<details>
+<summary>
+Создание репозиториев
+</summary>
+
+```log
+/home/shoel/nfs_git/self-repos/tf-k8s
+
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars.secret
+personal.auto.tfvars
+tfplan
+*.tfstate
+*.tfstate.*backup
+errored.tfstate
+authorized_key.json
+.sa_storage.key
+
+Инициализирован пустой репозиторий Git в /home/shoel/nfs_git/self-repos/tf-k8s/.git/
+Переключились на новую ветку «main»
+
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/ansible_hosts.tf' -> './ansible_hosts.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/cloud-init.tmpl' -> './cloud-init.tmpl'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/data.tf' -> './data.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/hosts.tftpl' -> './hosts.tftpl'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/locals.tf' -> './locals.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/nlb_master.tf' -> './nlb_master.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/output.tf' -> './output.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/providers_backend-S3.tf' -> './providers_backend-S3.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/ssh_config.tf' -> './ssh_config.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/terraform.tfvars' -> './terraform.tfvars'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/terraform.tfvars.secret' -> './terraform.tfvars.secret'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/tfplan' -> './tfplan'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/variables.tf' -> './variables.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/vms_master.tf' -> './vms_master.tf'
+'../../gited/FFOPS-40_diplom-skv_den/tf/k8s/vms_workers.tf' -> './vms_workers.tf'
+Текущая ветка: main
+Эта ветка соответствует «origin/main».
+
+Изменения, которые будут включены в коммит:
+  (используйте «git restore --staged <файл>...», чтобы убрать из индекса)
+        новый файл:    ansible_hosts.tf
+        новый файл:    cloud-init.tmpl
+        новый файл:    data.tf
+        новый файл:    hosts.tftpl
+        новый файл:    locals.tf
+        новый файл:    nlb_master.tf
+        новый файл:    output.tf
+        новый файл:    providers_backend-S3.tf
+        новый файл:    ssh_config.tf
+        новый файл:    terraform.tfvars
+        новый файл:    variables.tf
+        новый файл:    vms_master.tf
+        новый файл:    vms_workers.tf
+
+[main c593924] first commit
+ 13 files changed, 579 insertions(+)
+ create mode 100644 ansible_hosts.tf
+ create mode 100644 cloud-init.tmpl
+ create mode 100644 data.tf
+ create mode 100644 hosts.tftpl
+ create mode 100644 locals.tf
+ create mode 100644 nlb_master.tf
+ create mode 100644 output.tf
+ create mode 100644 providers_backend-S3.tf
+ create mode 100644 ssh_config.tf
+ create mode 100644 terraform.tfvars
+ create mode 100644 variables.tf
+ create mode 100644 vms_master.tf
+ create mode 100644 vms_workers.tf
+error: внешний репозиторий origin уже существует
+Перечисление объектов: 16, готово.
+Подсчет объектов: 100% (16/16), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (15/15), готово.
+Запись объектов: 100% (15/15), 7.23 KiB | 7.23 MiB/s, готово.
+Total 15 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/tf-k8s.git
+   be269de..c593924  main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+![](./FFOPS-40_diplom-skv_den/img/10.gif)
+
+</details>
+
+### каталоги для Terraform pipeline'ы для terraform репозиториев
+
+```bash
+cd ..
+
+pwd
+
+mkdir -vp ./tf-{k8s,net-S3-store}/.forgejo/workflows
+```
+
+<details>
+<summary>
+кталоги pipeline для terraform
+</summary>
+
+```log
+/home/shoel/nfs_git/self-repos
+
+mkdir: создан каталог './tf-k8s/.forgejo'
+mkdir: создан каталог './tf-k8s/.forgejo/workflows'
+mkdir: создан каталог './tf-net-S3-store/.forgejo'
+mkdir: создан каталог './tf-net-S3-store/.forgejo/workflows'
+```
+
+</details>
+
+### `Pipeline`для terraform k8s
+
+<details>
+<summary>
+pipeline для terraform k8s
+</summary>
 
 ```yaml
-cat > .forgejo/workflows/terraform.yml <<'EOF'
+cat > ./tf-k8s/.forgejo/workflows/terraform.yml <<'EOF'
+---
+name: Terraform k8s
+
+on:
+  push:
+    branches: ['main', 'master']
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  TF_VERSION: '1.16.4'
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  terraform:
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    env:
+      TF_CLI_CONFIG_FILE: .terraformrc
+    steps:
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
+      - name: Install Terraform
+        run: |
+          # releases.hashicorp.com и GitHub releases недоступны из региона (404)
+          # -> зеркало Yandex Cloud официальных релизов HashiCorp
+          curl -fsSL "https://hashicorp-releases.yandexcloud.net/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
+          command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
+          rm -rf /usr/local/bin/terraform-*
+          unzip -o /tmp/tf.zip -d /usr/local/bin
+          terraform version
+      - name: Prepare credentials
+        run: |
+          umask 077
+          echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
+          echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
+          echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
+          test -s ~/.sa_storage.key && test -s ~/.authorized_key.json && test -s terraform.tfvars.secret
+          ls -la terraform.tfvars*
+      - name: Configure provider registry mirror
+        run: |
+          # registry.terraform.io из региона отвечает не по протоколу реестра ->
+          # используем зеркало реестра провайдеров Yandex Cloud
+          # (тот же конфиг, что на хосте разработки в ~/.terraformrc).
+          # Файл кладём в workspace и подключаем явно через TF_CLI_CONFIG_FILE.
+          cat > .terraformrc <<'EOF'
+          provider_installation {
+            network_mirror {
+              url = "https://terraform-mirror.yandexcloud.net/"
+              include = ["registry.terraform.io/*/*"]
+            }
+            direct {
+              exclude = ["registry.terraform.io/*/*"]
+            }
+          }
+          EOF
+          cat .terraformrc
+      - name: Terraform Init
+        run: terraform init -reconfigure
+      - name: Terraform Plan
+        run: terraform plan -var-file=terraform.tfvars -var-file=terraform.tfvars.secret -out=tfplan
+      - name: Terraform Apply
+        if: github.event_name == 'push'
+        run: terraform apply -input=false tfplan
+EOF
+```
+
+</details>
+
+### `Pipeline`для terraform net-S3-store
+
+<details>
+<summary>
+pipeline для terraform net-S3-store
+</summary>
+
+```yaml
+cat > ./tf-net-S3-store/.forgejo/workflows/terraform.yml <<'EOF'
 ---
 name: Terraform net_S3-store
 
@@ -7033,7 +7413,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  TF_VERSION: '1.15.9'
+  TF_VERSION: '1.16.4'
   TF_IN_AUTOMATION: 'true'
 
 jobs:
@@ -7041,12 +7421,24 @@ jobs:
     runs-on: docker
     container:
       image: ghcr.io/catthehacker/ubuntu:act-latest
+    env:
+      TF_CLI_CONFIG_FILE: .terraformrc
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
       - name: Install Terraform
         run: |
-          curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
+          # releases.hashicorp.com и GitHub releases недоступны из региона (404)
+          # -> зеркало Yandex Cloud официальных релизов HashiCorp
+          curl -fsSL "https://hashicorp-releases.yandexcloud.net/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
           command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
+          rm -rf /usr/local/bin/terraform-*
           unzip -o /tmp/tf.zip -d /usr/local/bin
           terraform version
       - name: Prepare credentials
@@ -7055,6 +7447,26 @@ jobs:
           echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
           echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
           echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
+          test -s ~/.sa_storage.key && test -s ~/.authorized_key.json && test -s terraform.tfvars.secret
+          ls -la terraform.tfvars*
+      - name: Configure provider registry mirror
+        run: |
+          # registry.terraform.io из региона отвечает не по протоколу реестра ->
+          # используем зеркало реестра провайдеров Yandex Cloud
+          # (тот же конфиг, что на хосте разработки в ~/.terraformrc).
+          # Файл кладём в workspace и подключаем явно через TF_CLI_CONFIG_FILE.
+          cat > .terraformrc <<'EOF'
+          provider_installation {
+            network_mirror {
+              url = "https://terraform-mirror.yandexcloud.net/"
+              include = ["registry.terraform.io/*/*"]
+            }
+            direct {
+              exclude = ["registry.terraform.io/*/*"]
+            }
+          }
+          EOF
+          cat .terraformrc
       - name: Terraform Init
         run: terraform init -reconfigure
       - name: Terraform Plan
@@ -7064,6 +7476,82 @@ jobs:
         run: terraform apply -input=false tfplan
 EOF
 ```
+
+</details>
+
+```bash
+cd tf-k8s
+
+git add . && git status
+git commit -am "add cicd"
+git push -u origin main
+```
+
+<details>
+<summary>
+log коммита tf-k8s
+</summary>
+
+```log
+Текущая ветка: main
+Эта ветка соответствует «origin/main».
+
+Изменения, которые будут включены в коммит:
+  (используйте «git restore --staged <файл>...», чтобы убрать из индекса)
+        новый файл:    .forgejo/workflows/terraform.yml
+
+[main e97ace0] add cicd
+ 1 file changed, 39 insertions(+)
+ create mode 100644 .forgejo/workflows/terraform.yml
+Перечисление объектов: 6, готово.
+Подсчет объектов: 100% (6/6), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (3/3), готово.
+Запись объектов: 100% (5/5), 999 bytes | 999.00 KiB/s, готово.
+Total 5 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/tf-k8s.git
+   c593924..e97ace0  main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+</details>
+
+```bash
+cd ../tf-net-S3-store/
+
+git add . && git status
+git commit -am "add cicd"
+git push -u origin main
+```
+
+<details>
+<summary>
+log коммита tf-k8s
+</summary>
+
+```log
+Текущая ветка: main
+Эта ветка соответствует «origin/main».
+
+Изменения, которые будут включены в коммит:
+  (используйте «git restore --staged <файл>...», чтобы убрать из индекса)
+        новый файл:    .forgejo/workflows/terraform.yml
+
+[main 01a717f] add cicd
+ 1 file changed, 39 insertions(+)
+ create mode 100644 .forgejo/workflows/terraform.yml
+Перечисление объектов: 6, готово.
+Подсчет объектов: 100% (6/6), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (3/3), готово.
+Запись объектов: 100% (5/5), 1004 bytes | 1004.00 KiB/s, готово.
+Total 5 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/tf-net-S3-store.git
+   80dfd32..01a717f  main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+</details>
 
 
 

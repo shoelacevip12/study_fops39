@@ -20,7 +20,7 @@ services:
       - FORGEJO__database__NAME=forgejo
       - FORGEJO__database__USER=forgejo
       - FORGEJO__database__PASSWD=${DB_PASSWORD}
-      - FORGEJO__server__ROOT_URL=http://git.den-skv.ru/
+      - FORGEJO__server__ROOT_URL=http://git.den-skv.ru:3000/
       - FORGEJO__server__SSH_DOMAIN=git.den-skv.ru
       - FORGEJO__server__SSH_PORT=6722
       - FORGEJO__actions__ENABLED=true

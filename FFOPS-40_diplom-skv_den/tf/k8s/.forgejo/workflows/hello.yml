@@ -1,0 +1,16 @@
+---
+# Минимальный тестовый workflow: проверяет, что runner выполняет джобу
+name: Hello test
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  hello:
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+      - name: Echo
+        run: echo "hello from forgejo runner"

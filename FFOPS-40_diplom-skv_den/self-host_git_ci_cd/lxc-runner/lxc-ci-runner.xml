@@ -1,0 +1,55 @@
+<domain type='lxc'>
+  <name>ci-runner</name>
+  <memory unit='KiB'>4194304</memory>
+  <vcpu>2</vcpu>
+
+  <os>
+    <type>exe</type>
+    <init>/sbin/init</init>
+  </os>
+
+  <features>
+    <capabilities policy='allow'>
+      <net_admin/>
+      <sys_admin/>
+      <sys_ptrace/>
+      <mknod/>
+      <chown/>
+      <dac_override/>
+      <fowner/>
+      <fsetid/>
+      <kill/>
+      <setgid/>
+      <setuid/>
+      <setpcap/>
+      <net_bind_service/>
+      <net_raw/>
+      <sys_chroot/>
+      <sys_resource/>
+      <audit_write/>
+    </capabilities>
+  </features>
+
+  <clock offset="timezone" timezone="Europe/Moscow"/>
+
+  <devices>
+    <filesystem type='mount'>
+      <source dir='/disk/VMs/ci-runner/rootfs'/>
+      <target dir='/'/>
+    </filesystem>
+
+    <!-- Сеть: статический IP в LAN + маршрут до VPN-сети (10.8.0.0/24) через хост -->
+    <interface type='bridge'>
+      <source bridge='br0'/>
+      <ip address='192.168.89.20' family='ipv4' prefix='24'/>
+      <route family='ipv4' address='0.0.0.0' gateway='192.168.89.1'/>
+      <guest dev='eth0'/>
+      <link state='up'/>
+    </interface>
+
+    <console type='pty'>
+      <target type='lxc' port='0'/>
+    </console>
+    <tty/>
+  </devices>
+</domain>

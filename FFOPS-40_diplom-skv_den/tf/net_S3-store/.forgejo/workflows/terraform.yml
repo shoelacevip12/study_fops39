@@ -14,7 +14,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  TF_VERSION: '1.15.9'
+  TF_VERSION: '1.16.4'
   TF_IN_AUTOMATION: 'true'
 
 jobs:
@@ -22,14 +22,23 @@ jobs:
     runs-on: docker
     container:
       image: ghcr.io/catthehacker/ubuntu:act-latest
+    env:
+      TF_CLI_CONFIG_FILE: .terraformrc
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
 
       - name: Install Terraform
         run: |
-          curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
+          curl -fsSL "https://hashicorp-releases.yandexcloud.net/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
           command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
+          rm -rf /usr/local/bin/terraform-*   # зачистка ошибочно распакованных исходников
           unzip -o /tmp/tf.zip -d /usr/local/bin
           terraform version
 
@@ -41,6 +50,21 @@ jobs:
           echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
           test -s ~/.sa_storage.key && test -s ~/.authorized_key.json && test -s terraform.tfvars.secret
           ls -la terraform.tfvars*
+
+      - name: Configure provider registry mirror
+        run: |
+          cat > .terraformrc <<'EOF'
+          provider_installation {
+            network_mirror {
+              url = "https://terraform-mirror.yandexcloud.net/"
+              include = ["registry.terraform.io/*/*"]
+            }
+            direct {
+              exclude = ["registry.terraform.io/*/*"]
+            }
+          }
+          EOF
+          cat .terraformrc
 
       - name: Terraform Init
         run: terraform init -reconfigure

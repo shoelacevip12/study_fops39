@@ -21,6 +21,8 @@ services:
 
   runner:
     image: 'data.forgejo.org/forgejo/runner:13'
+    extra_hosts:
+      - 'git.den-skv.ru:10.8.0.1'
     links:
       - docker-in-docker
     depends_on:
