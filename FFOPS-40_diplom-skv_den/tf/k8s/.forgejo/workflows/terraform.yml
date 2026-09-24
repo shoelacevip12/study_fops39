@@ -1,9 +1,4 @@
 ---
-# Terraform pipeline для репозитория tf/k8s
-# Секреты (forgejo -> Settings -> Actions -> Secrets):
-#   SA_STORAGE_KEY   - содержимое ~/.sa_storage.key (static S3-ключи для backend)
-#   YC_AUTHORIZED_KEY- содержимое ~/.authorized_key.json (ключ сервисного аккаунта)
-#   TF_VARS_SECRET   - содержимое terraform.tfvars.secret (cloud_id/folder_id/zone)
 name: Terraform k8s
 
 on:
@@ -18,13 +13,14 @@ env:
 
 jobs:
   terraform:
+    name: План и применение
     runs-on: docker
     container:
       image: ghcr.io/catthehacker/ubuntu:act-latest
     env:
       TF_CLI_CONFIG_FILE: .terraformrc
     steps:
-      - name: Checkout
+      - name: Получение исходников
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GIT_CURL_VERBOSE: '1'
@@ -35,7 +31,7 @@ jobs:
           git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
           git checkout -q FETCH_HEAD
 
-      - name: Install Terraform
+      - name: Установка Terraform
         run: |
           curl -fsSL "https://hashicorp-releases.yandexcloud.net/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
           command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
@@ -43,16 +39,35 @@ jobs:
           unzip -o /tmp/tf.zip -d /usr/local/bin
           terraform version
 
-      - name: Prepare credentials
+      - name: Подготовка секретов
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+          SECRETS_PATH: ${{ vars.SECRETS_PATH }}
+          SA_STORAGE_KEY: ${{ secrets.SA_STORAGE_KEY }}
+          YC_AUTHORIZED_KEY: ${{ secrets.YC_AUTHORIZED_KEY }}
+          SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
         run: |
+          set -euo pipefail
           umask 077
-          echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
-          echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
-          echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
-          test -s ~/.sa_storage.key && test -s ~/.authorized_key.json && test -s terraform.tfvars.secret
-          ls -la terraform.tfvars*
+          mkdir -p ~/.ssh
+          git clone --depth 1 \
+            "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
+            /tmp/tf-secrets
+          cp "/tmp/tf-secrets/${SECRETS_PATH}/terraform.tfvars.secret" ./terraform.tfvars.secret
+          printf '%s' "${SA_STORAGE_KEY}" > ~/.sa_storage.key
+          printf '%s' "${YC_AUTHORIZED_KEY}" > ~/.authorized_key.json
+          python3 -m json.tool ~/.authorized_key.json >/dev/null
+          if [ -n "${SSH_PUB_KEY}" ]; then
+            printf '%s' "${SSH_PUB_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519.pub
+            chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519.pub
+          fi
+          chmod 600 ./terraform.tfvars.secret ~/.sa_storage.key ~/.authorized_key.json
+          test -s ./terraform.tfvars.secret
+          test -s ~/.sa_storage.key
+          test -s ~/.authorized_key.json
 
-      - name: Configure provider registry mirror
+      - name: Настройка зеркала реестра провайдеров
         run: |
           cat > .terraformrc <<'EOF'
           provider_installation {
@@ -67,17 +82,16 @@ jobs:
           EOF
           cat .terraformrc
 
-      - name: Terraform Init
+      - name: Инициализация Terraform
         run: terraform init -reconfigure
 
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan -var-file=terraform.tfvars -var-file=terraform.tfvars.secret -out=tfplan
+      - name: План Terraform
+        run: terraform plan -var-file=terraform.tfvars.secret -out=tfplan
 
-      - name: Terraform Apply
+      - name: Применение изменений
         if: github.event_name == 'push'
         run: terraform apply -input=false tfplan
 
-      - name: Terraform Output
+      - name: Вывод результатов
         if: always()
         run: terraform output || true

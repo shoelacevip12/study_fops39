@@ -7041,7 +7041,7 @@ cd ../../../../
 
 pwd
 
-mkdir -vp ./self-repos/tf-{net-S3-store,k8s}
+mkdir -vp ./self-repos/tf-{net-S3-store,k8s,secrets}
 
 cd ./self-repos/tf-net-S3-store
 
@@ -7084,6 +7084,7 @@ git push -u origin main
 mkdir: создан каталог './self-repos'
 mkdir: создан каталог './self-repos/tf-net-S3-store'
 mkdir: создан каталог './self-repos/tf-k8s'
+mkdir: создан каталог './self-repos/tf-secrets'
 
 .terraform/
 .terraform.lock.hcl
@@ -7161,8 +7162,6 @@ To ssh://git.den-skv.ru:6722/diplom/tf-net-S3-store.git
  * [new branch]      main -> main
 branch 'main' set up to track 'origin/main'.
 ```
-
-![](./FFOPS-40_diplom-skv_den/img/9.gif)
 
 </details>
 
@@ -7279,9 +7278,82 @@ To ssh://git.den-skv.ru:6722/diplom/tf-k8s.git
 branch 'main' set up to track 'origin/main'.
 ```
 
-![](./FFOPS-40_diplom-skv_den/img/10.gif)
+</details>
+
+```bash
+cd ../tf-secrets/
+
+pwd
+
+mkdir -vp tf-{net-S3-store,k8s}
+
+cd ./self-repos/tf-net-S3-store
+
+touch README.md
+git init
+git config --global --add safe.directory /home/shoel/nfs_git/self-repos/tf-secrets
+git switch -c main
+
+cp -vrp ../tf-k8s/*.secret ./tf-k8s/
+cp -vrp ../tf-net-S3-store/*.secret ./tf-net-S3-store/
+
+git add . && git status
+git commit -m "first commit"
+git remote add origin ssh://git@git.den-skv.ru:6722/diplom/tf-secrets.git
+git push -u origin main
+```
+
+<details>
+<summary>
+Создание репозиториев
+</summary>
+
+```log
+home/shoel/nfs_git/self-repos/tf-secrets
+
+mkdir: создан каталог 'tf-net-S3-store'
+mkdir: создан каталог 'tf-k8s'
+
+Инициализирован пустой репозиторий Git в /home/shoel/nfs_git/self-repos/tf-secrets/.git/
+Переключились на новую ветку «main»
+
+'../tf-k8s/terraform.tfvars.secret' -> './tf-k8s/terraform.tfvars.secret'
+
+'../tf-net-S3-store/terraform.tfvars.secret' -> './tf-net-S3-store/terraform.tfvars.secret'
+
+Текущая ветка: main
+
+Еще нет коммитов
+
+Изменения, которые будут включены в коммит:
+  (используйте «git rm --cached <файл>...», чтобы убрать из индекса)
+        новый файл:    README.md
+        новый файл:    tf-k8s/terraform.tfvars.secret
+        новый файл:    tf-net-S3-store/terraform.tfvars.secret
+
+[main (корневой коммит) 601a0df] first commit
+ 3 files changed, 18 insertions(+)
+ create mode 100644 README.md
+ create mode 100644 tf-k8s/terraform.tfvars.secret
+ create mode 100644 tf-net-S3-store/terraform.tfvars.secret
+Перечисление объектов: 7, готово.
+Подсчет объектов: 100% (7/7), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (6/6), готово.
+Запись объектов: 100% (7/7), 1.16 KiB | 1.16 MiB/s, готово.
+Total 7 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/tf-secrets.git
+ * [new branch]      main -> main
+branch 'main' set up to track 'origin/main'.
+```
 
 </details>
+
+![](./FFOPS-40_diplom-skv_den/img/9.gif)
+
+![](./FFOPS-40_diplom-skv_den/img/10.gif)
+
+![](./FFOPS-40_diplom-skv_den/img/9.1.gif)
 
 ### каталоги для Terraform pipeline'ы для terraform репозиториев
 
@@ -7313,6 +7385,34 @@ mkdir: создан каталог './tf-net-S3-store/.forgejo/workflows'
 
 <details>
 <summary>
+проверочный pipeline
+</summary>
+
+```yaml
+cat > ./tf-k8s/.forgejo/workflows/hello.yml <<'EOF'
+---
+# Минимальный тестовый workflow: проверяет, что runner выполняет джобу
+name: Hello test
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  hello:
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+      - name: Echo
+        run: echo "hello from forgejo runner"
+EOF
+```
+
+</details>
+
+<details>
+<summary>
 pipeline для terraform k8s
 </summary>
 
@@ -7333,43 +7433,62 @@ env:
 
 jobs:
   terraform:
+    name: План и применение
     runs-on: docker
     container:
       image: ghcr.io/catthehacker/ubuntu:act-latest
     env:
       TF_CLI_CONFIG_FILE: .terraformrc
     steps:
-      - name: Checkout
+      - name: Получение исходников
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          GIT_CURL_VERBOSE: '1'
+          GIT_TRACE: '1'
         run: |
           git init -q
           git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
           git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
           git checkout -q FETCH_HEAD
-      - name: Install Terraform
+
+      - name: Установка Terraform
         run: |
-          # releases.hashicorp.com и GitHub releases недоступны из региона (404)
-          # -> зеркало Yandex Cloud официальных релизов HashiCorp
           curl -fsSL "https://hashicorp-releases.yandexcloud.net/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
           command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
           rm -rf /usr/local/bin/terraform-*
           unzip -o /tmp/tf.zip -d /usr/local/bin
           terraform version
-      - name: Prepare credentials
+
+      - name: Подготовка секретов
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+          SECRETS_PATH: ${{ vars.SECRETS_PATH }}
+          SA_STORAGE_KEY: ${{ secrets.SA_STORAGE_KEY }}
+          YC_AUTHORIZED_KEY: ${{ secrets.YC_AUTHORIZED_KEY }}
+          SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
         run: |
+          set -euo pipefail
           umask 077
-          echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
-          echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
-          echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
-          test -s ~/.sa_storage.key && test -s ~/.authorized_key.json && test -s terraform.tfvars.secret
-          ls -la terraform.tfvars*
-      - name: Configure provider registry mirror
+          mkdir -p ~/.ssh
+          git clone --depth 1 \
+            "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
+            /tmp/tf-secrets
+          cp "/tmp/tf-secrets/${SECRETS_PATH}/terraform.tfvars.secret" ./terraform.tfvars.secret
+          printf '%s' "${SA_STORAGE_KEY}" > ~/.sa_storage.key
+          printf '%s' "${YC_AUTHORIZED_KEY}" > ~/.authorized_key.json
+          python3 -m json.tool ~/.authorized_key.json >/dev/null
+          if [ -n "${SSH_PUB_KEY}" ]; then
+            printf '%s' "${SSH_PUB_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519.pub
+            chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519.pub
+          fi
+          chmod 600 ./terraform.tfvars.secret ~/.sa_storage.key ~/.authorized_key.json
+          test -s ./terraform.tfvars.secret
+          test -s ~/.sa_storage.key
+          test -s ~/.authorized_key.json
+
+      - name: Настройка зеркала реестра провайдеров
         run: |
-          # registry.terraform.io из региона отвечает не по протоколу реестра ->
-          # используем зеркало реестра провайдеров Yandex Cloud
-          # (тот же конфиг, что на хосте разработки в ~/.terraformrc).
-          # Файл кладём в workspace и подключаем явно через TF_CLI_CONFIG_FILE.
           cat > .terraformrc <<'EOF'
           provider_installation {
             network_mirror {
@@ -7382,13 +7501,20 @@ jobs:
           }
           EOF
           cat .terraformrc
-      - name: Terraform Init
+
+      - name: Инициализация Terraform
         run: terraform init -reconfigure
-      - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars -var-file=terraform.tfvars.secret -out=tfplan
-      - name: Terraform Apply
+
+      - name: План Terraform
+        run: terraform plan -var-file=terraform.tfvars.secret -out=tfplan
+
+      - name: Применение изменений
         if: github.event_name == 'push'
         run: terraform apply -input=false tfplan
+
+      - name: Вывод результатов
+        if: always()
+        run: terraform output || true
 EOF
 ```
 
@@ -7404,7 +7530,7 @@ pipeline для terraform net-S3-store
 ```yaml
 cat > ./tf-net-S3-store/.forgejo/workflows/terraform.yml <<'EOF'
 ---
-name: Terraform net_S3-store
+name: Terraform net/S3
 
 on:
   push:
@@ -7418,43 +7544,62 @@ env:
 
 jobs:
   terraform:
+    name: План и применение
     runs-on: docker
     container:
       image: ghcr.io/catthehacker/ubuntu:act-latest
     env:
       TF_CLI_CONFIG_FILE: .terraformrc
     steps:
-      - name: Checkout
+      - name: Получение исходников
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          GIT_CURL_VERBOSE: '1'
+          GIT_TRACE: '1'
         run: |
           git init -q
           git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
           git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
           git checkout -q FETCH_HEAD
-      - name: Install Terraform
+
+      - name: Установка Terraform
         run: |
-          # releases.hashicorp.com и GitHub releases недоступны из региона (404)
-          # -> зеркало Yandex Cloud официальных релизов HashiCorp
           curl -fsSL "https://hashicorp-releases.yandexcloud.net/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
           command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
           rm -rf /usr/local/bin/terraform-*
           unzip -o /tmp/tf.zip -d /usr/local/bin
           terraform version
-      - name: Prepare credentials
+
+      - name: Подготовка секретов
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+          SECRETS_PATH: ${{ vars.SECRETS_PATH }}
+          SA_STORAGE_KEY: ${{ secrets.SA_STORAGE_KEY }}
+          YC_AUTHORIZED_KEY: ${{ secrets.YC_AUTHORIZED_KEY }}
+          SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
         run: |
+          set -euo pipefail
           umask 077
-          echo "${{ secrets.SA_STORAGE_KEY }}" > ~/.sa_storage.key
-          echo "${{ secrets.YC_AUTHORIZED_KEY }}" > ~/.authorized_key.json
-          echo "${{ secrets.TF_VARS_SECRET }}" > terraform.tfvars.secret
-          test -s ~/.sa_storage.key && test -s ~/.authorized_key.json && test -s terraform.tfvars.secret
-          ls -la terraform.tfvars*
-      - name: Configure provider registry mirror
+          mkdir -p ~/.ssh
+          git clone --depth 1 \
+            "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
+            /tmp/tf-secrets
+          cp "/tmp/tf-secrets/${SECRETS_PATH}/terraform.tfvars.secret" ./terraform.tfvars.secret
+          printf '%s' "${SA_STORAGE_KEY}" > ~/.sa_storage.key
+          printf '%s' "${YC_AUTHORIZED_KEY}" > ~/.authorized_key.json
+          python3 -m json.tool ~/.authorized_key.json >/dev/null
+          if [ -n "${SSH_PUB_KEY}" ]; then
+            printf '%s' "${SSH_PUB_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519.pub
+            chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519.pub
+          fi
+          chmod 600 ./terraform.tfvars.secret ~/.sa_storage.key ~/.authorized_key.json
+          test -s ./terraform.tfvars.secret
+          test -s ~/.sa_storage.key
+          test -s ~/.authorized_key.json
+
+      - name: Настройка зеркала реестра провайдеров
         run: |
-          # registry.terraform.io из региона отвечает не по протоколу реестра ->
-          # используем зеркало реестра провайдеров Yandex Cloud
-          # (тот же конфиг, что на хосте разработки в ~/.terraformrc).
-          # Файл кладём в workspace и подключаем явно через TF_CLI_CONFIG_FILE.
           cat > .terraformrc <<'EOF'
           provider_installation {
             network_mirror {
@@ -7467,13 +7612,20 @@ jobs:
           }
           EOF
           cat .terraformrc
-      - name: Terraform Init
+
+      - name: Инициализация Terraform
         run: terraform init -reconfigure
-      - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars -var-file=terraform.tfvars.secret -out=tfplan
-      - name: Terraform Apply
+
+      - name: План Terraform
+        run: terraform plan -var-file=terraform.tfvars.secret -out=tfplan
+
+      - name: Применение изменений
         if: github.event_name == 'push'
         run: terraform apply -input=false tfplan
+
+      - name: Вывод результатов
+        if: always()
+        run: terraform output || true
 EOF
 ```
 
@@ -7483,7 +7635,7 @@ EOF
 cd tf-k8s
 
 git add . && git status
-git commit -am "add cicd"
+git commit --allow-empty -am "add cicd"
 git push -u origin main
 ```
 
@@ -7513,6 +7665,8 @@ To ssh://git.den-skv.ru:6722/diplom/tf-k8s.git
    c593924..e97ace0  main -> main
 branch 'main' set up to track 'origin/main'.
 ```
+
+![](./FFOPS-40_diplom-skv_den/img/11.gif)
 
 </details>
 
@@ -7552,6 +7706,42 @@ branch 'main' set up to track 'origin/main'.
 ```
 
 </details>
+
+![](./FFOPS-40_diplom-skv_den/img/12.gif)
+
+### Git Commit изменений
+
+```bash
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit12, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
+
+## commit_13,`FFOPS-40_diplom-skv_den`
+
+
 
 ```bash
 git commit --allow-empty -m "ci: rerun after runner web fix5" && git push -u origin main

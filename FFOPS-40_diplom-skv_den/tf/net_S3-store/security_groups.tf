@@ -69,12 +69,12 @@ resource "yandex_vpc_security_group" "k8s_master" {
     from_port         = 0
     to_port           = 65535
   }
-  ingress {
-    protocol       = "TCP"
-    description    = "доступ к grafana/ingress-nginx (http, порт 80)"
-    v4_cidr_blocks = ["0.0.0.0/0"]
-    port           = 80
-  }
+  # ingress {
+  #   protocol       = "TCP"
+  #   description    = "доступ к grafana/ingress-nginx (http, порт 80)"
+  #   v4_cidr_blocks = ["0.0.0.0/0"]
+  #   port           = 80
+  # }
   ingress {
     protocol       = "TCP"
     description    = "доступ к grafana nodeport"
