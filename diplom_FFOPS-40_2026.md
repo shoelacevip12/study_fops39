@@ -679,7 +679,7 @@ services:
       - FORGEJO__database__NAME=forgejo
       - FORGEJO__database__USER=forgejo
       - FORGEJO__database__PASSWD=${DB_PASSWORD}
-      - FORGEJO__server__ROOT_URL=http://git.den-skv.ru/
+      - FORGEJO__server__ROOT_URL=http://git.den-skv.ru:3000/
       - FORGEJO__server__SSH_DOMAIN=git.den-skv.ru
       - FORGEJO__server__SSH_PORT=6722
       - FORGEJO__actions__ENABLED=true
@@ -1071,6 +1071,8 @@ services:
 
   runner:
     image: 'data.forgejo.org/forgejo/runner:13'
+    extra_hosts:
+      - 'git.den-skv.ru:10.8.0.1'
     links:
       - docker-in-docker
     depends_on:
@@ -1089,19 +1091,20 @@ EOF
 
 ```bash
 # Создание настроек для подключения в роли runnera
+# (v13: секции runner.web больше нет — логи джоб отдаёт сам forgejo;
+#  кэш отключён: cache.enabled = false)
 sudo tee ~/data-runner/runner-config.yml <<'EOF'
 runner:
   labels: ["docker:docker://ghcr.io/catthehacker/ubuntu:act-latest"]
-  web:
-    listen-address: 0.0.0.0:8080
-    address: http://10.8.0.1:8080/
+  cache:
+    enabled: false
 
 server:
   connections:
     forgejo:
       url: http://10.8.0.1:3000/   # внутренний HTTP
-      uuid: 308d588e-5379-4e69-8234-b85c0027d7a4
-      token: c08ad111cf3b1801107aae9759d9af984bfe590c
+      uuid: cf6131f1-dee9-4ceb-9ced-94805ca201c4
+      token: 7f25eef95d95e23a2e6129d5bad992f38f5bbd68
 EOF
 ```
 

@@ -1,0 +1,106 @@
+---
+# Terraform pipeline для репозитория tf/net_S3-store — ВАРИАНТ ДЛЯ LXC-RUNNER (ci-runner).
+#
+# Как использовать:
+#   cp workflows/tf-net-s3-terraform-lxc.yml <repo-tf-net-S3-store>/.forgejo/workflows/terraform-lxc.yml
+# ВНИМАНИЕ: держите активным ТОЛЬКО один файл (docker-вариант ИЛИ lxc-вариант),
+# иначе при push джоба запустится дважды и terraform apply пойдёт параллельно
+# на одном state.
+#
+# Секреты/переменные (forgejo -> Settings -> Actions):
+#   secrets: TOKEN, SA_STORAGE_KEY, YC_AUTHORIZED_KEY, SSH_PUB_KEY
+#   vars:    SECRETS_REPO, SECRETS_PATH
+name: Terraform net/S3
+
+on:
+  push:
+    branches: ['main', 'master']
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  TF_VERSION: '1.16.4'
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  terraform:
+    name: План и применение
+    runs-on: ubuntu
+    env:
+      TF_CLI_CONFIG_FILE: .terraformrc
+    steps:
+      - name: Получение исходников
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GIT_CURL_VERBOSE: '1'
+          GIT_TRACE: '1'
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
+
+      - name: Установка Terraform
+        run: |
+          curl -fsSL "https://hashicorp-releases.yandexcloud.net/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
+          command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
+          rm -rf /usr/local/bin/terraform-*
+          unzip -o /tmp/tf.zip -d /usr/local/bin
+          terraform version
+
+      - name: Подготовка секретов
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+          SECRETS_PATH: ${{ vars.SECRETS_PATH }}
+          SA_STORAGE_KEY: ${{ secrets.SA_STORAGE_KEY }}
+          YC_AUTHORIZED_KEY: ${{ secrets.YC_AUTHORIZED_KEY }}
+          SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          git clone --depth 1 \
+            "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
+            /tmp/tf-secrets
+          cp "/tmp/tf-secrets/${SECRETS_PATH}/terraform.tfvars.secret" ./terraform.tfvars.secret
+          printf '%s' "${SA_STORAGE_KEY}" > ~/.sa_storage.key
+          printf '%s' "${YC_AUTHORIZED_KEY}" > ~/.authorized_key.json
+          python3 -m json.tool ~/.authorized_key.json >/dev/null
+          if [ -n "${SSH_PUB_KEY}" ]; then
+            printf '%s' "${SSH_PUB_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519.pub
+            chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519.pub
+          fi
+          chmod 600 ./terraform.tfvars.secret ~/.sa_storage.key ~/.authorized_key.json
+          test -s ./terraform.tfvars.secret
+          test -s ~/.sa_storage.key
+          test -s ~/.authorized_key.json
+
+      - name: Настройка зеркала реестра провайдеров
+        run: |
+          cat > .terraformrc <<'EOF'
+          provider_installation {
+            network_mirror {
+              url = "https://terraform-mirror.yandexcloud.net/"
+              include = ["registry.terraform.io/*/*"]
+            }
+            direct {
+              exclude = ["registry.terraform.io/*/*"]
+            }
+          }
+          EOF
+          cat .terraformrc
+
+      - name: Инициализация Terraform
+        run: terraform init -reconfigure
+
+      - name: План Terraform
+        run: terraform plan -var-file=terraform.tfvars.secret -out=tfplan
+
+      - name: Применение изменений
+        if: github.event_name == 'push'
+        run: terraform apply -input=false tfplan
+
+      - name: Вывод результатов
+        if: always()
+        run: terraform output || true

@@ -1,0 +1,14 @@
+---
+# Минимальный тестовый workflow для LXC-runner'а (ci-runner).
+name: Hello LXC
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  hello:
+    runs-on: ubuntu
+    steps:
+      - name: Echo
+        run: echo "hello from LXC forgejo runner"

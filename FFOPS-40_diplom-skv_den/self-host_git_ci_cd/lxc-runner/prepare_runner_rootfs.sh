@@ -1,19 +1,20 @@
 #!/bin/bash
-# Подготовка rootfs для LXC-контейнера CI-runner'а.
+# Подготовка rootfs для LXC-контейнера CI-runner'а (forgejo-runner, прямое исполнение).
 # Запускать НА ХОСТЕ.
-# Хост: br0=192.168.89.193 (шлюз к LAN), wg0=10.8.0.1 (forgejo).
+# Хост: br0=192.168.89.193 (шлюз к LAN), wg0=10.8.0.1 (forgejo: http://10.8.0.1:3000).
 
 set -euo pipefail
 
-BASE_ROOTFS=/disk/VMs/k8s_rootfs   # эталонный образ ALT Linux p11 (из 21_8)
+BASE_ROOTFS=/disk/VMs/k8s_rootfs          # эталонный образ ALT Linux p11 (из 21_8)
 DEST_ROOTFS=/disk/VMs/ci-runner/rootfs
 NODE=ci-runner
 IP=192.168.89.20/24
-HOST_BR0_IP=192.168.89.193         # IP br0 на физическом хосте (маршрут к 10.8.0.1)
+HOST_BR0_IP=192.168.89.193                 # IP br0 хоста — маршрут к VPN-сети forgejo
 SSH_PUB_KEY=${SSH_PUB_KEY:-$HOME/.ssh/id_kvm_host.pub}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [ -d "$DEST_ROOTFS" ]; then
-  echo "Уже существует: $DEST_ROOTFS — пропускаю клонирование."
+  echo "Каталог $DEST_ROOTFS уже есть — пропускаю клонирование."
 else
   echo "Клонирование $BASE_ROOTFS -> $DEST_ROOTFS"
   sudo mkdir -p "$DEST_ROOTFS"
@@ -51,10 +52,11 @@ default via 192.168.89.1
 EOF
 sudo cp /tmp/runner-eth0-route "$DEST_ROOTFS/etc/net/ifaces/eth0/ipv4route"
 
+# DNS: coredns на хосте (зона den-skv.ru, форвард наружу) + внешний резолвер
 cat > /tmp/runner-resolv <<'EOF'
-nameserver 192.168.89.1
+nameserver 10.8.0.1
 nameserver 77.88.8.8
-search den.skv
+search den-skv.ru
 EOF
 sudo cp /tmp/runner-resolv "$DEST_ROOTFS/etc/resolv.conf"
 sudo cp /tmp/runner-resolv "$DEST_ROOTFS/etc/net/ifaces/eth0/resolv.conf"
@@ -62,21 +64,27 @@ sudo cp /tmp/runner-resolv "$DEST_ROOTFS/etc/net/ifaces/eth0/resolv.conf"
 echo "git.den-skv.ru -> 10.8.0.1 в /etc/hosts (страховка от DNS)"
 echo "10.8.0.1 git.den-skv.ru" | sudo tee -a "$DEST_ROOTFS/etc/hosts" >/dev/null
 
-echo "SSH-ключ для root"
+echo "SSH-ключ для root (вход: ssh root@192.168.89.20)"
 if [ -f "$SSH_PUB_KEY" ]; then
   sudo mkdir -p "$DEST_ROOTFS/root/.ssh"
   cat "$SSH_PUB_KEY" | sudo tee -a "$DEST_ROOTFS/root/.ssh/authorized_keys" >/dev/null
   sudo chmod 700 "$DEST_ROOTFS/root/.ssh"
   sudo chmod 600 "$DEST_ROOTFS/root/.ssh/authorized_keys"
 else
-  echo "Нет ключа $SSH_PUB_KEY — пропускаю (зайдёте через virsh console)"
+  echo "Нет ключа $SSH_PUB_KEY — вход через: sudo virsh console ci-runner"
 fi
 
-echo "Определяем домен:"
-sudo virsh define "$(dirname "$0")/lxc-ci-runner.xml"
-echo "Стартуем:"
+echo "Копирую скрипт внутренней установки в /root/"
+sudo cp "$SCRIPT_DIR/setup_runner_inside.sh" "$DEST_ROOTFS/root/setup_runner_inside.sh"
+sudo chmod +x "$DEST_ROOTFS/root/setup_runner_inside.sh"
+
+echo "Определяю и запускаю домен"
+sudo virsh define "$SCRIPT_DIR/lxc-ci-runner.xml"
 sudo virsh start ci-runner || true
 sudo virsh list --all
+
 echo
-echo "Вход: sudo virsh console ci-runner   (или ssh root@192.168.89.20)"
-echo "Далее внутри контейнера выполнить: bash <(curl -s http://10.8.0.1:3000/... ) — либо скопировать setup_runner_inside.sh"
+echo "Готово. Внутри контейнера выполните:"
+echo "  ssh root@192.168.89.20"
+echo "  RUNNER_UUID=<uuid> RUNNER_TOKEN=<token> bash /root/setup_runner_inside.sh"
+echo "uuid/token: forgejo -> Admin -> Actions -> Runners -> Create registration token"
