@@ -7669,9 +7669,9 @@ To ssh://git.den-skv.ru:6722/diplom/tf-k8s.git
 branch 'main' set up to track 'origin/main'.
 ```
 
-![](./FFOPS-40_diplom-skv_den/img/11.gif)
-
 </details>
+
+![](./FFOPS-40_diplom-skv_den/img/11.gif)
 
 ```bash
 cd ../tf-net-S3-store/
