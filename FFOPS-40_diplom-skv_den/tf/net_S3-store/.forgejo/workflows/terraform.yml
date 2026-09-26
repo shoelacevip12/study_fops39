@@ -49,6 +49,7 @@ jobs:
           SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
         run: |
           set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
           umask 077
           mkdir -p ~/.ssh
           git clone --depth 1 \

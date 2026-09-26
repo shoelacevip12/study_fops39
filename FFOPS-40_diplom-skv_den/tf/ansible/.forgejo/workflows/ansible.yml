@@ -1,0 +1,86 @@
+---
+name: Ansible K3s
+
+on:
+  push:
+    branches: ['main', 'master']
+
+jobs:
+  deploy:
+    name: Развёртывание кластера
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+      - name: Получение исходников
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
+
+      - name: Подготовка SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519
+          cp ./ssh_config_yc_k8s ~/.ssh/config_yc_k8s
+          chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519 ~/.ssh/config_yc_k8s
+          test -s ~/.ssh/id_lab22_1_fops40_ed25519
+          test -s ~/.ssh/config_yc_k8s
+
+      - name: Пароль vault из SECRETS_REPO
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+          SECRETS_PATH: ${{ vars.SECRETS_PATH }}
+        run: |
+          set -euo pipefail
+          umask 077
+          git clone --depth 1 \
+            "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
+            /tmp/tf-secrets
+          cp "/tmp/tf-secrets/${SECRETS_PATH}/va_pa" ./va_pa
+          chmod 600 ./va_pa
+          test -s ./va_pa
+
+      - name: Установка Ansible
+        run: |
+          python3 -m pip install --quiet ansible-core \
+            || python3 -m pip install --quiet --break-system-packages ansible-core
+
+      - name: Запуск playbook
+        run: |
+          ansible --version | head -1
+          ansible-playbook -i ./hosts.ini playbook_main.yaml
+
+      - name: Публикация kubeconfig в SECRETS_REPO
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+        run: |
+          set -euo pipefail
+          test -s ~/.kube/config || { echo "kubeconfig не найден"; exit 1; }
+          git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" /tmp/secrets
+          mkdir -p /tmp/secrets/k8s
+          cp ~/.kube/config /tmp/secrets/k8s/kubeconfig
+          cd /tmp/secrets
+          git config user.email "ci@den-skv.ru"
+          git config user.name "forgejo-runner"
+          git add k8s/kubeconfig
+          git commit -m "kubeconfig: обновление после ansible" || true
+          git push origin HEAD:main
+
+      - name: Проверка кластера
+        run: |
+          curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl || { echo "Пропуск: kubectl недоступен"; exit 0; }
+          chmod +x /usr/local/bin/kubectl
+          export KUBECONFIG=$HOME/.kube/config
+          kubectl get nodes -o wide
+          kubectl get pods -A | head -30

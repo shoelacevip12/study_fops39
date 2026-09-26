@@ -7037,7 +7037,7 @@ FFOPS-40_diplom-skv_den
 
 ## commit_12,`FFOPS-40_diplom-skv_den`
 
-### Terraform репозитории на self-hosted git
+### Terraform Ansible репозитории на self-hosted git
 
 ```bash
 cd ../../../../
@@ -7045,6 +7045,8 @@ cd ../../../../
 pwd
 
 mkdir -vp ./self-repos/tf-{net-S3-store,k8s,secrets}
+
+mkdir -vp ./self-repos/ansible-k3s
 
 cd ./self-repos/tf-net-S3-store
 
@@ -7088,6 +7090,7 @@ mkdir: создан каталог './self-repos'
 mkdir: создан каталог './self-repos/tf-net-S3-store'
 mkdir: создан каталог './self-repos/tf-k8s'
 mkdir: создан каталог './self-repos/tf-secrets'
+mkdir: создан каталог './self-repos/ansible-k3s'
 
 .terraform/
 .terraform.lock.hcl
@@ -7352,13 +7355,329 @@ branch 'main' set up to track 'origin/main'.
 
 </details>
 
+```bash
+cd ..ansible-k3s/
+
+pwd
+
+tee .gitignore <<'EOF'
+roles/k3s_cluster/files/
+va_pa
+EOF
+
+touch README.md
+git init
+git config --global --add safe.directory /home/shoel/nfs_git/self-repos/ansible-k3s
+git switch -c main
+
+cp -vr ../../gited/FFOPS-40_diplom-skv_den/tf/ansible/* ./
+
+git add . && git status
+git commit -m "first commit"
+git remote add origin ssh://git@git.den-skv.ru:6722/diplom/ansible-k3s.git
+git push -u origin main
+```
+
+<details>
+<summary>
+Создание репозиториев
+</summary>
+
+```log
+/home/shoel/nfs_git/self-repos/ansible-k3s
+
+Инициализирован пустой репозиторий Git в /home/shoel/nfs_git/self-repos/ansible-k3s/.git/
+Переключились на новую ветку «main»
+
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/ansible.cfg' -> './ansible.cfg'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/galaxy_cache' -> './galaxy_cache'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/group_vars' -> './group_vars'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/group_vars/all.yml' -> './group_vars/all.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/group_vars/all' -> './group_vars/all'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/group_vars/all/vault' -> './group_vars/all/vault'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/hosts.ini' -> './hosts.ini'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/playbook_main.yaml' -> './playbook_main.yaml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles' -> './roles'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster' -> './roles/k3s_cluster'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files' -> './roles/k3s_cluster/files'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files/k3s' -> './roles/k3s_cluster/files/k3s'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files/kubectl-calico' -> './roles/k3s_cluster/files/kubectl-calico'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files/install.sh' -> './roles/k3s_cluster/files/install.sh'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files/helm.tar.gz' -> './roles/k3s_cluster/files/helm.tar.gz'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files/cni-plugins-linux-amd64.tgz' -> './roles/k3s_cluster/files/cni-plugins-linux-amd64.tgz'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files/ingress-nginx.yaml' -> './roles/k3s_cluster/files/ingress-nginx.yaml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/files/calico.yaml' -> './roles/k3s_cluster/files/calico.yaml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/README.md' -> './roles/k3s_cluster/README.md'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/defaults' -> './roles/k3s_cluster/defaults'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/defaults/main.yml' -> './roles/k3s_cluster/defaults/main.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/handlers' -> './roles/k3s_cluster/handlers'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/handlers/main.yml' -> './roles/k3s_cluster/handlers/main.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/meta' -> './roles/k3s_cluster/meta'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/meta/main.yml' -> './roles/k3s_cluster/meta/main.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks' -> './roles/k3s_cluster/tasks'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/install.yml' -> './roles/k3s_cluster/tasks/install.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/prereq.yml' -> './roles/k3s_cluster/tasks/prereq.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/main.yml' -> './roles/k3s_cluster/tasks/main.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/config.yml' -> './roles/k3s_cluster/tasks/config.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/calico.yml' -> './roles/k3s_cluster/tasks/calico.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/monitoring.yml' -> './roles/k3s_cluster/tasks/monitoring.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/ingress_nginx.yml' -> './roles/k3s_cluster/tasks/ingress_nginx.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/tasks/fetch_kubeconfig.yml' -> './roles/k3s_cluster/tasks/fetch_kubeconfig.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/templates' -> './roles/k3s_cluster/templates'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/templates/k3s-agent.service.j2' -> './roles/k3s_cluster/templates/k3s-agent.service.j2'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/templates/k3s.service.j2' -> './roles/k3s_cluster/templates/k3s.service.j2'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/templates/k3s-master.yaml.j2' -> './roles/k3s_cluster/templates/k3s-master.yaml.j2'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/templates/k3s-worker.yaml.j2' -> './roles/k3s_cluster/templates/k3s-worker.yaml.j2'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/templates/calico-ippool.yaml.j2' -> './roles/k3s_cluster/templates/calico-ippool.yaml.j2'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/templates/monitoring-values.yaml.j2' -> './roles/k3s_cluster/templates/monitoring-values.yaml.j2'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/templates/grafana-ingress.yaml.j2' -> './roles/k3s_cluster/templates/grafana-ingress.yaml.j2'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/vars' -> './roles/k3s_cluster/vars'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/roles/k3s_cluster/vars/main.yml' -> './roles/k3s_cluster/vars/main.yml'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/tmp' -> './tmp'
+'../../gited/FFOPS-40_diplom-skv_den/tf/ansible/va_pa' -> './va_pa'
+
+Текущая ветка: main
+
+Еще нет коммитов
+
+Изменения, которые будут включены в коммит:
+  (используйте «git rm --cached <файл>...», чтобы убрать из индекса)
+        новый файл:    .gitignore
+        новый файл:    README.md
+        новый файл:    ansible.cfg
+        новый файл:    group_vars/all.yml
+        новый файл:    group_vars/all/vault
+        новый файл:    hosts.ini
+        новый файл:    playbook_main.yaml
+        новый файл:    roles/k3s_cluster/README.md
+        новый файл:    roles/k3s_cluster/defaults/main.yml
+        новый файл:    roles/k3s_cluster/handlers/main.yml
+        новый файл:    roles/k3s_cluster/meta/main.yml
+        новый файл:    roles/k3s_cluster/tasks/calico.yml
+        новый файл:    roles/k3s_cluster/tasks/config.yml
+        новый файл:    roles/k3s_cluster/tasks/fetch_kubeconfig.yml
+        новый файл:    roles/k3s_cluster/tasks/ingress_nginx.yml
+        новый файл:    roles/k3s_cluster/tasks/install.yml
+        новый файл:    roles/k3s_cluster/tasks/main.yml
+        новый файл:    roles/k3s_cluster/tasks/monitoring.yml
+        новый файл:    roles/k3s_cluster/tasks/prereq.yml
+        новый файл:    roles/k3s_cluster/templates/calico-ippool.yaml.j2
+        новый файл:    roles/k3s_cluster/templates/grafana-ingress.yaml.j2
+        новый файл:    roles/k3s_cluster/templates/k3s-agent.service.j2
+        новый файл:    roles/k3s_cluster/templates/k3s-master.yaml.j2
+        новый файл:    roles/k3s_cluster/templates/k3s-worker.yaml.j2
+        новый файл:    roles/k3s_cluster/templates/k3s.service.j2
+        новый файл:    roles/k3s_cluster/templates/monitoring-values.yaml.j2
+        новый файл:    roles/k3s_cluster/vars/main.yml
+
+[main (корневой коммит) 3a6b56e] first commit
+ 28 files changed, 1057 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 README.md
+ create mode 100644 ansible.cfg
+ create mode 100644 group_vars/all.yml
+ create mode 100644 group_vars/all/vault
+ create mode 100644 hosts.ini
+ create mode 100644 playbook_main.yaml
+ create mode 100644 roles/k3s_cluster/README.md
+ create mode 100644 roles/k3s_cluster/defaults/main.yml
+ create mode 100644 roles/k3s_cluster/handlers/main.yml
+ create mode 100644 roles/k3s_cluster/meta/main.yml
+ create mode 100644 roles/k3s_cluster/tasks/calico.yml
+ create mode 100644 roles/k3s_cluster/tasks/config.yml
+ create mode 100644 roles/k3s_cluster/tasks/fetch_kubeconfig.yml
+ create mode 100644 roles/k3s_cluster/tasks/ingress_nginx.yml
+ create mode 100644 roles/k3s_cluster/tasks/install.yml
+ create mode 100644 roles/k3s_cluster/tasks/main.yml
+ create mode 100644 roles/k3s_cluster/tasks/monitoring.yml
+ create mode 100644 roles/k3s_cluster/tasks/prereq.yml
+ create mode 100644 roles/k3s_cluster/templates/calico-ippool.yaml.j2
+ create mode 100644 roles/k3s_cluster/templates/grafana-ingress.yaml.j2
+ create mode 100644 roles/k3s_cluster/templates/k3s-agent.service.j2
+ create mode 100644 roles/k3s_cluster/templates/k3s-master.yaml.j2
+ create mode 100644 roles/k3s_cluster/templates/k3s-worker.yaml.j2
+ create mode 100644 roles/k3s_cluster/templates/k3s.service.j2
+ create mode 100644 roles/k3s_cluster/templates/monitoring-values.yaml.j2
+ create mode 100644 roles/k3s_cluster/vars/main.yml
+
+Перечисление объектов: 39, готово.
+Подсчет объектов: 100% (39/39), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (31/31), готово.
+Запись объектов: 100% (39/39), 14.67 KiB | 4.89 MiB/s, готово.
+Total 39 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/ansible-k3s.git
+ * [new branch]      main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+</details>
+
+```bash
+cd ../tf-secrets/
+
+pwd
+
+mkdir -vp ansible-k3s 
+cp -vrp ../ansible-k3s/va_pa ./ansible-k3s/ 
+chmod -v 600 ./ansible-k3s/va_pa 
+tree ./ansible-k3s/
+ls -la ./ansible-k3s
+
+git add . && git status
+git commit -m "add ansible vualt password"
+git push -u origin main
+```
+
+<details>
+<summary>
+Создание репозиториев
+</summary>
+
+```log
+/home/shoel/nfs_git/self-repos/tf-secrets
+
+mkdir: создан каталог 'ansible-k3s'
+
+'../ansible-k3s/va_pa' -> './ansible-k3s/va_pa'
+
+права доступа './ansible-k3s/va_pa' изменены с 0666 (rw-rw-rw-) на 0600 (rw-------)
+
+./ansible-k3s/
+└── va_pa
+
+1 directory, 1 file
+
+итого 4
+drwxrwxrwx 1 1024 100 10 сен 26 15:15 .
+drwxrwxrwx 1 1024 100 90 сен 26 15:15 ..
+-rw------- 1 1024 100  8 сен 20 15:49 va_pa
+
+Текущая ветка: main
+Эта ветка соответствует «origin/main».
+
+Изменения, которые будут включены в коммит:
+  (используйте «git restore --staged <файл>...», чтобы убрать из индекса)
+        новый файл:    ansible-k3s/va_pa
+
+[main 0eafe67] add ansible vualt password
+ 1 file changed, 1 insertion(+)
+ create mode 100644 ansible-k3s/va_pa
+Перечисление объектов: 5, готово.
+Подсчет объектов: 100% (5/5), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (2/2), готово.
+Запись объектов: 100% (4/4), 408 bytes | 408.00 KiB/s, готово.
+Total 4 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/tf-secrets.git
+   601a0df..0eafe67  main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+</details>
+
 ![](./FFOPS-40_diplom-skv_den/img/9.gif)
 
 ![](./FFOPS-40_diplom-skv_den/img/10.gif)
 
 ![](./FFOPS-40_diplom-skv_den/img/9.1.gif)
 
-### каталоги для Terraform pipeline'ы для terraform репозиториев
+### зеркалирование контейнера в локальный Container Registry
+
+![](./FFOPS-40_diplom-skv_den/img/14.gif)
+
+```bash
+# Однократное зеркалирование - с хоста с доступом до репозитория по  10.8.0.0/24 сети
+docker pull ghcr.io/catthehacker/ubuntu:act-latest
+
+# разрешить HTTP-реестр службе docker
+if [ -s /etc/docker/daemon.json ]; then
+echo "файл уже существует, содержимое:"
+cat /etc/docker/daemon.json
+else
+sudo mkdir -vp /etc/docker
+echo '{"insecure-registries": ["10.8.0.1:3000"]}' | sudo tee /etc/docker/daemon.json
+fi
+
+# перезапуск службы после внесения изменений
+sudo systemctl restart docker.service
+
+# Перезапуск compose проекта self-host
+cd ../../self-host_git_ci_cd
+
+docker-compose -f docker-compose-forgejo-runner.yml down \
+&& docker-compose -f docker-compose-forgejo-runner.yml up -d
+
+# через созданный токен с правами write:repository авторизация в локальном Container Registry
+echo "8c6c827b3d66bea9c3cdea3dabb6d3c178d33815" \
+| docker login 10.8.0.1:3000 -u denskv --password-stdin
+
+# Добавление тегов скаченному образу под локальный Container Registry
+docker tag ghcr.io/catthehacker/ubuntu:act-latest \
+10.8.0.1:3000/diplom/ubuntu-act:latest
+
+# Загрузка контейнера в локальный Container Registry
+docker push 10.8.0.1:3000/diplom/ubuntu-act:latest
+```
+
+<details>
+<summary>
+Лог действий загрузки образа в Container Registry
+</summary>
+
+```log
+act-latest: Pulling from catthehacker/ubuntu
+74b8166120c8: Pull complete 
+ab3d39bc87e4: Pull complete 
+f1638892d9d9: Pull complete 
+e20060d6f450: Pull complete 
+5c09bf8c1d28: Pull complete 
+bd9ddc54bea9: Pull complete 
+Digest: sha256:62d572b92f9f32d3427b6d220ad1f9dca9c7b6ffad37d295425037dbff78abaf
+Status: Downloaded newer image for ghcr.io/catthehacker/ubuntu:act-latest
+ghcr.io/catthehacker/ubuntu:act-latest
+
+mkdir: создан каталог '/etc/docker'
+{"insecure-registries": ["10.8.0.1:3000"]}
+
+[+] down 7/7
+ ✔ Container runner                    Removed   0.0s
+ ✔ Container docker_dind               Removed   1.2s
+ ✔ Container forgejo                   Removed   0.0s
+ ✔ Container forgejo-db                Removed   0.2s
+ ✔ Container wg-easy                   Removed   0.3s
+ ✔ Network self-host_git_ci_cd_default Removed   0.1s
+ ✔ Network self-host_git_ci_cd_forgejo Removed   0.2s
+[+] up 7/7
+ ✔ Container wg-easy                   Healthy   6.4s
+ ✔ Network self-host_git_ci_cd_forgejo Created   0.0s
+ ✔ Network self-host_git_ci_cd_default Created   0.1s
+ ✔ Container forgejo-db                Healthy   11.4s
+ ✔ Container forgejo                   Started   11.5s
+ ✔ Container docker_dind               Started   11.6s
+ ✔ Container runner                    Started   11.7s
+
+WARNING! Your credentials are stored unencrypted in '/home/shoel/.docker/config.json'.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/go/credential-store/
+
+Login Succeeded
+
+The push refers to repository [10.8.0.1:3000/diplom/ubuntu-act]
+5f70bf18a086: Pushed 
+e88aeb3d94fd: Pushed 
+1495c35e8d0e: Pushed 
+99b962463a7c: Pushed 
+577be1db9eee: Pushed 
+42724e448bf4: Pushed 
+latest: digest: sha256:c8675f7e88e32d629fc9b1bfc175edb5cf50620b97876b8cb9152bd8f8c19a9d size: 1586
+```
+
+</details>
+
+![](./FFOPS-40_diplom-skv_den/img/2.png)
+
+### каталоги под pipeline для terraform и ansible репозиториев
 
 ```bash
 cd ..
@@ -7366,6 +7685,7 @@ cd ..
 pwd
 
 mkdir -vp ./tf-{k8s,net-S3-store}/.forgejo/workflows
+mkdir -vp ./ansible-k3s/.forgejo/workflows
 ```
 
 <details>
@@ -7472,12 +7792,13 @@ jobs:
           SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
         run: |
           set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
           umask 077
-          mkdir -p ~/.ssh
+          mkdir -vp ~/.ssh
           git clone --depth 1 \
             "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
             /tmp/tf-secrets
-          cp "/tmp/tf-secrets/${SECRETS_PATH}/terraform.tfvars.secret" ./terraform.tfvars.secret
+          cp -v "/tmp/tf-secrets/${SECRETS_PATH}/terraform.tfvars.secret" ./terraform.tfvars.secret
           printf '%s' "${SA_STORAGE_KEY}" > ~/.sa_storage.key
           printf '%s' "${YC_AUTHORIZED_KEY}" > ~/.authorized_key.json
           python3 -m json.tool ~/.authorized_key.json >/dev/null
@@ -7518,6 +7839,54 @@ jobs:
       - name: Вывод результатов
         if: always()
         run: terraform output || true
+
+      - name: Публикация артефактов для ansible
+        if: github.event_name == 'push'
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          ANSIBLE_REPO: ${{ vars.ANSIBLE_REPO }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
+          terraform output -json > /tmp/tf-out.json
+          python3 - <<'PY'
+          import json
+          o = json.load(open('/tmp/tf-out.json'))
+          m = o['ansible_masters']['value']
+          w = o['ansible_workers']['value']
+          nlb = o['nlb_master_ip']['value']
+          with open('/tmp/hosts.ini', 'w') as f:
+              f.write("[masters]\n")
+              for x in m:
+                  f.write(f"{x['name']} ansible_host={x['ip']}\n")
+              f.write("\n[workers]\n")
+              for x in w:
+                  f.write(f"{x['name']} ansible_host={x['ip']}\n")
+              f.write("""
+          [workers:vars]
+          ansible_user=skv
+          ansible_ssh_private_key_file=~/.ssh/id_lab22_1_fops40_ed25519
+
+          [all:vars]
+          ansible_user=skv
+          ansible_ssh_private_key_file=~/.ssh/id_lab22_1_fops40_ed25519
+          """)
+          with open('/tmp/ssh_config_yc_k8s', 'w') as f:
+              f.write("# Сгенерировано джобой tf/k8s из terraform output\n")
+              f.write(f"Host bastion-k8s-*\n    HostName {nlb}\n    User skv\n")
+              f.write("    IdentityFile /root/.ssh/id_lab22_1_fops40_ed25519\n")
+              f.write("    StrictHostKeyChecking accept-new\n    IdentitiesOnly yes\n")
+              f.write("Host 10.10.10.*\n    ProxyJump bastion-k8s-*\n    User skv\n")
+              f.write("    IdentityFile /root/.ssh/id_lab22_1_fops40_ed25519\n")
+              f.write("    StrictHostKeyChecking accept-new\n    IdentitiesOnly yes\n")
+          PY
+          git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${ANSIBLE_REPO}.git" /tmp/ansible-repo
+          cp -v /tmp/hosts.ini /tmp/ssh_config_yc_k8s /tmp/ansible-repo/
+          cd /tmp/ansible-repo
+          git config user.email "ci@den-skv.ru"; git config user.name "forgejo-runner"
+          git add hosts.ini ssh_config_yc_k8s
+          git commit -m "inventory: обновление после apply tf/k8s" || true
+          git push origin HEAD:main
 EOF
 ```
 
@@ -7583,6 +7952,7 @@ jobs:
           SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
         run: |
           set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
           umask 077
           mkdir -p ~/.ssh
           git clone --depth 1 \
@@ -7633,6 +8003,191 @@ EOF
 ```
 
 </details>
+
+### `Pipeline`для Ansible развертывания k3s кластера
+
+<details>
+<summary>
+pipeline для Ansible развертывания k3s кластера
+</summary>
+
+```yaml
+cat > ./tf/ansible/.forgejo/workflows/ansible.yml <<'EOF'
+---
+name: Ansible K3s
+
+on:
+  push:
+    branches: ['main', 'master']
+
+jobs:
+  deploy:
+    name: Развёртывание кластера
+    runs-on: docker
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+      - name: Получение исходников
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
+
+      - name: Подготовка SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519
+          cp ./ssh_config_yc_k8s ~/.ssh/config_yc_k8s
+          chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519 ~/.ssh/config_yc_k8s
+          test -s ~/.ssh/id_lab22_1_fops40_ed25519
+          test -s ~/.ssh/config_yc_k8s
+
+      - name: Пароль vault из SECRETS_REPO
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+          SECRETS_PATH: ${{ vars.SECRETS_PATH }}
+        run: |
+          set -euo pipefail
+          umask 077
+          git clone --depth 1 \
+            "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
+            /tmp/tf-secrets
+          cp "/tmp/tf-secrets/${SECRETS_PATH}/va_pa" ./va_pa
+          chmod 600 ./va_pa
+          test -s ./va_pa
+
+      - name: Установка Ansible
+        run: |
+          python3 -m pip install --quiet ansible-core \
+            || python3 -m pip install --quiet --break-system-packages ansible-core
+
+      - name: Запуск playbook
+        run: |
+          ansible --version | head -1
+          ansible-playbook -i ./hosts.ini playbook_main.yaml
+
+      - name: Публикация kubeconfig в SECRETS_REPO
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+        run: |
+          set -euo pipefail
+          test -s ~/.kube/config || { echo "kubeconfig не найден"; exit 1; }
+          git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" /tmp/secrets
+          mkdir -p /tmp/secrets/k8s
+          cp ~/.kube/config /tmp/secrets/k8s/kubeconfig
+          cd /tmp/secrets
+          git config user.email "ci@den-skv.ru"
+          git config user.name "forgejo-runner"
+          git add k8s/kubeconfig
+          git commit -m "kubeconfig: обновление после ansible" || true
+          git push origin HEAD:main
+
+      - name: Проверка кластера
+        run: |
+          curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl || { echo "Пропуск: kubectl недоступен"; exit 0; }
+          chmod +x /usr/local/bin/kubectl
+          export KUBECONFIG=$HOME/.kube/config
+          kubectl get nodes -o wide
+          kubectl get pods -A | head -30
+EOF
+```
+
+</details>
+
+<details>
+<summary>
+bash скрипт загрузки пакетов в локальный package репозиторий
+</summary>
+
+```bash
+cat > ./tf/ansible/scripts/fetch_artifacts.sh <<'EOF'
+#!/usr/bin/env bash
+# Доставка артефактов роли k3s_cluster в roles/k3s_cluster/files/.
+# По порядку приоритета для каждого файла:
+#   1) файл уже на месте -> пропустить;
+#   2) Forgejo Package Registry -> скачивание;
+#   3) upstream -> скачивание + кэш в registry.
+#
+# env: PACKAGE_TOKEN (глобальный PAT со скоупом write:package;),
+#      FORGEJO_URL, PACKAGE_OWNER, PACKAGE_NAME, PACKAGE_VERSION.
+set -euo pipefail
+
+DEST="roles/k3s_cluster/files"
+FORGEJO_URL="${FORGEJO_URL:-http://10.8.0.1:3000}"
+PACKAGE_OWNER="${PACKAGE_OWNER:-diplom}"
+PACKAGE_NAME="${PACKAGE_NAME:-k3s-artifacts}"
+PACKAGE_VERSION="${PACKAGE_VERSION:-v1}"
+
+declare -A SRC=(
+  ["calico.yaml"]="https://raw.githubusercontent.com/projectcalico/calico/v3.32.2/manifests/calico.yaml"
+  ["k3s"]="https://github.com/k3s-io/k3s/releases/latest/download/k3s"
+  ["kubectl-calico"]="https://github.com/projectcalico/calico/releases/latest/download/calicoctl-linux-amd64"
+  ["cni-plugins-linux-amd64.tgz"]="https://github.com/containernetworking/plugins/releases/download/v1.9.1/cni-plugins-linux-amd64-v1.9.1.tgz"
+  ["helm.tar.gz"]="https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz"
+  ["ingress-nginx.yaml"]="https://raw.githubusercontent.com/kubernetes/ingress-nginx/refs/heads/main/deploy/static/provider/baremetal/deploy.yaml"
+)
+
+AUTH=()
+if [ -n "${PACKAGE_TOKEN:-}" ]; then
+  AUTH=(-u "oauth2:${PACKAGE_TOKEN}")
+elif [ -n "${TOKEN:-}" ]; then
+  AUTH=(-u "oauth2:${TOKEN}")
+fi
+
+mkdir -p "$DEST"
+
+for f in "${!SRC[@]}"; do
+  if [ -s "$DEST/$f" ]; then
+    echo "SKIP $f (уже есть)"
+    continue
+  fi
+  reg_url="${FORGEJO_URL}/api/packages/${PACKAGE_OWNER}/generic/${PACKAGE_NAME}/${PACKAGE_VERSION}/${f}"
+  if curl -fsSL "${AUTH[@]}" "$reg_url" -o "$DEST/$f" 2>/dev/null; then
+    echo "REG  $f (Package Registry)"
+  else
+    rm -f "$DEST/$f"
+    curl -fSL --retry 3 "${SRC[$f]}" -o "$DEST/$f"
+    echo "NET  $f (upstream)"
+    curl -sfS -X PUT "${AUTH[@]}" "$reg_url" --upload-file "$DEST/$f" >/dev/null 2>&1 \
+      && echo "UPL  $f (кэш в registry)" \
+      || echo "WARN $f (не закэширован в registry)"
+  fi
+  test -s "$DEST/$f"
+done
+
+ls -la "$DEST"
+EOF
+```
+
+</details>
+
+<details>
+<summary>
+Список Ansible requirements для runner контейнера для запуска роли
+</summary>
+
+```yaml
+cat > ./tf/ansible/requirements.yml <<'EOF'
+---
+collections:
+  - name: community.general
+  - name: ansible.posix
+EOF
+```
+
+</details>
+
+![](./FFOPS-40_diplom-skv_den/img/13.gif)
 
 ```bash
 cd tf-k8s
@@ -7743,6 +8298,8 @@ FFOPS-40_diplom-skv_den
 ```
 
 ## commit_13,`FFOPS-40_diplom-skv_den`
+
+
 
 
 

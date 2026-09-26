@@ -49,12 +49,13 @@ jobs:
           SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
         run: |
           set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
           umask 077
-          mkdir -p ~/.ssh
+          mkdir -vp ~/.ssh
           git clone --depth 1 \
             "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
             /tmp/tf-secrets
-          cp "/tmp/tf-secrets/${SECRETS_PATH}/terraform.tfvars.secret" ./terraform.tfvars.secret
+          cp -v "/tmp/tf-secrets/${SECRETS_PATH}/terraform.tfvars.secret" ./terraform.tfvars.secret
           printf '%s' "${SA_STORAGE_KEY}" > ~/.sa_storage.key
           printf '%s' "${YC_AUTHORIZED_KEY}" > ~/.authorized_key.json
           python3 -m json.tool ~/.authorized_key.json >/dev/null
@@ -95,3 +96,51 @@ jobs:
       - name: Вывод результатов
         if: always()
         run: terraform output || true
+
+      - name: Публикация артефактов для ansible
+        if: github.event_name == 'push'
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          ANSIBLE_REPO: ${{ vars.ANSIBLE_REPO }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
+          terraform output -json > /tmp/tf-out.json
+          python3 - <<'PY'
+          import json
+          o = json.load(open('/tmp/tf-out.json'))
+          m = o['ansible_masters']['value']
+          w = o['ansible_workers']['value']
+          nlb = o['nlb_master_ip']['value']
+          with open('/tmp/hosts.ini', 'w') as f:
+              f.write("[masters]\n")
+              for x in m:
+                  f.write(f"{x['name']} ansible_host={x['ip']}\n")
+              f.write("\n[workers]\n")
+              for x in w:
+                  f.write(f"{x['name']} ansible_host={x['ip']}\n")
+              f.write("""
+          [workers:vars]
+          ansible_user=skv
+          ansible_ssh_private_key_file=~/.ssh/id_lab22_1_fops40_ed25519
+
+          [all:vars]
+          ansible_user=skv
+          ansible_ssh_private_key_file=~/.ssh/id_lab22_1_fops40_ed25519
+          """)
+          with open('/tmp/ssh_config_yc_k8s', 'w') as f:
+              f.write("# Сгенерировано джобой tf/k8s из terraform output\n")
+              f.write(f"Host bastion-k8s-*\n    HostName {nlb}\n    User skv\n")
+              f.write("    IdentityFile /root/.ssh/id_lab22_1_fops40_ed25519\n")
+              f.write("    StrictHostKeyChecking accept-new\n    IdentitiesOnly yes\n")
+              f.write("Host 10.10.10.*\n    ProxyJump bastion-k8s-*\n    User skv\n")
+              f.write("    IdentityFile /root/.ssh/id_lab22_1_fops40_ed25519\n")
+              f.write("    StrictHostKeyChecking accept-new\n    IdentitiesOnly yes\n")
+          PY
+          git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${ANSIBLE_REPO}.git" /tmp/ansible-repo
+          cp -v /tmp/hosts.ini /tmp/ssh_config_yc_k8s /tmp/ansible-repo/
+          cd /tmp/ansible-repo
+          git config user.email "ci@den-skv.ru"; git config user.name "forgejo-runner"
+          git add hosts.ini ssh_config_yc_k8s
+          git commit -m "inventory: обновление после apply tf/k8s" || true
+          git push origin HEAD:main
