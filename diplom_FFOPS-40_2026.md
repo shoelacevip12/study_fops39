@@ -8316,7 +8316,8 @@ unzip -p /tmp/r.zip
 ```bash
 terraform destroy \
 -var-file="terraform.tfvars" \
--var-file="terraform.tfvars.secret"
+-var-file="terraform.tfvars.secret" \
+-refresh=false
 
 # удалить содержимое бакета и сам бакет (SA для backend уже мёртв)
 # 1. вычищать вручную
@@ -8330,4 +8331,11 @@ yc kms symmetric-key delete "$(yc kms symmetric-key list | awk '/sym-kms-den-skv
 rm -vf ./errored.tfstate \
 ./terraform.tfstate.backup \
 ./.terraform/terraform.tfstate
+
+# инициализировать и сформировать файл-плана 
+terraform init -reconfigure \
+&& terraform plan -var-file="terraform.tfvars" \
+-var-file="terraform.tfvars.secret" \
+-out=tfplan \
+-refresh=false
 ```
