@@ -16,7 +16,7 @@ jobs:
     name: План и применение
     runs-on: docker
     container:
-      image: ghcr.io/catthehacker/ubuntu:act-latest
+      image: 10.8.0.1:3000/diplom/ubuntu-act:latest
     env:
       TF_CLI_CONFIG_FILE: .terraformrc
     steps:
@@ -32,8 +32,16 @@ jobs:
           git checkout -q FETCH_HEAD
 
       - name: Установка Terraform
+        env:
+          TF_VERSION: ${{ env.TF_VERSION }}
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          TOKEN: ${{ secrets.TOKEN }}
+          FORGEJO_URL: ${{ vars.FORGEJO_URL }}
+          PACKAGE_OWNER: ${{ vars.PACKAGE_OWNER }}
+          PACKAGE_NAME: ${{ vars.PACKAGE_NAME }}
         run: |
-          curl -fsSL "https://hashicorp-releases.yandexcloud.net/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/tf.zip
+          set -euo pipefail
+          bash scripts/fetch_terraform.sh
           command -v unzip >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq unzip; }
           rm -rf /usr/local/bin/terraform-*
           unzip -o /tmp/tf.zip -d /usr/local/bin
