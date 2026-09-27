@@ -1,7 +1,7 @@
-# Собственный Dockerfile: upstream ts6-manager sidecar + порт
+# Dockerfile ts6-manager sidecar + порт
 FROM clusterzx/ts6-manager:sidecar
 
 ENV SIDECAR_PORT=9800
 
-LABEL org.opencontainers.image.title="ts6-manager sidecar (ts6 stack)" \
-      org.opencontainers.image.source="10.8.0.1:3000/diplom/bears"
+LABEL org.opencontainers.image.title="ts6-manager sidecar" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/ts6-image-build"

@@ -1,4 +1,4 @@
-# Собственный Dockerfile: upstream-образ TeamSpeak 6 + вшитый .env (ARG/ENV)
+# Dockerfile образ TeamSpeak 6 + вшитый .env (ARG/ENV)
 FROM teamspeaksystems/teamspeak6-server:latest
 
 ARG TSSERVER_QUERY_ADMIN_PASSWORD
@@ -22,5 +22,5 @@ ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/tsser
     TSSERVER_QUERY_LOG_COMMANDS=true \
     TSSERVER_QUERY_BUFFER_MB=100
 
-LABEL org.opencontainers.image.title="teamspeak6-server (ts6 stack)" \
-      org.opencontainers.image.source="10.8.0.1:3000/diplom/bears"
+LABEL org.opencontainers.image.title="teamspeak6-server" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/ts6-image-build"

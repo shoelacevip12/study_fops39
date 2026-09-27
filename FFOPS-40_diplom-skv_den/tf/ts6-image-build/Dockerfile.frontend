@@ -1,10 +1,10 @@
-# Собственный Dockerfile: upstream ts6-manager frontend + кастомный nginx
-# (/healthz, /api → backend:3001, /ws, SPA-routing)
+# Dockerfile ts6-manager frontend + кастомный nginx
+# (/healthz, /api -> backend:3001, /ws, SPA-routing)
 FROM clusterzx/ts6-manager:frontend
 
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-LABEL org.opencontainers.image.title="ts6-manager frontend (ts6 stack)" \
-      org.opencontainers.image.source="10.8.0.1:3000/diplom/bears"
+LABEL org.opencontainers.image.title="ts6-manager frontend" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/ts6-image-build"

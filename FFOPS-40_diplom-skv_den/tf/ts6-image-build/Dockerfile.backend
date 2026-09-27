@@ -1,4 +1,4 @@
-# Собственный Dockerfile: upstream ts6-manager backend + вшитый .env (ARG/ENV)
+# Dockerfile ts6-manager backend + вшитый .env (ARG/ENV)
 FROM clusterzx/ts6-manager:backend
 
 ARG JWT_SECRET
@@ -18,5 +18,5 @@ ENV NODE_ENV=production \
     MUSIC_DIR=/data/music \
     SIDECAR_URL=${SIDECAR_URL}
 
-LABEL org.opencontainers.image.title="ts6-manager backend (ts6 stack)" \
-      org.opencontainers.image.source="10.8.0.1:3000/diplom/bears"
+LABEL org.opencontainers.image.title="ts6-manager backend" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/ts6-image-build"
