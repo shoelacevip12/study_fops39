@@ -93,5 +93,8 @@ jobs:
         env:
           KUBECONFIG: ./kubeconfig
         run: |
-          kubectl -n ts6 rollout status deployment --all --timeout=300s
+          kubectl -n ts6 rollout status deploy/backend --timeout=300s
+          kubectl -n ts6 rollout status deploy/frontend --timeout=300s
+          kubectl -n ts6 rollout status deploy/sidecar --timeout=300s
+          kubectl -n ts6 rollout status deploy/teamspeak6 --timeout=300s
           kubectl -n ts6 get po,svc,pvc -o wide

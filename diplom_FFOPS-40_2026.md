@@ -10035,7 +10035,10 @@ jobs:
         env:
           KUBECONFIG: ./kubeconfig
         run: |
-          kubectl -n ts6 rollout status deployment --all --timeout=300s
+          kubectl -n ts6 rollout status deploy/backend --timeout=300s
+          kubectl -n ts6 rollout status deploy/frontend --timeout=300s
+          kubectl -n ts6 rollout status deploy/sidecar --timeout=300s
+          kubectl -n ts6 rollout status deploy/teamspeak6 --timeout=300s
           kubectl -n ts6 get po,svc,pvc -o wide
 EOF
 ```
@@ -10202,7 +10205,7 @@ docker-compose -f docker-compose-forgejo-runner.yml up -d --force-recreate runne
 
 
 # 1. закоммитить фикс деплоя
- git add . && git status && git commit --allow-empty -am "fix: namespace" ; git push
+git add . && git status && git commit --allow-empty -am "fix: namespace" ; git push
 
 # пересоздать тег v1.0.0 (старый указывает на коммит со старым плейбуком)
 git tag -d v1.0.0
