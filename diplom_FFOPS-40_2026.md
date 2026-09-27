@@ -1073,36 +1073,30 @@ services:
     image: 'data.forgejo.org/forgejo/runner:13'
     extra_hosts:
       - 'git.den-skv.ru:10.8.0.1'
-    links:
-      - docker-in-docker
-    depends_on:
-      docker-in-docker:
-        condition: service_started
     container_name: 'runner'
     environment:
-      DOCKER_HOST: tcp://docker-in-docker:2375
-    user: 1001:1001
+      DOCKER_HOST: unix:///var/run/docker.sock
+    user: '0:0'
     volumes:
       - ~/data-runner:/data
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: 'unless-stopped'
-    command: 'forgejo-runner daemon --config runner-config.yml'
+    command: 'forgejo-runner daemon --config /data/runner-config.yml'
 EOF
 ```
 
 ```bash
-# Создание настроек для подключения в роли runnera
-# (v13: секции runner.web больше нет — логи джоб отдаёт сам forgejo;
-#  кэш отключён: cache.enabled = false)
 sudo tee ~/data-runner/runner-config.yml <<'EOF'
 runner:
   labels: ["docker:docker://ghcr.io/catthehacker/ubuntu:act-latest"]
-  cache:
-    enabled: false
-
+cache:
+  enabled: false
+container:
+  docker_host: "automount"
 server:
   connections:
     forgejo:
-      url: http://10.8.0.1:3000/   # внутренний HTTP
+      url: http://10.8.0.1:3000/
       uuid: cf6131f1-dee9-4ceb-9ced-94805ca201c4
       token: 7f25eef95d95e23a2e6129d5bad992f38f5bbd68
 EOF
@@ -1731,6 +1725,12 @@ yc kms symmetric-key add-access-binding "$KMS_ID" \
 resource "yandex_resourcemanager_folder_iam_member" "sa_compute_admin" {
   folder_id = var.folder_id
   role      = "compute.admin"
+  member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+}
+
+resource "yandex_resourcemanager_folder_iam_member" "sa_load_balancer_admin" {
+  folder_id = var.folder_id
+  role      = "load-balancer.admin"
   member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
 }
 
@@ -4138,13 +4138,13 @@ resource "yandex_lb_network_load_balancer" "nlb-k8s-master" {
     }
   }
 
-  # Обработчик для голоса TeamSpeak 6
+  # Обработчик для голоса TeamSpeak 6 - временно ОТКЛЮЧЁН Permission denied to create UDP listener
   listener {
     name        = "listener-ts6-voice"
     port        = 9987   # внешний порт балансировщика
     target_port = 30087  # NodePort сервиса teamspeak6 (voice)
     protocol    = "udp"
-
+  
     external_address_spec {
       ip_version = "ipv4"
     }
@@ -8409,7 +8409,7 @@ branch 'main' set up to track 'origin/main'.
 cd ../tf-net-S3-store/
 
 git add . && git status
-git commit -am "add cicd"
+git commit  --allow-empty -am "add cicd"
 git push -u origin main
 ```
 
@@ -8476,10 +8476,529 @@ FFOPS-40_diplom-skv_den
 
 ## commit_13,`FFOPS-40_diplom-skv_den`
 
-```bash
-cp -r self-repos/ts6-image-build gited/FFOPS-40_diplom-skv_den/tf/ts6-image-build && cp -r self-repos/k8s-deploy gited/FFOPS-40_diplom-skv_den/tf/k8s-deploy && echo "=== monorepo tf/ ===" && ls gited/FFOPS-40_diplom-skv_den/tf/ && echo "=== ts6-image-build ===" && find gited/FFOPS-40_diplom-skv_den/tf/ts6-image-build -type f | sort && echo "=== k8s-deploy ===" && find gited/FFOPS-40_diplom-skv_den/tf/k8s-deploy -type f | sort
+### Репозиторий Сборки
 
+```bash
+cd ../
+
+pwd
+
+mkdir -pv ts6-image-build/{scripts,nginx}
+
+mkdir -pv ts6-image-build/.forgejo/workflows
+
+cd ts6-image-build
 ```
+
+<details>
+<summary>
+Создание каталога под репозиторий сборки приложения
+</summary>
+
+```log
+/home/shoel/nfs_git/self-repos
+
+mkdir: создан каталог 'ts6-image-build'
+mkdir: создан каталог 'ts6-image-build/scripts'
+mkdir: создан каталог 'ts6-image-build/nginx'
+mkdir: создан каталог 'ts6-image-build/.forgejo'
+mkdir: создан каталог 'ts6-image-build/.forgejo/workflows'
+```
+
+</details>
+
+#### `Dockerfile-манифест` Сервера teamspeak6 под сборку
+
+<details>
+<summary>
+Dockerfile-манифест Сервера teamspeak6 под сборку
+</summary>
+
+```Dockerfile
+cat > ./Dockerfile.teamspeak6 <<'EOF'
+# Dockerfile образ TeamSpeak 6 + вшитый .env (ARG/ENV)
+FROM teamspeaksystems/teamspeak6-server:latest
+
+ARG TSSERVER_QUERY_ADMIN_PASSWORD
+
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/tsserver \
+    TSSERVER_DATABASE_SQL_PATH=/opt/tsserver/sql/ \
+    TSSERVER_DATABASE_SQL_CREATE_PATH=/opt/tsserver/sql/create_sqlite/ \
+    TSSERVER_QUERY_DOCUMENTATION_PATH=/opt/tsserver/serverquerydocs \
+    TSSERVER_LICENSE_ACCEPTED=accept \
+    TSSERVER_DEFAULT_PORT=9987 \
+    TSSERVER_VOICE_IP=0.0.0.0 \
+    TSSERVER_FILE_TRANSFER_PORT=30033 \
+    TSSERVER_QUERY_HTTP_ENABLED=true \
+    TSSERVER_QUERY_SSH_ENABLED=true \
+    TSSERVER_QUERY_ADMIN_PASSWORD=${TSSERVER_QUERY_ADMIN_PASSWORD} \
+    TSSERVER_QUERY_HTTP_PORT=10080 \
+    TSSERVER_QUERY_SSH_PORT=10022 \
+    TSSERVER_VOICE_UDP_THREADS=16 \
+    TSSERVER_DATABASE_SKIP_INTEGRITY_CHECK=true \
+    TSSERVER_QUERY_POOL_SIZE=32 \
+    TSSERVER_QUERY_LOG_COMMANDS=true \
+    TSSERVER_QUERY_BUFFER_MB=100
+
+LABEL org.opencontainers.image.title="teamspeak6-server" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/ts6-image-build"
+EOF
+```
+
+</details>
+
+#### `Dockerfile-манифест` ts6-manager-backend под сборку
+
+<details>
+<summary>
+`Dockerfile-манифест` ts6-manager-backend под сборку
+</summary>
+
+```Dockerfile
+cat > ./Dockerfile.backend <<'EOF'
+# Dockerfile ts6-manager backend + вшитый .env (ARG/ENV)
+FROM clusterzx/ts6-manager:backend
+
+ARG JWT_SECRET
+ARG ENCRYPTION_KEY
+ARG FRONTEND_URL
+ARG SIDECAR_URL
+
+ENV NODE_ENV=production \
+    PORT=3001 \
+    DATABASE_URL=file:/app/packages/backend/data/ts6webui.db \
+    JWT_SECRET=${JWT_SECRET} \
+    ENCRYPTION_KEY=${ENCRYPTION_KEY} \
+    TS_ALLOW_SELF_SIGNED=true \
+    JWT_ACCESS_EXPIRY=15m \
+    JWT_REFRESH_EXPIRY=7d \
+    FRONTEND_URL=${FRONTEND_URL} \
+    MUSIC_DIR=/data/music \
+    SIDECAR_URL=${SIDECAR_URL}
+
+LABEL org.opencontainers.image.title="ts6-manager backend" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/ts6-image-build"
+EOF
+```
+
+</details>
+
+#### `Dockerfile-манифест` ts6-manager-sidecar под сборку
+
+<details>
+<summary>
+`Dockerfile-манифест` ts6-manager-sidecar под сборку
+</summary>
+
+```Dockerfile
+cat > ./Dockerfile.sidecar <<'EOF'
+# Dockerfile ts6-manager sidecar + порт
+FROM clusterzx/ts6-manager:sidecar
+
+ENV SIDECAR_PORT=9800
+
+LABEL org.opencontainers.image.title="ts6-manager sidecar" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/ts6-image-build"
+EOF
+```
+
+</details>
+
+#### `Dockerfile-манифест` ts6-manager-frontend под сборку
+
+<details>
+<summary>
+`Dockerfile-манифест` ts6-manager-frontend под сборку
+</summary>
+
+```Dockerfile
+cat > ./Dockerfile.frontend <<'EOF'
+# Dockerfile ts6-manager frontend + кастомный nginx
+# (/healthz, /api -> backend:3001, /ws, SPA-routing)
+FROM clusterzx/ts6-manager:frontend
+
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+LABEL org.opencontainers.image.title="ts6-manager frontend" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/ts6-image-build"
+EOF
+```
+
+</details>
+
+#### `bash-script` генерация секретов `.env`
+
+<details>
+<summary>
+bash-script генерация секретов .env
+</summary>
+
+```bash
+cat > ./scripts/gen_secrets.sh <<'EOF'
+#!/usr/bin/env bash
+# Генерация секретов для .env (JWT_SECRET, ENCRYPTION_KEY, TS6_QUERY_ADMIN_PASSWORD)
+# Использование: bash scripts/gen_secrets.sh
+set -euo pipefail
+
+echo "JWT_SECRET=$(openssl rand -hex 32)"
+echo "ENCRYPTION_KEY=$(openssl rand -hex 32)"
+echo "TS6_QUERY_ADMIN_PASSWORD=$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 24)"
+EOF
+```
+
+</details>
+
+#### `bash-script` docker build
+
+<details>
+<summary>
+bash-script docker build
+</summary>
+
+```bash
+cat > ./scripts/build_images.sh <<'EOF'
+#!/usr/bin/env bash
+# Сборка 4 образов стека ts6 с вшитым .env (ARG/ENV) и публикация в Forgejo CR.
+# Использование: bash scripts/build_images.sh [tag]  (tag по умолчанию: latest)
+set -euo pipefail
+
+TAG="${1:-latest}"
+REGISTRY="${REGISTRY:-10.8.0.1:3000}"
+OWNER="${OWNER:-diplom}"
+
+# Единый источник build-args — .env
+set -a
+# shellcheck disable=SC1091
+source ./.env
+set +a
+
+build_and_push() {
+  local name="$1" dockerfile="$2"
+  local ref="${REGISTRY}/${OWNER}/${name}:${TAG}"
+  echo "==> build ${ref} (${dockerfile})"
+  docker build \
+    --build-arg JWT_SECRET="${JWT_SECRET:-}" \
+    --build-arg ENCRYPTION_KEY="${ENCRYPTION_KEY:-}" \
+    --build-arg FRONTEND_URL="${FRONTEND_URL:-http://localhost:3000}" \
+    --build-arg SIDECAR_URL="${SIDECAR_URL:-http://sidecar:9800}" \
+    --build-arg TSSERVER_QUERY_ADMIN_PASSWORD="${TSSERVER_QUERY_ADMIN_PASSWORD:-}" \
+    -f "${dockerfile}" \
+    -t "${ref}" \
+    .
+  docker push "${ref}"
+}
+
+build_and_push teamspeak6-server Dockerfile.teamspeak6
+build_and_push ts6-backend      Dockerfile.backend
+build_and_push ts6-sidecar      Dockerfile.sidecar
+build_and_push ts6-frontend     Dockerfile.frontend
+
+echo "OK: все образы опубликованы в ${REGISTRY}/${OWNER} (tag=${TAG})"
+EOF
+```
+
+</details>
+
+#### `Pipeline` Сборки образов
+
+<details>
+<summary>
+pipeline Сборки образов
+</summary>
+
+```yaml
+cat > ./.forgejo/workflows/build.yml <<'EOF'
+---
+name: Build TS6 images
+
+on:
+  push:
+    branches: ['main', 'master']
+    tags: ['v*']
+
+env:
+  REGISTRY: '10.8.0.1:3000'
+  OWNER: 'diplom'
+
+jobs:
+  build:
+    name: Сборка образов и публикация в Forgejo CR
+    runs-on: docker
+    container:
+      image: 10.8.0.1:3000/diplom/ubuntu-act:latest
+    steps:
+      - name: Получение исходников
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
+
+      - name: Валидация compose
+        run: |
+          docker compose version >/dev/null 2>&1 && docker compose config --quiet \
+            || echo "compose-валидация пропущена"
+      
+      - name: Диагностика docker
+        run: |
+          echo "DOCKER_HOST=${DOCKER_HOST:-<не задан>}"
+          docker info | grep -A4 "Insecure Registries" || true
+      
+      - name: Логин в Forgejo Container Registry
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${PACKAGE_TOKEN}" | docker login ${REGISTRY} -u token-user --password-stdin
+
+      - name: Определение тега
+        run: |
+          TAG=latest
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "Тег образа: ${TAG}"
+
+      - name: Сборка и публикация образов
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          OWNER: ${{ env.OWNER }}
+        run: |
+          set -euo pipefail
+          test -s .env || { echo "Файл .env не найден"; exit 1; }
+          bash scripts/build_images.sh "${TAG}"
+EOF
+```
+
+</details>
+
+#### `nginx-конфиг` под внутренний proxy_pass
+
+<details>
+<summary>
+nginx-конфиг под внутренний proxy_pass
+</summary>
+
+```json
+cat > ./nginx/default.conf <<'EOF'
+# nginx-конфиг для frontend ts6-manager.
+# Имя backend в k8s строго привязан к `backend` (proxy_pass http://backend:3001).
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    client_max_body_size 150m;
+
+    # healthz для ReadinessProbe
+    location /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 'ok';
+    }
+
+    location /api {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ws {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+
+    location /widget/ {
+        add_header X-Frame-Options "";
+        add_header Content-Security-Policy "frame-ancestors *";
+        try_files $uri $uri/ /index.html;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml;
+}
+EOF
+```
+
+</details>
+
+```bash
+touch README.md
+git init
+git config --global --add safe.directory /home/shoel/nfs_git/self-repos/ts6-image-build
+git switch -c main
+
+git add . && git status
+git commit -m "first commit"
+git remote add origin ssh://git@git.den-skv.ru:6722/diplom/ts6-image-build.git
+git push -u origin main
+```
+
+<details>
+<summary>
+Создание репозиториев приложения
+</summary>
+
+```log
+Инициализирован пустой репозиторий Git в /home/shoel/nfs_git/self-repos/ts6-image-build/.git/
+
+Переключились на новую ветку «main»
+
+Еще нет коммитов
+
+Изменения, которые будут включены в коммит:
+  (используйте «git rm --cached <файл>...», чтобы убрать из индекса)
+        новый файл:    .env.example
+        новый файл:    .forgejo/workflows/build.yml
+        новый файл:    Dockerfile.backend
+        новый файл:    Dockerfile.frontend
+        новый файл:    Dockerfile.sidecar
+        новый файл:    Dockerfile.teamspeak6
+        новый файл:    README.md
+        новый файл:    compose.yaml
+        новый файл:    nginx/default.conf
+        новый файл:    scripts/build_images.sh
+        новый файл:    scripts/gen_secrets.sh
+
+[main (корневой коммит) da327b5] first commit
+ 11 files changed, 424 insertions(+)
+ create mode 100644 .env.example
+ create mode 100644 .forgejo/workflows/build.yml
+ create mode 100644 Dockerfile.backend
+ create mode 100644 Dockerfile.frontend
+ create mode 100644 Dockerfile.sidecar
+ create mode 100644 Dockerfile.teamspeak6
+ create mode 100644 README.md
+ create mode 100644 compose.yaml
+ create mode 100644 nginx/default.conf
+ create mode 100644 scripts/build_images.sh
+ create mode 100644 scripts/gen_secrets.sh
+Перечисление объектов: 17, готово.
+Подсчет объектов: 100% (17/17), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (14/14), готово.
+Запись объектов: 100% (17/17), 8.32 KiB | 8.32 MiB/s, готово.
+Total 17 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/ts6-image-build.git
+ * [new branch]      main -> main
+branch 'main' set up to track 'origin/main'.
+```
+
+</details>
+
+#### Ручная генерация .env Через скрипт в репозиторий
+
+```bash
+{
+  echo "FRONTEND_URL=http://158.160.220.212"
+  echo "SIDECAR_URL=http://sidecar:9800"
+  echo "TS_ALLOW_SELF_SIGNED=true"
+  bash scripts/gen_secrets.sh
+} > .env
+
+cat .env
+
+git add . \
+&& git status \
+&& git commit --allow-empty -am ".env_add" \
+; git push
+```
+
+<details>
+<summary>
+Создание репозиториев приложения
+</summary>
+
+```log
+FRONTEND_URL=http://158.160.220.212
+SIDECAR_URL=http://sidecar:9800
+TS_ALLOW_SELF_SIGNED=true
+JWT_SECRET=04ce9dae208441bc1bbe77b35bd719776042cec39d030fa38b00fe46ddbd3dd2
+ENCRYPTION_KEY=705aee733689219235211ccbdb22a113a9c83c471caf19f3e924ac93f5627f7f
+TS6_QUERY_ADMIN_PASSWORD=hfBInb1GfFjVioGn1wXj0xHi
+
+Изменения, которые будут включены в коммит:
+  (используйте «git restore --staged <файл>...», чтобы убрать из индекса)
+        новый файл:    .env
+
+[main 417e846] .env_add
+ 1 file changed, 6 insertions(+)
+ create mode 100644 .env
+Перечисление объектов: 4, готово.
+Подсчет объектов: 100% (4/4), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (3/3), готово.
+Запись объектов: 100% (3/3), 555 bytes | 555.00 KiB/s, готово.
+Total 3 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/ts6-image-build.git
+   da327b5..417e846  main -> main
+```
+
+</details>
+
+![](./FFOPS-40_diplom-skv_den/img/3.png)
+
+![](./FFOPS-40_diplom-skv_den/img/15.gif)
+
+### Git Commit изменений
+
+```bash
+git rm -r --cached \
+./ ../
+
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit13, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
+
+## commit_14,`FFOPS-40_diplom-skv_den`
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8491,6 +9010,8 @@ curl -s "http://10.8.0.1:3000/api/v1/repos/diplom/tf-k8s/actions/runs/19/logs" \
 -o /tmp/r.zip
 
 unzip -p /tmp/r.zip
+
+docker-compose -f docker-compose-forgejo-runner.yml up -d --force-recreate runner
 ```
 
 ```bash

@@ -70,7 +70,7 @@ resource "yandex_lb_network_load_balancer" "nlb-k8s-master" {
     }
   }
 
-  # Обработчик для голоса TeamSpeak 6 - временно ОТКЛЮЧЁН
+  # Обработчик для голоса TeamSpeak 6 - временно ОТКЛЮЧЁН Permission denied to create UDP listener
   listener {
     name        = "listener-ts6-voice"
     port        = 9987   # внешний порт балансировщика

@@ -30,7 +30,12 @@ jobs:
         run: |
           docker compose version >/dev/null 2>&1 && docker compose config --quiet \
             || echo "compose-валидация пропущена"
-
+      
+      - name: Диагностика docker
+        run: |
+          echo "DOCKER_HOST=${DOCKER_HOST:-<не задан>}"
+          docker info | grep -A4 "Insecure Registries" || true
+      
       - name: Логин в Forgejo Container Registry
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -53,5 +58,5 @@ jobs:
           OWNER: ${{ env.OWNER }}
         run: |
           set -euo pipefail
-          test -s .env || { echo "Файл .env не найден (см. .env.example и scripts/gen_secrets.sh)"; exit 1; }
+          test -s .env || { echo "Файл .env не найден"; exit 1; }
           bash scripts/build_images.sh "${TAG}"
