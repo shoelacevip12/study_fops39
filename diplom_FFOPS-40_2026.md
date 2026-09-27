@@ -10078,22 +10078,81 @@ FFOPS-40_diplom-skv_den
 
 ## commit_15,`FFOPS-40_diplom-skv_den`
 
-
 ```bash
+pwd
 
+cd k8s-deploy
+
+git init
+git config --global --add safe.directory /home/shoel/nfs_git/self-repos/k8s-deploy
+git switch -c main
+git add . && git status
+git commit -m "first commit"
+git remote add origin ssh://git@git.den-skv.ru:6722/diplom/k8s-deploy.git
+git push -u origin main
 ```
 
 <details>
 <summary>
-
+лог создания репозитория
 </summary>
 
 ```log
+/home/shoel/nfs_git/self-repos/k8s-deploy
 
+Инициализирован пустой репозиторий Git в /home/shoel/nfs_git/self-repos/k8s-deploy/.git/
+Переключились на новую ветку «main»
+Текущая ветка: main
+
+Еще нет коммитов
+
+Изменения, которые будут включены в коммит:
+  (используйте «git rm --cached <файл>...», чтобы убрать из индекса)
+        новый файл:    .forgejo/workflows/deploy.yml
+        новый файл:    README.md
+        новый файл:    ansible/playbook_ts6_images.yaml
+        новый файл:    k8s/deployment-backend.yaml
+        новый файл:    k8s/deployment-frontend.yaml
+        новый файл:    k8s/deployment-sidecar.yaml
+        новый файл:    k8s/deployment-teamspeak6.yaml
+        новый файл:    k8s/namespace.yaml
+        новый файл:    k8s/pvc.yaml
+        новый файл:    k8s/service-backend.yaml
+        новый файл:    k8s/service-frontend.yaml
+        новый файл:    k8s/service-sidecar.yaml
+        новый файл:    k8s/service-teamspeak6-ext.yaml
+        новый файл:    k8s/service-teamspeak6.yaml
+
+[main (корневой коммит) 8e5c23a] first commit
+ 14 files changed, 554 insertions(+)
+ create mode 100644 .forgejo/workflows/deploy.yml
+ create mode 100644 README.md
+ create mode 100644 ansible/playbook_ts6_images.yaml
+ create mode 100644 k8s/deployment-backend.yaml
+ create mode 100644 k8s/deployment-frontend.yaml
+ create mode 100644 k8s/deployment-sidecar.yaml
+ create mode 100644 k8s/deployment-teamspeak6.yaml
+ create mode 100644 k8s/namespace.yaml
+ create mode 100644 k8s/pvc.yaml
+ create mode 100644 k8s/service-backend.yaml
+ create mode 100644 k8s/service-frontend.yaml
+ create mode 100644 k8s/service-sidecar.yaml
+ create mode 100644 k8s/service-teamspeak6-ext.yaml
+ create mode 100644 k8s/service-teamspeak6.yaml
+Перечисление объектов: 20, готово.
+Подсчет объектов: 100% (20/20), готово.
+При сжатии изменений используется до 16 потоков
+Сжатие объектов: 100% (18/18), готово.
+Запись объектов: 100% (20/20), 7.03 KiB | 3.51 MiB/s, готово.
+Total 20 (delta 4), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/k8s-deploy.git
+ * [new branch]      main -> main
+branch 'main' set up to track 'origin/main'.
 ```
 
 </details>
 
+![](./FFOPS-40_diplom-skv_den/img/16.gif)
 
 
 
