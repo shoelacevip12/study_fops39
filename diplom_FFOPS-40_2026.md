@@ -10190,9 +10190,10 @@ branch 'main' set up to track 'origin/main'.
 
 
 
+## Команды под заметки
 
 ```bash
-git commit --allow-empty -m "ci: rerun after runner web fix5" && git push -u origin main
+git commit --allow-empty -m "runner web fix5" && git push -u origin main
 
 curl -s "http://10.8.0.1:3000/api/v1/repos/diplom/tf-k8s/actions/runs/19/logs" \
 -H "Authorization: token 984e506e8226f1a1f1663ec98c46cd194eaad5ca" \
@@ -10203,22 +10204,15 @@ unzip -p /tmp/r.zip
 docker-compose -f docker-compose-forgejo-runner.yml up -d --force-recreate runner
 
 
-
-# 1. закоммитить фикс деплоя
+# закоммитить фикс деплоя
 git add . && git status && git commit --allow-empty -am "fix: namespace" ; git push
 
-# пересоздать тег v1.0.0 (старый указывает на коммит со старым плейбуком)
+# пересоздать тег v1.0.0
 git tag -d v1.0.0
 git push origin :refs/tags/v1.0.0
-git tag -a v1.0.0 -m "Release 1.0.0"
-git push origin v1.0.0
 
 git tag -a v1.0.0 -m "Release 1.0.0"
 git push origin v1.0.0
-
-git add ansible/playbook_ts6_images.yaml
-git commit -m "fix: два плэя — подготовка архива один раз, импорт по нодам (run_once+free)"
-git push origin main
 ```
 
 ```bash
