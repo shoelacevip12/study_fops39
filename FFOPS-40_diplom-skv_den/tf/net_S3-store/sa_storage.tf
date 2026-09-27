@@ -34,6 +34,12 @@ resource "yandex_resourcemanager_folder_iam_member" "sa_compute_admin" {
   member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
 }
 
+resource "yandex_resourcemanager_folder_iam_member" "sa_load_balancer_admin" {
+  folder_id = var.folder_id
+  role      = "load-balancer.admin"
+  member    = "serviceAccount:${yandex_iam_service_account.sa-storage-access.id}"
+}
+
 resource "yandex_resourcemanager_folder_iam_binding" "vpc-public-admin" {
   # Сервисному аккаунту назначается роль "vpc.publicAdmin".
   folder_id = var.folder_id

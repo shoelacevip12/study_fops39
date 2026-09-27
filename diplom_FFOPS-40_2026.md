@@ -1868,9 +1868,33 @@ resource "yandex_vpc_security_group" "k8s_master" {
   }
   ingress {
     protocol       = "TCP"
-    description    = "доступ к grafana/ingress-nginx (http, порт 80)"
+    description    = "HTTP к frontend ts6-manager через NLB"
     v4_cidr_blocks = ["0.0.0.0/0"]
     port           = 80
+  }
+  ingress {
+    protocol       = "TCP"
+    description    = "NodePort frontend ts6-manager"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 30082
+  }
+  ingress {
+    protocol       = "UDP"
+    description    = "голос TeamSpeak 6 через NLB"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 9987
+  }
+  ingress {
+    protocol       = "UDP"
+    description    = "NodePort voice TeamSpeak 6"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 30087
+  }
+  ingress {
+    protocol       = "TCP"
+    description    = "file transfer TeamSpeak 6 через NLB"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 30033
   }
   ingress {
     protocol       = "TCP"
@@ -4102,17 +4126,41 @@ resource "yandex_lb_network_load_balancer" "nlb-k8s-master" {
     }
   }
 
-  # Обработчик для Grafana по HTTP (http://grafana.<NLB_IP>.nip.io, порт 80)
-  # listener {
-  #   name        = "listener-grafana-http"
-  #   port        = 80
-  #   target_port = 30080
-  #   protocol    = "tcp"
+  # Обработчик для frontend ts6-manager
+  listener {
+    name        = "listener-ts6-http"
+    port        = 80     # внешний порт балансировщика
+    target_port = 30082  # NodePort сервиса frontend
+    protocol    = "tcp"
 
-  #   external_address_spec {
-  #     ip_version = "ipv4"
-  #   }
-  # }
+    external_address_spec {
+      ip_version = "ipv4"
+    }
+  }
+
+  # Обработчик для голоса TeamSpeak 6
+  listener {
+    name        = "listener-ts6-voice"
+    port        = 9987   # внешний порт балансировщика
+    target_port = 30087  # NodePort сервиса teamspeak6 (voice)
+    protocol    = "udp"
+
+    external_address_spec {
+      ip_version = "ipv4"
+    }
+  }
+
+  # Обработчик для file transfer TeamSpeak 6
+  listener {
+    name        = "listener-ts6-file"
+    port        = 30033  # внешний порт балансировщика
+    target_port = 30033  # NodePort сервиса teamspeak6 (file transfer)
+    protocol    = "tcp"
+
+    external_address_spec {
+      ip_version = "ipv4"
+    }
+  }
 
   # Подключение целевой группы и healthcheck
   attached_target_group {
@@ -8428,7 +8476,10 @@ FFOPS-40_diplom-skv_den
 
 ## commit_13,`FFOPS-40_diplom-skv_den`
 
+```bash
+cp -r self-repos/ts6-image-build gited/FFOPS-40_diplom-skv_den/tf/ts6-image-build && cp -r self-repos/k8s-deploy gited/FFOPS-40_diplom-skv_den/tf/k8s-deploy && echo "=== monorepo tf/ ===" && ls gited/FFOPS-40_diplom-skv_den/tf/ && echo "=== ts6-image-build ===" && find gited/FFOPS-40_diplom-skv_den/tf/ts6-image-build -type f | sort && echo "=== k8s-deploy ===" && find gited/FFOPS-40_diplom-skv_den/tf/k8s-deploy -type f | sort
 
+```
 
 
 

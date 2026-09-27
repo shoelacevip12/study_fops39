@@ -1,0 +1,40 @@
+# PersistentVolumeClaim для данных стека ts6 (StorageClass local-path встроен в k3s).
+# При пересоздании прерываемых ВМ данные теряются — приемлемо для диплома.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ts6-data
+  namespace: ts6
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ts6-backend-data
+  namespace: ts6
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ts6-music-data
+  namespace: ts6
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sidecar
+  namespace: ts6
+spec:
+  type: ClusterIP
+  selector:
+    app: sidecar
+  ports:
+    - name: webrtc
+      port: 9800
+      targetPort: 9800
+      protocol: TCP

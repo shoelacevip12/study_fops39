@@ -1,0 +1,64 @@
+# imagePullPolicy: IfNotPresent - образ импортируется в containerd нод ansible-плейбуком.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teamspeak6
+  namespace: ts6
+  labels:
+    app: teamspeak6
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: teamspeak6
+  template:
+    metadata:
+      labels:
+        app: teamspeak6
+    spec:
+      containers:
+        - name: teamspeak6
+          image: 10.8.0.1:3000/diplom/teamspeak6-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: voice
+              containerPort: 9987
+              protocol: UDP
+            - name: file-transfer
+              containerPort: 30033
+              protocol: TCP
+            - name: query-http
+              containerPort: 10080
+              protocol: TCP
+            - name: query-ssh
+              containerPort: 10022
+              protocol: TCP
+            - name: query-legacy
+              containerPort: 10011
+              protocol: TCP
+            - name: query-https
+              containerPort: 10443
+              protocol: TCP
+            - name: webquery-tcp
+              containerPort: 41144
+              protocol: TCP
+            - name: turn-stun
+              containerPort: 3478
+              protocol: UDP
+            - name: turn-stun-tls
+              containerPort: 5349
+              protocol: UDP
+          volumeMounts:
+            - name: ts6-data
+              mountPath: /var/tsserver
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: ts6-data
+          persistentVolumeClaim:
+            claimName: ts6-data

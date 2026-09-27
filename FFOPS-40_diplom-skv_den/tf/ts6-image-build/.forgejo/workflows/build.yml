@@ -1,0 +1,57 @@
+---
+name: Build TS6 images
+
+on:
+  push:
+    branches: ['main', 'master']
+    tags: ['v*']
+
+env:
+  REGISTRY: '10.8.0.1:3000'
+  OWNER: 'diplom'
+
+jobs:
+  build:
+    name: Сборка образов и публикация в Forgejo CR
+    runs-on: docker
+    container:
+      image: 10.8.0.1:3000/diplom/ubuntu-act:latest
+    steps:
+      - name: Получение исходников
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
+
+      - name: Валидация compose
+        run: |
+          docker compose version >/dev/null 2>&1 && docker compose config --quiet \
+            || echo "compose-валидация пропущена"
+
+      - name: Логин в Forgejo Container Registry
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${PACKAGE_TOKEN}" | docker login ${REGISTRY} -u token-user --password-stdin
+
+      - name: Определение тега
+        run: |
+          TAG=latest
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "Тег образа: ${TAG}"
+
+      - name: Сборка и публикация образов
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          OWNER: ${{ env.OWNER }}
+        run: |
+          set -euo pipefail
+          test -s .env || { echo "Файл .env не найден (см. .env.example и scripts/gen_secrets.sh)"; exit 1; }
+          bash scripts/build_images.sh "${TAG}"

@@ -1,0 +1,22 @@
+# Собственный Dockerfile: upstream ts6-manager backend + вшитый .env (ARG/ENV)
+FROM clusterzx/ts6-manager:backend
+
+ARG JWT_SECRET
+ARG ENCRYPTION_KEY
+ARG FRONTEND_URL
+ARG SIDECAR_URL
+
+ENV NODE_ENV=production \
+    PORT=3001 \
+    DATABASE_URL=file:/app/packages/backend/data/ts6webui.db \
+    JWT_SECRET=${JWT_SECRET} \
+    ENCRYPTION_KEY=${ENCRYPTION_KEY} \
+    TS_ALLOW_SELF_SIGNED=true \
+    JWT_ACCESS_EXPIRY=15m \
+    JWT_REFRESH_EXPIRY=7d \
+    FRONTEND_URL=${FRONTEND_URL} \
+    MUSIC_DIR=/data/music \
+    SIDECAR_URL=${SIDECAR_URL}
+
+LABEL org.opencontainers.image.title="ts6-manager backend (ts6 stack)" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/bears"

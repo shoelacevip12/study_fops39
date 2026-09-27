@@ -1,0 +1,33 @@
+# Deployment sidecar (ts6-manager WebRTC streaming). env вшит в образ.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sidecar
+  namespace: ts6
+  labels:
+    app: sidecar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sidecar
+  template:
+    metadata:
+      labels:
+        app: sidecar
+    spec:
+      containers:
+        - name: sidecar
+          image: 10.8.0.1:3000/diplom/ts6-sidecar:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: webrtc
+              containerPort: 9800
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi

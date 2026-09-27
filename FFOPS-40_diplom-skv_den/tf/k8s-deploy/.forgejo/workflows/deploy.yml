@@ -1,0 +1,95 @@
+---
+name: Deploy TS6 stack
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  deploy:
+    name: Деплой ts6 в k3s
+    runs-on: docker
+    container:
+      image: 10.8.0.1:3000/diplom/ubuntu-act:latest
+    steps:
+      - name: Получение исходников
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
+
+      - name: Определение версии
+        run: |
+          VERSION_TAG="${GITHUB_REF#refs/tags/}"
+          echo "VERSION_TAG=${VERSION_TAG}" >> $GITHUB_ENV
+          echo "Версия образа: ${VERSION_TAG}"
+
+      - name: Kubeconfig из tf-secrets
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
+          umask 077
+          git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" /tmp/tf-secrets
+          cp /tmp/tf-secrets/k8s/kubeconfig ./kubeconfig
+          chmod 600 ./kubeconfig
+          test -s ./kubeconfig
+
+      - name: Инвентарь из ansible-k3s (только чтение)
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          ANSIBLE_REPO: ${{ vars.ANSIBLE_REPO }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
+          git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${ANSIBLE_REPO}.git" /tmp/ansible-k3s
+          cp /tmp/ansible-k3s/hosts.ini /tmp/ansible-k3s/ssh_config_yc_k8s .
+          test -s ./hosts.ini
+
+      - name: Подготовка SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519
+          cp ./ssh_config_yc_k8s ~/.ssh/config
+          sed -i "s#/root/.ssh#${HOME}/.ssh#g" ~/.ssh/config
+          chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519 ~/.ssh/config
+          test -s ~/.ssh/config
+
+      - name: Установка Ansible
+        run: python3 -m pip install --quiet --break-system-packages ansible
+
+      - name: Импорт образов в containerd нод
+        run: |
+          ansible-playbook -i ./hosts.ini ansible/playbook_ts6_images.yaml \
+            -e image_tag=${VERSION_TAG}
+
+      - name: Подстановка версии образов
+        run: |
+          sed -i "s#:latest#:${VERSION_TAG}#g" k8s/deployment-*.yaml
+          grep -h 'image:' k8s/deployment-*.yaml
+
+      - name: Установка kubectl и применение манифестов
+        env:
+          KUBECONFIG: ./kubeconfig
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl || { echo "Пропуск: kubectl недоступен"; exit 1; }
+          chmod +x /usr/local/bin/kubectl
+          kubectl apply -f k8s/
+
+      - name: Ожидание rollout и проверка
+        env:
+          KUBECONFIG: ./kubeconfig
+        run: |
+          kubectl -n ts6 rollout status deployment --all --timeout=300s
+          kubectl -n ts6 get po,svc,pvc -o wide

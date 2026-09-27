@@ -1,0 +1,45 @@
+# Deployment backend (ts6-manager API). env вшит в образ (JWT_SECRET и др.).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: ts6
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: 10.8.0.1:3000/diplom/ts6-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+          volumeMounts:
+            - name: ts6-backend-data
+              mountPath: /app/packages/backend/data
+            - name: ts6-music-data
+              mountPath: /data/music
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+      volumes:
+        - name: ts6-backend-data
+          persistentVolumeClaim:
+            claimName: ts6-backend-data
+        - name: ts6-music-data
+          persistentVolumeClaim:
+            claimName: ts6-music-data

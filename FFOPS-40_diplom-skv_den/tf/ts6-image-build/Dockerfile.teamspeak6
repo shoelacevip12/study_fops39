@@ -1,0 +1,26 @@
+# Собственный Dockerfile: upstream-образ TeamSpeak 6 + вшитый .env (ARG/ENV)
+FROM teamspeaksystems/teamspeak6-server:latest
+
+ARG TSSERVER_QUERY_ADMIN_PASSWORD
+
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/tsserver \
+    TSSERVER_DATABASE_SQL_PATH=/opt/tsserver/sql/ \
+    TSSERVER_DATABASE_SQL_CREATE_PATH=/opt/tsserver/sql/create_sqlite/ \
+    TSSERVER_QUERY_DOCUMENTATION_PATH=/opt/tsserver/serverquerydocs \
+    TSSERVER_LICENSE_ACCEPTED=accept \
+    TSSERVER_DEFAULT_PORT=9987 \
+    TSSERVER_VOICE_IP=0.0.0.0 \
+    TSSERVER_FILE_TRANSFER_PORT=30033 \
+    TSSERVER_QUERY_HTTP_ENABLED=true \
+    TSSERVER_QUERY_SSH_ENABLED=true \
+    TSSERVER_QUERY_ADMIN_PASSWORD=${TSSERVER_QUERY_ADMIN_PASSWORD} \
+    TSSERVER_QUERY_HTTP_PORT=10080 \
+    TSSERVER_QUERY_SSH_PORT=10022 \
+    TSSERVER_VOICE_UDP_THREADS=16 \
+    TSSERVER_DATABASE_SKIP_INTEGRITY_CHECK=true \
+    TSSERVER_QUERY_POOL_SIZE=32 \
+    TSSERVER_QUERY_LOG_COMMANDS=true \
+    TSSERVER_QUERY_BUFFER_MB=100
+
+LABEL org.opencontainers.image.title="teamspeak6-server (ts6 stack)" \
+      org.opencontainers.image.source="10.8.0.1:3000/diplom/bears"

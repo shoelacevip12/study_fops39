@@ -1,0 +1,48 @@
+# Внутренние порты teamspeak6 (ClusterIP): WebQuery HTTP 10080 и др.
+# Наружу выносится только teamspeak6-ext (9987/udp и 30033).
+apiVersion: v1
+kind: Service
+metadata:
+  name: teamspeak6
+  namespace: ts6
+spec:
+  type: ClusterIP
+  selector:
+    app: teamspeak6
+  ports:
+    - name: voice
+      port: 9987
+      targetPort: 9987
+      protocol: UDP
+    - name: file-transfer
+      port: 30033
+      targetPort: 30033
+      protocol: TCP
+    - name: query-http
+      port: 10080
+      targetPort: 10080
+      protocol: TCP
+    - name: query-ssh
+      port: 10022
+      targetPort: 10022
+      protocol: TCP
+    - name: query-legacy
+      port: 10011
+      targetPort: 10011
+      protocol: TCP
+    - name: query-https
+      port: 10443
+      targetPort: 10443
+      protocol: TCP
+    - name: webquery-tcp
+      port: 41144
+      targetPort: 41144
+      protocol: TCP
+    - name: turn-stun
+      port: 3478
+      targetPort: 3478
+      protocol: UDP
+    - name: turn-stun-tls
+      port: 5349
+      targetPort: 5349
+      protocol: UDP
