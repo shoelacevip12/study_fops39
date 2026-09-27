@@ -1,10 +1,9 @@
 #!/usr/bin/env ansible-playbook
 ---
-- name: Импорт образов ts6 в containerd нод
-  hosts: masters:workers
+- name: Подготовка архива образов ts6 на контроллере
+  hosts: localhost
+  connection: local
   gather_facts: false
-  strategy: free
-  become: true
   vars:
     image_tag: "latest"
     images:
@@ -14,20 +13,26 @@
       - "10.8.0.1:3000/diplom/ts6-frontend"
     tar_path: "/tmp/ts6-images.tar"
   tasks:
-    - name: Pull и save образов на контроллере
-      delegate_to: localhost
-      run_once: true
-      block:
-        - name: Pull образов из Forgejo CR
-          ansible.builtin.shell: "docker pull {{ item }}:{{ image_tag }}"
-          loop: "{{ images }}"
-          changed_when: true
-        - name: docker save в единый архив
-          ansible.builtin.shell: >-
-            docker save -o {{ tar_path }}
-            {% for img in images %}{{ img }}:{{ image_tag }} {% endfor %}
-          changed_when: true
+    - name: Pull образов из Forgejo CR
+      ansible.builtin.shell: "docker pull {{ item }}:{{ image_tag }}"
+      loop: "{{ images }}"
+      changed_when: true
 
+    - name: docker save в единый архив
+      ansible.builtin.shell: >-
+        docker save -o {{ tar_path }}
+        {% for img in images %}{{ img }}:{{ image_tag }} {% endfor %}
+      changed_when: true
+
+# доставка архива на каждую ноду и импорт в containerd.
+- name: Импорт образов ts6 в containerd нод
+  hosts: masters:workers
+  gather_facts: false
+  strategy: free
+  become: true
+  vars:
+    tar_path: "/tmp/ts6-images.tar"
+  tasks:
     - name: Копирование архива на ноду
       ansible.builtin.copy:
         src: "{{ tar_path }}"
@@ -57,10 +62,13 @@
     #     path: "{{ tar_path }}"
     #     state: absent
 
-    # - name: Очистка архива на контроллере
-    #   delegate_to: localhost
-    #   run_once: true
-    #   ansible.builtin.file:
-    #     path: "{{ tar_path }}"
-    #     state: absent
+# - name: Очистка архива на контроллере
+#   hosts: localhost
+#   connection: local
+#   gather_facts: false
+#   tasks:
+#     - name: Удаление tar
+#       ansible.builtin.file:
+#         path: "/tmp/ts6-images.tar"
+#         state: absent
 ...

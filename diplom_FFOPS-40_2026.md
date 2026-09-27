@@ -8924,6 +8924,10 @@ git add . \
 && git status \
 && git commit --allow-empty -am ".env_add" \
 ; git push
+
+
+git tag -a v1.0.0 -m "Release 1.0.0"
+git push origin v1.0.0
 ```
 
 <details>
@@ -8954,6 +8958,14 @@ TS6_QUERY_ADMIN_PASSWORD=hfBInb1GfFjVioGn1wXj0xHi
 Total 3 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
 To ssh://git.den-skv.ru:6722/diplom/ts6-image-build.git
    da327b5..417e846  main -> main
+
+git push origin v1.0.0
+Перечисление объектов: 1, готово.
+Подсчет объектов: 100% (1/1), готово.
+Запись объектов: 100% (1/1), 163 bytes | 163.00 KiB/s, готово.
+Total 1 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To ssh://git.den-skv.ru:6722/diplom/ts6-image-build.git
+ * [new tag]         v1.0.0 -> v1.0.0
 ```
 
 </details>
@@ -9349,11 +9361,10 @@ Ansible Playbook Доставки OCI images
 cat > ./ansible/playbook_ts6_images.yaml <<'EOF'
 #!/usr/bin/env ansible-playbook
 ---
-- name: Импорт образов ts6 в containerd нод
-  hosts: masters:workers
+- name: Подготовка архива образов ts6 на контроллере
+  hosts: localhost
+  connection: local
   gather_facts: false
-  strategy: free
-  become: true
   vars:
     image_tag: "latest"
     images:
@@ -9363,20 +9374,26 @@ cat > ./ansible/playbook_ts6_images.yaml <<'EOF'
       - "10.8.0.1:3000/diplom/ts6-frontend"
     tar_path: "/tmp/ts6-images.tar"
   tasks:
-    - name: Pull и save образов на контроллере
-      delegate_to: localhost
-      run_once: true
-      block:
-        - name: Pull образов из Forgejo CR
-          ansible.builtin.shell: "docker pull {{ item }}:{{ image_tag }}"
-          loop: "{{ images }}"
-          changed_when: true
-        - name: docker save в единый архив
-          ansible.builtin.shell: >-
-            docker save -o {{ tar_path }}
-            {% for img in images %}{{ img }}:{{ image_tag }} {% endfor %}
-          changed_when: true
+    - name: Pull образов из Forgejo CR
+      ansible.builtin.shell: "docker pull {{ item }}:{{ image_tag }}"
+      loop: "{{ images }}"
+      changed_when: true
 
+    - name: docker save в единый архив
+      ansible.builtin.shell: >-
+        docker save -o {{ tar_path }}
+        {% for img in images %}{{ img }}:{{ image_tag }} {% endfor %}
+      changed_when: true
+
+# доставка архива на каждую ноду и импорт в containerd.
+- name: Импорт образов ts6 в containerd нод
+  hosts: masters:workers
+  gather_facts: false
+  strategy: free
+  become: true
+  vars:
+    tar_path: "/tmp/ts6-images.tar"
+  tasks:
     - name: Копирование архива на ноду
       ansible.builtin.copy:
         src: "{{ tar_path }}"
@@ -9406,12 +9423,15 @@ cat > ./ansible/playbook_ts6_images.yaml <<'EOF'
     #     path: "{{ tar_path }}"
     #     state: absent
 
-    # - name: Очистка архива на контроллере
-    #   delegate_to: localhost
-    #   run_once: true
-    #   ansible.builtin.file:
-    #     path: "{{ tar_path }}"
-    #     state: absent
+# - name: Очистка архива на контроллере
+#   hosts: localhost
+#   connection: local
+#   gather_facts: false
+#   tasks:
+#     - name: Удаление tar
+#       ansible.builtin.file:
+#         path: "/tmp/ts6-images.tar"
+#         state: absent
 ...
 EOF
 ```
@@ -10001,6 +10021,7 @@ jobs:
           curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
             -o /usr/local/bin/kubectl || { echo "Пропуск: kubectl недоступен"; exit 1; }
           chmod +x /usr/local/bin/kubectl
+          kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/
 
       - name: Ожидание rollout и проверка
@@ -10170,6 +10191,24 @@ curl -s "http://10.8.0.1:3000/api/v1/repos/diplom/tf-k8s/actions/runs/19/logs" \
 unzip -p /tmp/r.zip
 
 docker-compose -f docker-compose-forgejo-runner.yml up -d --force-recreate runner
+
+
+
+# 1. закоммитить фикс деплоя
+ git add . && git status && git commit --allow-empty -am "fix: namespace" ; git push
+
+# пересоздать тег v1.0.0 (старый указывает на коммит со старым плейбуком)
+git tag -d v1.0.0
+git push origin :refs/tags/v1.0.0
+git tag -a v1.0.0 -m "Release 1.0.0"
+git push origin v1.0.0
+
+git tag -a v1.0.0 -m "Release 1.0.0"
+git push origin v1.0.0
+
+git add ansible/playbook_ts6_images.yaml
+git commit -m "fix: два плэя — подготовка архива один раз, импорт по нодам (run_once+free)"
+git push origin main
 ```
 
 ```bash
