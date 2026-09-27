@@ -1,4 +1,3 @@
-# Deployment sidecar (ts6-manager WebRTC streaming). env вшит в образ.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

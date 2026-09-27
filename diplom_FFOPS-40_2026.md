@@ -9307,6 +9307,792 @@ rm -vrf ../gited/FFOPS-40_diplom-skv_den/tf/ts6-image-build/.git
 
 </details>
 
+### Репозиторий деплоя и доставки
+
+```bash
+cd ../
+
+pwd
+
+mkdir -pv k8s-deploy/{ansible,k8s}
+
+mkdir -pv k8s-deploy/.forgejo/workflows
+
+cd k8s-deploy
+```
+
+<details>
+<summary>
+Создание каталога под репозиторий деплоя
+</summary>
+
+```log
+/home/shoel/nfs_git/self-repos
+
+mkdir: создан каталог 'k8s-deploy'
+mkdir: создан каталог 'k8s-deploy/ansible'
+mkdir: создан каталог 'k8s-deploy/k8s'
+mkdir: создан каталог 'tk8s-deploy/.forgejo'
+mkdir: создан каталог 'k8s-deploy/.forgejo/workflows'
+```
+
+</details>
+
+#### `Ansible Playbook` Доставки OCI images
+
+<details>
+<summary>
+Ansible Playbook Доставки OCI images
+</summary>
+
+```yaml
+cat > ./ansible/playbook_ts6_images.yaml <<'EOF'
+#!/usr/bin/env ansible-playbook
+---
+- name: Импорт образов ts6 в containerd нод
+  hosts: masters:workers
+  gather_facts: false
+  strategy: free
+  become: true
+  vars:
+    image_tag: "latest"
+    images:
+      - "10.8.0.1:3000/diplom/teamspeak6-server"
+      - "10.8.0.1:3000/diplom/ts6-backend"
+      - "10.8.0.1:3000/diplom/ts6-sidecar"
+      - "10.8.0.1:3000/diplom/ts6-frontend"
+    tar_path: "/tmp/ts6-images.tar"
+  tasks:
+    - name: Pull и save образов на контроллере
+      delegate_to: localhost
+      run_once: true
+      block:
+        - name: Pull образов из Forgejo CR
+          ansible.builtin.shell: "docker pull {{ item }}:{{ image_tag }}"
+          loop: "{{ images }}"
+          changed_when: true
+        - name: docker save в единый архив
+          ansible.builtin.shell: >-
+            docker save -o {{ tar_path }}
+            {% for img in images %}{{ img }}:{{ image_tag }} {% endfor %}
+          changed_when: true
+
+    - name: Копирование архива на ноду
+      ansible.builtin.copy:
+        src: "{{ tar_path }}"
+        dest: "{{ tar_path }}"
+        mode: "0644"
+
+    - name: Импорт образов в containerd (k3s ctr, namespace k8s.io)
+      ansible.builtin.shell: "k3s ctr -n k8s.io images import {{ tar_path }}"
+      register: import_result
+      failed_when: false
+      changed_when: "'imported' in import_result.stdout or 'unpacking' in import_result.stdout or 'no new objects' in import_result.stdout"
+
+    - name: Fallback импорта системным ctr
+      ansible.builtin.shell: "/var/lib/rancher/k3s/data/current/bin/ctr -n k8s.io images import {{ tar_path }}"
+      when: import_result.rc != 0
+      register: import_fallback
+      failed_when: false
+
+    - name: Проверка наличия образов в containerd
+      ansible.builtin.shell: "k3s ctr -n k8s.io images list | grep 10.8.0.1:3000/diplom"
+      register: check_result
+      changed_when: false
+      failed_when: false
+
+    # - name: Очистка архива на ноде
+    #   ansible.builtin.file:
+    #     path: "{{ tar_path }}"
+    #     state: absent
+
+    # - name: Очистка архива на контроллере
+    #   delegate_to: localhost
+    #   run_once: true
+    #   ansible.builtin.file:
+    #     path: "{{ tar_path }}"
+    #     state: absent
+...
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` namespace
+
+<details>
+<summary>
+Yaml-манифест k8s namespace
+</summary>
+
+```yaml
+cat > ./k8s/namespace.yaml <<'EOF'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ts6
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` ClusterIP с перечислением всех портов для teamspeak6
+
+<details>
+<summary>
+Yaml-манифест k8s ClusterIP с перечислением всех портов
+</summary>
+
+```yaml
+cat > ./k8s/service-teamspeak6.yaml <<'EOF'
+# Внутренние порты teamspeak6 (ClusterIP): WebQuery HTTP 10080 и др.
+# Наружу выносится только teamspeak6-ext (9987/udp и 30033).
+apiVersion: v1
+kind: Service
+metadata:
+  name: teamspeak6
+  namespace: ts6
+spec:
+  type: ClusterIP
+  selector:
+    app: teamspeak6
+  ports:
+    - name: voice
+      port: 9987
+      targetPort: 9987
+      protocol: UDP
+    - name: file-transfer
+      port: 30033
+      targetPort: 30033
+      protocol: TCP
+    - name: query-http
+      port: 10080
+      targetPort: 10080
+      protocol: TCP
+    - name: query-ssh
+      port: 10022
+      targetPort: 10022
+      protocol: TCP
+    - name: query-legacy
+      port: 10011
+      targetPort: 10011
+      protocol: TCP
+    - name: query-https
+      port: 10443
+      targetPort: 10443
+      protocol: TCP
+    - name: webquery-tcp
+      port: 41144
+      targetPort: 41144
+      protocol: TCP
+    - name: turn-stun
+      port: 3478
+      targetPort: 3478
+      protocol: UDP
+    - name: turn-stun-tls
+      port: 5349
+      targetPort: 5349
+      protocol: UDP
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` NodePort с перечислением всех портов наружу для teamspeak6
+
+<details>
+<summary>
+Yaml-манифест k8s NodePort с перечислением всех портов наружу
+</summary>
+
+```yaml
+cat > ./k8s/service-teamspeak6-ext.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: teamspeak6-ext
+  namespace: ts6
+spec:
+  type: NodePort
+  selector:
+    app: teamspeak6
+  ports:
+    - name: voice
+      port: 9987
+      targetPort: 9987
+      protocol: UDP
+      nodePort: 30087
+    - name: file-transfer
+      port: 30033
+      targetPort: 30033
+      protocol: TCP
+      nodePort: 30033
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` Перечисление PVC для SC k3s local-path
+
+<details>
+<summary>
+Yaml-манифест k8s Перечисление PVC для SC k3s local-path
+</summary>
+
+```yaml
+cat > ./k8s/pvc.yaml <<'EOF'
+# PersistentVolumeClaim для данных стека ts6 
+# StorageClass local-path встроен в k3s
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ts6-data
+  namespace: ts6
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ts6-backend-data
+  namespace: ts6
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ts6-music-data
+  namespace: ts6
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` Deployment teamspek6
+
+<details>
+<summary>
+Yaml-манифест k8s Deployment teamspek6
+</summary>
+
+```yaml
+cat > ./k8s/deployment-teamspeak6.yaml <<'EOF'
+# imagePullPolicy: IfNotPresent - образ импортируется в containerd нод ansible-плейбуком.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teamspeak6
+  namespace: ts6
+  labels:
+    app: teamspeak6
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: teamspeak6
+  template:
+    metadata:
+      labels:
+        app: teamspeak6
+    spec:
+      containers:
+        - name: teamspeak6
+          image: 10.8.0.1:3000/diplom/teamspeak6-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: voice
+              containerPort: 9987
+              protocol: UDP
+            - name: file-transfer
+              containerPort: 30033
+              protocol: TCP
+            - name: query-http
+              containerPort: 10080
+              protocol: TCP
+            - name: query-ssh
+              containerPort: 10022
+              protocol: TCP
+            - name: query-legacy
+              containerPort: 10011
+              protocol: TCP
+            - name: query-https
+              containerPort: 10443
+              protocol: TCP
+            - name: webquery-tcp
+              containerPort: 41144
+              protocol: TCP
+            - name: turn-stun
+              containerPort: 3478
+              protocol: UDP
+            - name: turn-stun-tls
+              containerPort: 5349
+              protocol: UDP
+          volumeMounts:
+            - name: ts6-data
+              mountPath: /var/tsserver
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: ts6-data
+          persistentVolumeClaim:
+            claimName: ts6-data
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` ClusterIP с перечислением всех портов для ts6-manager-backend
+
+<details>
+<summary>
+Yaml-манифест k8s ClusterIP с перечислением всех портов для ts6-manager-backend
+</summary>
+
+```yaml
+cat > ./k8s/service-backend.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: ts6
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001
+      protocol: TCP
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` Deployment ts6-manager-backend
+
+<details>
+<summary>
+Yaml-манифест k8s Deployment ts6-manager-backend
+</summary>
+
+```yaml
+cat > ./k8s/deployment-backend.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: ts6
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: 10.8.0.1:3000/diplom/ts6-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+          volumeMounts:
+            - name: ts6-backend-data
+              mountPath: /app/packages/backend/data
+            - name: ts6-music-data
+              mountPath: /data/music
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+      volumes:
+        - name: ts6-backend-data
+          persistentVolumeClaim:
+            claimName: ts6-backend-data
+        - name: ts6-music-data
+          persistentVolumeClaim:
+            claimName: ts6-music-data
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` ClusterIP с перечислением всех портов для ts6-manager-frontend
+
+<details>
+<summary>
+Yaml-манифест k8s ClusterIP с перечислением всех портов для ts6-manager-frontend
+</summary>
+
+```yaml
+cat > ./k8s/service-frontend.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: ts6
+spec:
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+      nodePort: 30082
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` Deployment ts6-manager-frontend
+
+<details>
+<summary>
+Yaml-манифест k8s Deployment ts6-manager-frontend
+</summary>
+
+```yaml
+cat > ./k8s/deployment-frontend.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: ts6
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: 10.8.0.1:3000/diplom/ts6-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` ClusterIP с перечислением всех портов для ts6-manager-sidecar
+
+<details>
+<summary>
+Yaml-манифест k8s ClusterIP с перечислением всех портов для ts6-manager-sicecar
+</summary>
+
+```yaml
+cat > ./k8s/deployment-sidecar.yaml <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: sidecar
+  namespace: ts6
+spec:
+  type: ClusterIP
+  selector:
+    app: sidecar
+  ports:
+    - name: webrtc
+      port: 9800
+      targetPort: 9800
+      protocol: TCP
+EOF
+```
+
+</details>
+
+#### `Yaml-манифест k8s` Deployment ts6-manager-sidecar
+
+<details>
+<summary>
+Yaml-манифест k8s Deployment ts6-manager-sidecar
+</summary>
+
+```yaml
+cat > ./k8s/deployment-sidecar.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sidecar
+  namespace: ts6
+  labels:
+    app: sidecar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sidecar
+  template:
+    metadata:
+      labels:
+        app: sidecar
+    spec:
+      containers:
+        - name: sidecar
+          image: 10.8.0.1:3000/diplom/ts6-sidecar:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: webrtc
+              containerPort: 9800
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+EOF
+```
+
+</details>
+
+#### `Pipeline` для деплоя ts6 в k3s
+
+<details>
+<summary>
+Pipeline для деплоя ts6 в k3s
+</summary>
+
+```yaml
+cat > ./.forgejo/workflows/deploy.yml <<'EOF'
+---
+name: Deploy TS6 stack
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  deploy:
+    name: Деплой ts6 в k3s
+    runs-on: docker
+    container:
+      image: 10.8.0.1:3000/diplom/ubuntu-act:latest
+    steps:
+      - name: Получение исходников
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "+${GITHUB_SHA}:refs/remotes/origin/main"
+          git checkout -q FETCH_HEAD
+
+      - name: Определение версии
+        run: |
+          VERSION_TAG="${GITHUB_REF#refs/tags/}"
+          echo "VERSION_TAG=${VERSION_TAG}" >> $GITHUB_ENV
+          echo "Версия образа: ${VERSION_TAG}"
+
+      - name: Kubeconfig из tf-secrets
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          SECRETS_REPO: ${{ vars.SECRETS_REPO }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
+          umask 077
+          git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" /tmp/tf-secrets
+          cp /tmp/tf-secrets/k8s/kubeconfig ./kubeconfig
+          chmod 600 ./kubeconfig
+          test -s ./kubeconfig
+
+      - name: Инвентарь из ansible-k3s (только чтение)
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          ANSIBLE_REPO: ${{ vars.ANSIBLE_REPO }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
+          git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${ANSIBLE_REPO}.git" /tmp/ansible-k3s
+          cp /tmp/ansible-k3s/hosts.ini /tmp/ansible-k3s/ssh_config_yc_k8s .
+          test -s ./hosts.ini
+
+      - name: Подготовка SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519
+          cp ./ssh_config_yc_k8s ~/.ssh/config
+          sed -i "s#/root/.ssh#${HOME}/.ssh#g" ~/.ssh/config
+          chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519 ~/.ssh/config
+          test -s ~/.ssh/config
+
+      - name: Установка Ansible
+        run: python3 -m pip install --quiet --break-system-packages ansible
+
+      - name: Импорт образов в containerd нод
+        run: |
+          ansible-playbook -i ./hosts.ini ansible/playbook_ts6_images.yaml \
+            -e image_tag=${VERSION_TAG}
+
+      - name: Подстановка версии образов
+        run: |
+          sed -i "s#:latest#:${VERSION_TAG}#g" k8s/deployment-*.yaml
+          grep -h 'image:' k8s/deployment-*.yaml
+
+      - name: Установка kubectl и применение манифестов
+        env:
+          KUBECONFIG: ./kubeconfig
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl || { echo "Пропуск: kubectl недоступен"; exit 1; }
+          chmod +x /usr/local/bin/kubectl
+          kubectl apply -f k8s/
+
+      - name: Ожидание rollout и проверка
+        env:
+          KUBECONFIG: ./kubeconfig
+        run: |
+          kubectl -n ts6 rollout status deployment --all --timeout=300s
+          kubectl -n ts6 get po,svc,pvc -o wide
+EOF
+```
+
+</details>
+
+```bash
+cd ..
+
+cp -rvf ./k8s-deploy ../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/
+```
+
+<details>
+<summary>
+Для моно репозитория
+</summary>
+
+```log
+'./k8s-deploy' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/'
+'./k8s-deploy/k8s' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s'
+'./k8s-deploy/k8s/namespace.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/namespace.yaml'
+'./k8s-deploy/k8s/pvc.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/pvc.yaml'
+'./k8s-deploy/k8s/deployment-teamspeak6.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/deployment-teamspeak6.yaml'
+'./k8s-deploy/k8s/deployment-backend.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/deployment-backend.yaml'
+'./k8s-deploy/k8s/deployment-sidecar.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/deployment-sidecar.yaml'
+'./k8s-deploy/k8s/deployment-frontend.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/deployment-frontend.yaml'
+'./k8s-deploy/k8s/service-teamspeak6.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/service-teamspeak6.yaml'
+'./k8s-deploy/k8s/service-teamspeak6-ext.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/service-teamspeak6-ext.yaml'
+'./k8s-deploy/k8s/service-backend.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/service-backend.yaml'
+'./k8s-deploy/k8s/service-sidecar.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/service-sidecar.yaml'
+'./k8s-deploy/k8s/service-frontend.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/k8s/service-frontend.yaml'
+'./k8s-deploy/ansible' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/ansible'
+'./k8s-deploy/ansible/playbook_ts6_images.yaml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/ansible/playbook_ts6_images.yaml'
+'./k8s-deploy/.forgejo' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/.forgejo'
+'./k8s-deploy/.forgejo/workflows' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/.forgejo/workflows'
+'./k8s-deploy/.forgejo/workflows/deploy.yml' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/.forgejo/workflows/deploy.yml'
+'./k8s-deploy/README.md' -> '../gited/FFOPS-40_diplom-skv_den/deploy/k8s-deploy/README.md
+```
+
+</details>
+
+### Git Commit изменений
+
+```bash
+# Добавление всех изменений из текущей и вывод текущего состояния репозитория
+git add . .. ../.. \
+&& git status
+
+# Создание коммита со всеми изменениями и отправка в удаленный репозиторий на новую ветку
+git commit -am 'commit13, FFOPS-40_diplom-skv_den' \
+; git push \
+--set-upstream \
+study_fops39 \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+FFOPS-40_diplom-skv_den \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+FFOPS-40_diplom-skv_den
+```
+
+## commit_15,`FFOPS-40_diplom-skv_den`
+
+
+```bash
+
+```
+
+<details>
+<summary>
+
+</summary>
+
+```log
+
+```
+
+</details>
 
 
 

@@ -1,5 +1,5 @@
-# Внутренние порты teamspeak6 (ClusterIP): WebQuery HTTP 10080 и др.
-# Наружу выносится только teamspeak6-ext (9987/udp и 30033).
+# Внутренние порты teamspeak6
+# Наружу выносится только  9987/udp и 30033
 apiVersion: v1
 kind: Service
 metadata:

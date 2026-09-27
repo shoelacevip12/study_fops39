@@ -1,4 +1,3 @@
-# Deployment backend (ts6-manager API). env вшит в образ (JWT_SECRET и др.).
 apiVersion: apps/v1
 kind: Deployment
 metadata:

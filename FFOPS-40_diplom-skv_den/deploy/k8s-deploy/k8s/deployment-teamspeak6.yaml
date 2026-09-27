@@ -1,4 +1,3 @@
-# imagePullPolicy: IfNotPresent - образ импортируется в containerd нод ansible-плейбуком.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -1,5 +1,5 @@
-# PersistentVolumeClaim для данных стека ts6 (StorageClass local-path встроен в k3s).
-# При пересоздании прерываемых ВМ данные теряются — приемлемо для диплома.
+# PersistentVolumeClaim для данных стека ts6 
+# StorageClass local-path встроен в k3s
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -11,7 +11,7 @@ spec:
   storageClassName: local-path
   resources:
     requests:
-      storage: 10Gi
+      storage: 5Gi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -24,7 +24,7 @@ spec:
   storageClassName: local-path
   resources:
     requests:
-      storage: 2Gi
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -37,4 +37,4 @@ spec:
   storageClassName: local-path
   resources:
     requests:
-      storage: 5Gi
+      storage: 2Gi

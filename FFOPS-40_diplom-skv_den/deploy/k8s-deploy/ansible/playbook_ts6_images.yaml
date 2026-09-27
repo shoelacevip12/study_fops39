@@ -3,6 +3,7 @@
 - name: Импорт образов ts6 в containerd нод
   hosts: masters:workers
   gather_facts: false
+  strategy: free
   become: true
   vars:
     image_tag: "latest"
@@ -46,20 +47,20 @@
       failed_when: false
 
     - name: Проверка наличия образов в containerd
-      ansible.builtin.shell: "k3s ctr -n k8s.io images list | grep 10.8.0.1:3000/diplom || true"
+      ansible.builtin.shell: "k3s ctr -n k8s.io images list | grep 10.8.0.1:3000/diplom"
       register: check_result
       changed_when: false
       failed_when: false
 
-    - name: Очистка архива на ноде
-      ansible.builtin.file:
-        path: "{{ tar_path }}"
-        state: absent
+    # - name: Очистка архива на ноде
+    #   ansible.builtin.file:
+    #     path: "{{ tar_path }}"
+    #     state: absent
 
-    - name: Очистка архива на контроллере
-      delegate_to: localhost
-      run_once: true
-      ansible.builtin.file:
-        path: "{{ tar_path }}"
-        state: absent
+    # - name: Очистка архива на контроллере
+    #   delegate_to: localhost
+    #   run_once: true
+    #   ansible.builtin.file:
+    #     path: "{{ tar_path }}"
+    #     state: absent
 ...
