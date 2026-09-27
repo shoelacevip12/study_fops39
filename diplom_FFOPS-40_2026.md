@@ -9394,6 +9394,11 @@ cat > ./ansible/playbook_ts6_images.yaml <<'EOF'
   vars:
     tar_path: "/tmp/ts6-images.tar"
   tasks:
+    - name: Удаление старого архива на ноде
+      ansible.builtin.file:
+        path: "{{ tar_path }}"
+        state: absent
+
     - name: Копирование архива на ноду
       ansible.builtin.copy:
         src: "{{ tar_path }}"
@@ -9418,20 +9423,21 @@ cat > ./ansible/playbook_ts6_images.yaml <<'EOF'
       changed_when: false
       failed_when: false
 
-    # - name: Очистка архива на ноде
-    #   ansible.builtin.file:
-    #     path: "{{ tar_path }}"
-    #     state: absent
+    - name: Очистка архива на ноде
+      ansible.builtin.file:
+        path: "{{ tar_path }}"
+        state: absent
 
-# - name: Очистка архива на контроллере
-#   hosts: localhost
-#   connection: local
-#   gather_facts: false
-#   tasks:
-#     - name: Удаление tar
-#       ansible.builtin.file:
-#         path: "/tmp/ts6-images.tar"
-#         state: absent
+# Очистка архива на контроллере после доставки на все ноды
+- name: Очистка архива на контроллере
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Удаление tar
+      ansible.builtin.file:
+        path: "/tmp/ts6-images.tar"
+        state: absent
 ...
 EOF
 ```
@@ -9997,6 +10003,7 @@ jobs:
           printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519
           cp ./ssh_config_yc_k8s ~/.ssh/config
           sed -i "s#/root/.ssh#${HOME}/.ssh#g" ~/.ssh/config
+          printf '\nHost *\n    StrictHostKeyChecking no\n    UserKnownHostsFile /dev/null\n' >> ~/.ssh/config
           chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519 ~/.ssh/config
           test -s ~/.ssh/config
 

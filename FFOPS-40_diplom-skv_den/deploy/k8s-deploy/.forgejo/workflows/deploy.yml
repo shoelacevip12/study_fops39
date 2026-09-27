@@ -61,6 +61,7 @@ jobs:
           printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519
           cp ./ssh_config_yc_k8s ~/.ssh/config
           sed -i "s#/root/.ssh#${HOME}/.ssh#g" ~/.ssh/config
+          printf '\nHost *\n    StrictHostKeyChecking no\n    UserKnownHostsFile /dev/null\n' >> ~/.ssh/config
           chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519 ~/.ssh/config
           test -s ~/.ssh/config
 

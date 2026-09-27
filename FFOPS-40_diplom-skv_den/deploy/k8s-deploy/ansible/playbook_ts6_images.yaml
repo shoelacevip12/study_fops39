@@ -33,6 +33,11 @@
   vars:
     tar_path: "/tmp/ts6-images.tar"
   tasks:
+    - name: Удаление старого архива на ноде
+      ansible.builtin.file:
+        path: "{{ tar_path }}"
+        state: absent
+
     - name: Копирование архива на ноду
       ansible.builtin.copy:
         src: "{{ tar_path }}"
@@ -57,18 +62,19 @@
       changed_when: false
       failed_when: false
 
-    # - name: Очистка архива на ноде
-    #   ansible.builtin.file:
-    #     path: "{{ tar_path }}"
-    #     state: absent
+    - name: Очистка архива на ноде
+      ansible.builtin.file:
+        path: "{{ tar_path }}"
+        state: absent
 
-# - name: Очистка архива на контроллере
-#   hosts: localhost
-#   connection: local
-#   gather_facts: false
-#   tasks:
-#     - name: Удаление tar
-#       ansible.builtin.file:
-#         path: "/tmp/ts6-images.tar"
-#         state: absent
+# Очистка архива на контроллере после доставки на все ноды
+- name: Очистка архива на контроллере
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Удаление tar
+      ansible.builtin.file:
+        path: "/tmp/ts6-images.tar"
+        state: absent
 ...
