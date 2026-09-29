@@ -67,11 +67,11 @@ Playbook для развёртывания кластера K3s + Calico + Ingre
 
 ## Артефакты роли (`roles/k3s_cluster/files/`)
 
-Бинарники и манифесты в git не хранятся (`.gitignore`). Доставку выполняет шаг "Артефакты роли" ([`scripts/fetch_artifacts.sh`](scripts/fetch_artifacts.sh)) в порядке:
+Бинарники и манифесты в git не хранятся (`.gitignore`). Доставку выполняет шаг «Артефакты роли» ([`scripts/fetch_artifacts.sh`](scripts/fetch_artifacts.sh)) в порядке:
 
 1. файл уже на месте - пропуск;
 2. Forgejo Package Registry (generic-пакет `PACKAGE_NAME`/`PACKAGE_VERSION` у `PACKAGE_OWNER`) - скачивание;
-3. upstream (пиннированные версии из скрипта) - скачивание + кэширование обратно в registry.
+3. upstream (пиннированные версии из скрипта) - скачивание + кэширование обратно в registry (best-effort).
 
 Список файлов: `calico.yaml`, `k3s`, `kubectl-calico`, `cni-plugins-linux-amd64.tgz`, `helm.tar.gz`, `ingress-nginx.yaml`.
 
@@ -86,21 +86,18 @@ for f in calico.yaml k3s kubectl-calico cni-plugins-linux-amd64.tgz helm.tar.gz 
 done
 ```
 
->Если registry пуст и upstream недоступен из раннера - джоба не сможет доставить файлы (первый бутстрап желательно сделать с машины оператора).
+Если registry пуст и upstream недоступен из раннера - джоба не сможет доставить файлы (первый бутстрап желательно сделать с машины оператора).
 
 ## Локальный запуск
 
 Роль использует коллекции `community.general` и `ansible.posix` ([`requirements.yml`](requirements.yml)):
 
 ```bash
-# полный дистрибутив с коллекциями
-pip install ansible
+pip install ansible                                  # полный дистрибутив с коллекциями
+# или: ansible-galaxy collection install -r requirements.yml
 
-# или
-ansible-galaxy collection install -r requirements.yml
-
-# Пароль vault: файл va_pa в git не хранится
-# CI берёт его из tf-secrets
+# Пароль vault: файл va_pa в git не хранится.
+# CI берёт его из tf-secrets; локально - положить в корень репозитория:
 printf '%s' 'ВАШ_ПАРОЛЬ_VAULT' > ./va_pa && chmod 600 ./va_pa
 
 ansible-playbook -i ./hosts.ini playbook_main.yaml
@@ -112,10 +109,7 @@ ansible-playbook -i ./hosts.ini playbook_main.yaml
 
   ```bash
   git pull
-  cat ssh_config_yc_k8s >> ~/.ssh/config
-  
-  # или 
-  sed 's#/root/#~/' ssh_config_yc_k8s
+  cat ssh_config_yc_k8s >> ~/.ssh/config        # или: sed 's#/root/#~/' ssh_config_yc_k8s
   ```
 
 - kubeconfig - из приватного `tf-secrets`:

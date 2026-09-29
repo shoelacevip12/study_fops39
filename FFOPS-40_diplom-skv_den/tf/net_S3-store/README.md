@@ -50,7 +50,7 @@ Workflow: `.forgejo/workflows/terraform.yml`.
 
 | Переменная | Пример |
 |---|---|
-| `SECRETS_REPO` | `admin/tf-secrets` |
+| `SECRETS_REPO` | `diplom/tf-secrets` |
 | `SECRETS_PATH` | `tf-net-S3-store` |
 | `K8S_REPO` | `diplom/tf-k8s` - целевой репозиторий для финального шага-триггера |
 

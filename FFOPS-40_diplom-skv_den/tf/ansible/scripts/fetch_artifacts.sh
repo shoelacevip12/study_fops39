@@ -5,7 +5,7 @@
 #   2) Forgejo Package Registry -> скачивание;
 #   3) upstream -> скачивание + кэш в registry.
 #
-# env: PACKAGE_TOKEN (глобальный PAT со скоупом write:package;),
+# env: PACKAGE_TOKEN (глобальный PAT со скоупом write:package; fallback TOKEN),
 #      FORGEJO_URL, PACKAGE_OWNER, PACKAGE_NAME, PACKAGE_VERSION.
 set -euo pipefail
 

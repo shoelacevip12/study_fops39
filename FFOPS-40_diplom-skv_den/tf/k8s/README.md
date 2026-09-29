@@ -15,6 +15,17 @@
 
 `terraform.tfvars.secret` **не хранится в git** - он поставляется из приватного репозитория секретов.
 
+## NLB-слушатели (`nlb_master.tf`)
+
+| Порт | target | Назначение |
+|---|---|---|
+| 6443/tcp | 6443 | kube-apiserver |
+| 22/tcp | 22 | SSH к мастеру |
+| 30080/tcp | 30080 | Grafana (NodePort) |
+| 80/tcp | 30082 | frontend ts6-manager (NodePort) |
+| 30033/tcp | 30033 | file transfer TeamSpeak 6 (NodePort) |
+| 9987/udp | 30087 | голос TeamSpeak 6 - NLB YC блокирует создание UDP-листенеров, перед `apply` закомментировать, пока UDP не будет оазрешен в облаке через тех.поддержку |
+
 ## Приватный репозиторий секретов
 
 Структура репозитория (пример: `diplom/tf-secrets`):

@@ -83,7 +83,7 @@ resource "yandex_vpc_security_group" "k8s_master" {
   }
   ingress {
     protocol       = "UDP"
-    description    = "голос TeamSpeak 6 через NLB"
+    description    = "Для голоса TeamSpeak 6 через NLB"
     v4_cidr_blocks = ["0.0.0.0/0"]
     port           = 9987
   }

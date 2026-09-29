@@ -24,7 +24,7 @@ git-тегу `v*`. Использует собранные образы из For
 | `k8s/namespace.yaml` | namespace `ts6` |
 | `k8s/pvc.yaml` | PVC `ts6-data`, `ts6-backend-data`, `ts6-music-data` (local-path) |
 | `k8s/deployment-*.yaml` | Deployment для 4 сервисов (`imagePullPolicy: IfNotPresent`) |
-| `k8s/service-teamspeak6.yaml` | внутренние порты TS6 (ClusterIP): 10080, 10022, 10011, 41144, 10443, 3478/udp, 5349/udp |
+| `k8s/service-teamspeak6.yaml` | все порты TS6 (ClusterIP): 9987/udp, 30033, 10080, 10022, 10011, 10443, 41144, 3478/udp, 5349/udp |
 | `k8s/service-teamspeak6-ext.yaml` | наружу: voice 9987/udp -> NodePort 30087, file transfer 30033 -> 30033 |
 | `k8s/service-backend.yaml` | ClusterIP `backend`:3001 (**имя строго `backend`** - nginx frontend проксирует на него) |
 | `k8s/service-sidecar.yaml` | ClusterIP `sidecar`:9800 |

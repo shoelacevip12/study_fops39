@@ -1,0 +1,10 @@
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars.secret
+personal.auto.tfvars
+tfplan
+*.tfstate
+*.tfstate.*backup
+errored.tfstate
+authorized_key.json
+.sa_storage.key

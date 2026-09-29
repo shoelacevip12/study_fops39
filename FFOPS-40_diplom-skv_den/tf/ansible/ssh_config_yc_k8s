@@ -1,0 +1,13 @@
+# Сгенерировано джобой tf/k8s из terraform output
+Host bastion-k8s-*
+    HostName 158.160.220.212
+    User skv
+    IdentityFile /root/.ssh/id_lab22_1_fops40_ed25519
+    StrictHostKeyChecking accept-new
+    IdentitiesOnly yes
+Host 10.10.10.*
+    ProxyJump bastion-k8s-*
+    User skv
+    IdentityFile /root/.ssh/id_lab22_1_fops40_ed25519
+    StrictHostKeyChecking accept-new
+    IdentitiesOnly yes

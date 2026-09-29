@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Доставка bin-файла Terraform: registry-first, кэш в registry.
-# env: TF_VERSION (обязателен), PACKAGE_TOKEN,
+# env: TF_VERSION (обязателен), PACKAGE_TOKEN (fallback TOKEN),
 #      FORGEJO_URL, PACKAGE_OWNER, PACKAGE_NAME (опционально).
 set -euo pipefail
 

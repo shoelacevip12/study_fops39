@@ -10,11 +10,12 @@ jobs:
     name: Развёртывание кластера
     runs-on: docker
     container:
-      image: ghcr.io/catthehacker/ubuntu:act-latest
+      image: 10.8.0.1:3000/diplom/ubuntu-act:latest
     steps:
       - name: Получение исходников
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PIP_INDEX_URL: "https://mirrors.aliyun.com/pypi/simple"
         run: |
           git init -q
           git remote add origin "http://oauth2:${GITHUB_TOKEN}@10.8.0.1:3000/${{ forgejo.repository }}.git"
@@ -29,10 +30,12 @@ jobs:
           umask 077
           mkdir -p ~/.ssh
           printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_lab22_1_fops40_ed25519
+          cp ./ssh_config_yc_k8s ~/.ssh/config
           cp ./ssh_config_yc_k8s ~/.ssh/config_yc_k8s
-          chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519 ~/.ssh/config_yc_k8s
+          sed -i "s#/root/.ssh#${HOME}/.ssh#g" ~/.ssh/config
+          chmod 600 ~/.ssh/id_lab22_1_fops40_ed25519 ~/.ssh/config ~/.ssh/config_yc_k8s
           test -s ~/.ssh/id_lab22_1_fops40_ed25519
-          test -s ~/.ssh/config_yc_k8s
+          test -s ~/.ssh/config
 
       - name: Пароль vault из SECRETS_REPO
         env:
@@ -41,6 +44,7 @@ jobs:
           SECRETS_PATH: ${{ vars.SECRETS_PATH }}
         run: |
           set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
           umask 077
           git clone --depth 1 \
             "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" \
@@ -51,8 +55,19 @@ jobs:
 
       - name: Установка Ansible
         run: |
-          python3 -m pip install --quiet ansible-core \
-            || python3 -m pip install --quiet --break-system-packages ansible-core
+          python3 -m pip install --quiet --break-system-packages --index-url https://mirrors.aliyun.com/pypi/simple/ ansible 
+
+      - name: Артефакты роли
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          TOKEN: ${{ secrets.TOKEN }}
+          FORGEJO_URL: ${{ vars.FORGEJO_URL }}
+          PACKAGE_OWNER: ${{ vars.PACKAGE_OWNER }}
+          PACKAGE_NAME: ${{ vars.PACKAGE_NAME }}
+          PACKAGE_VERSION: ${{ vars.PACKAGE_VERSION }}
+        run: |
+          set -euo pipefail
+          bash scripts/fetch_artifacts.sh
 
       - name: Запуск playbook
         run: |
@@ -65,6 +80,7 @@ jobs:
           SECRETS_REPO: ${{ vars.SECRETS_REPO }}
         run: |
           set -euo pipefail
+          TOKEN=$(printf '%s' "${TOKEN}" | tr -d '\r\n')
           test -s ~/.kube/config || { echo "kubeconfig не найден"; exit 1; }
           git clone --depth 1 "http://oauth2:${TOKEN}@10.8.0.1:3000/${SECRETS_REPO}.git" /tmp/secrets
           mkdir -p /tmp/secrets/k8s
