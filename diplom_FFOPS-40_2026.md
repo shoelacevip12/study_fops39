@@ -10317,6 +10317,67 @@ kubectl logs -n ts6 teamspeak6-788bb89f5-wbhbn
 
 </details>
 
+## commit_92, master
+
+```bash
+git checkout master
+
+git branch -v
+
+git merge FFOPS-40_diplom-skv_den
+
+git branch -v
+
+git status
+
+git diff \
+&& git diff \
+--staged
+
+git add . \
+&& git status
+
+git log --oneline
+
+git push \
+--set-upstream \
+study_fops39 \
+master \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+master
+
+git add . \
+&& git status \
+&& git commit --amend --no-edit \
+&& git push \
+--set-upstream \
+study_fops39 \
+master --force \
+&& git push \
+--set-upstream \
+study_fops39_gitflic_ru \
+master --force \
+&& git push \
+--set-upstream \
+study-fops39_sc \
+master --force \
+&& git push \
+--set-upstream \
+ffops40-diplom \
+master --force
+```
+
+
 ## Команды под заметки
 
 ```bash
