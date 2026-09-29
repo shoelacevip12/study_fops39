@@ -27,7 +27,7 @@
 
 ![](./img/0.png)
 
-### Схема внешнего доступа (прямая публичная точка - NLB)
+### Схема внешнего доступа до приложения (прямая публичная точка - NLB)
 
 ```mermaid
 flowchart LR
@@ -41,6 +41,33 @@ flowchart LR
     V --> TS[teamspeak6 pod]
     FT --> TS
 ```
+
+---
+
+## Реализация проекта (итоговые репозитории)
+
+Проект реализован цепочкой git-репозиториев (self-hosted Forgejo, организация `diplom`), каждый из которых закрывает свой этап задания:
+
+| # |  Репозиторий | Назначение |
+|---|---|---|
+| 1 | [`Дtмонстрационные GIF`](./Demo/) | Болшие демонстрационные файлы процесса CI-CD и работы приложения\мониторинга кластера k8s |
+| 1 | [`tf/net_S3-store`](./tf/net_S3-store) | Terraform: VPC/подсети/NAT, S3-бэкенд, KMS, сервисные аккаунты, security groups |
+| 2 | [`tf/k8s`](./tf/k8s) | Terraform: ВМ master/workers, cloud-init, NLB, генерация инвентаря ansible |
+| 3 | [`tf/ansible`](./tf/ansible) | Ansible: роль k3s_cluster (K3s, Calico, ingress-nginx, Grafana) |
+| 4 |  [`deploy/ts6-image-build`](./deploy/ts6-image-build) | Сборка 4 образов стека ts6 с вшитым `.env`, публикация в Forgejo CR |
+| 5 | [`deploy/k8s-deploy`](./deploy/k8s-deploy) | Манифесты k8s + ansible-импорт образов + CI/CD деплой по тегу `v*` |
+| 6 | приватный на self-hosted  | Секреты: `terraform.tfvars.secret`, `va_pa`, `kubeconfig` |
+
+Поток: `tf-net-S3-store` -> `tf-k8s` -> `ansible-k3s` -> `ts6-image-build` (сборка) -> `k8s-deploy` (тег `v*` -> импорт -> `kubectl apply`).
+
+Особенности:
+
+- кластер k3s напрямую не достаёт Forgejo CR за VPN  - образы доставляются плейбуком `k8s-deploy` (`docker pull` -> `docker save` -> tar на ноды -> `k3s ctr images import`);
+- секреты вшиваются в образы на этапе сборки (ARG/ENV) либо берутся из приватного `tf-secrets`;
+- публичный доступ только через NLB `158.160.220.212` (80 frontend, 30080 Grafana, 30033 file transfer; голос 9987/udp - после включения UDP в YC);
+- CI/CD: Forgejo Actions, self-hosted runner в контейнере `ubuntu-act` с docker-сокетом хоста.
+
+![](./img/0.gif)
 
 ## Этапы выполнения:
 
@@ -69,6 +96,18 @@ flowchart LR
 1. Terraform сконфигурирован и создание инфраструктуры посредством Terraform возможно без дополнительных ручных действий, стейт основной конфигурации сохраняется в бакете или Terraform Cloud
 2. Полученная конфигурация инфраструктуры является предварительной, поэтому в ходе дальнейшего выполнения задания возможны изменения.
 
+**Реализация:**
+
+- поднят self-hosted git-сервер Forgejo за VPN (WireGuard) с локальным DNS на CoreDNS;
+- terraform-манифесты репозитория [`tf/net_S3-store`](tf/net_S3-store): S3-бэкенд для стейта, VPC с подсетями и NAT, KMS-ключ, сервисный аккаунт, группа доступа, S3-бакет;
+- инфраструктура применена `terraform apply` без ручных действий, стейт хранится в бакете `tfstate-skv`.
+
+![](./img/4.gif)
+
+![](./img/5.gif)
+
+![](./img/7.gif)
+
 ---
 ### Создание Kubernetes кластера
 
@@ -90,6 +129,14 @@ flowchart LR
 2. В файле `~/.kube/config` находятся данные для доступа к кластеру.
 3. Команда `kubectl get pods --all-namespaces` отрабатывает без ошибок.
 
+**Реализация:**
+
+- terraform-репозиторий [`tf/k8s`](tf/k8s): инстанс-группы master (1 ВМ) и workers (3 ВМ), cloud-init, NLB `nlb-k8s-master`, генерация `hosts.ini` и `ssh_config_yc_k8s` для ansible;
+- ansible-роль `k3s_cluster` (репозиторий [`tf/ansible`](tf/ansible)): установка K3s, Calico CNI, ingress-nginx, сборка локального `~/.kube/config`;
+- после запуска playbook проверено: `kubectl get nodes` - 4 ноды в статусе Ready.
+
+![](./img/8.gif)
+
 ---
 ### Создание тестового приложения
 
@@ -108,10 +155,18 @@ flowchart LR
 1. Git репозиторий с тестовым приложением и Dockerfile.
 2. Регистри с собранным docker image. В качестве регистри может быть DockerHub или [Yandex Container Registry](https://cloud.yandex.ru/services/container-registry), созданный также с помощью terraform.
 
+**Реализация:**
+
+- репозиторий сборки [`deploy/ts6-image-build`](deploy/ts6-image-build): 4 собственных Dockerfile (teamspeak6-server, backend, sidecar, frontend) поверх upstream-образов с вшитым `.env` (ARG/ENV);
+- скрипты `gen_secrets.sh` (генерация секретов) и `build_images.sh` (сборка и публикация образов);
+- образы опубликованы в Forgejo Container Registry `10.8.0.1:3000/diplom/*` (`latest` на каждый push, `v*` на git-тег).
+
+![](./img/3.png) ![](./img/15.gif)
+
 ---
 ### Подготовка cистемы мониторинга и деплой приложения
 
-Уже должны быть готовы конфигурации для автоматического создания облачной инфраструктуры и поднятия Kubernetes кластера.  
+Уже должны быть готовы конфигурации для автоматического создания облачной инфраструктуры и поднятия Kubernetes кластера.
 Теперь необходимо подготовить конфигурационные файлы для настройки нашего Kubernetes кластера.
 
 Цель:
@@ -120,6 +175,16 @@ flowchart LR
 
 Способ выполнения:
 1. Воспользоваться пакетом [kube-prometheus](https://github.com/prometheus-operator/kube-prometheus), который уже включает в себя [Kubernetes оператор](https://operatorhub.io/) для [grafana](https://grafana.com/), [prometheus](https://prometheus.io/), [alertmanager](https://github.com/prometheus/alertmanager) и [node_exporter](https://github.com/prometheus/node_exporter). Альтернативный вариант - использовать набор helm чартов от [bitnami](https://github.com/bitnami/charts/tree/main/bitnami).
+
+**Реализация:**
+
+- мониторинг развёрнут ролью `k3s_cluster`: helm-чарт `kube-prometheus-stack` (Prometheus, Grafana, Alertmanager, node_exporter), Grafana доступна через NodePort 30080;
+- приложение развёрнуто репозиторием доставки [`deploy/k8s-deploy`](deploy/k8s-deploy): namespace `ts6`, PVC (local-path), 4 Deployment, сервисы ClusterIP/NodePort;
+- деплой по тегу `v*`: импорт образов в containerd нод ansible-плейбуком -> `kubectl apply` -> rollout.
+
+![](./img/16.gif)
+
+---
 
 ### Деплой инфраструктуры в terraform pipeline
 
@@ -131,6 +196,15 @@ flowchart LR
 3. Дашборды в grafana отображающие состояние Kubernetes кластера.
 4. Http доступ на 80 порту к тестовому приложению.
 5. Atlantis или terraform cloud или ci/cd-terraform
+
+**Реализация:**
+
+- вместо Atlantis/Terraform Cloud настроены Forgejo Actions-pipelines репозиториев [`tf/net_S3-store`](tf/net_S3-store) и [`tf/k8s`](tf/k8s): авто `terraform plan` -> `apply` при коммите в main;
+- бинарь Terraform кэшируется в Forgejo Package Registry (скрипты `scripts/fetch_terraform.sh`);
+- чувствительные переменные подтягиваются из приватного репозитория `tf-secrets` через `TOKEN`.
+
+![](./img/11.gif) ![](./img/12.gif)
+
 ---
 ### Установка и настройка CI/CD
 
@@ -149,6 +223,15 @@ flowchart LR
 2. При любом коммите в репозиторие с тестовым приложением происходит сборка и отправка в регистр Docker образа.
 3. При создании тега (например, v1.0.0) происходит сборка и отправка с соответствующим label в регистри, а также деплой соответствующего Docker образа в кластер Kubernetes.
 
+**Реализация:**
+
+- self-hosted runner Forgejo в docker-контейнере `ubuntu-act` (доступ к docker-сокету хоста, установлен ansible);
+- pipeline сборки `deploy/ts6-image-build/.forgejo/workflows/build.yml`: сборка образов на каждый push (latest) и на теги `v*`;
+- pipeline деплоя `deploy/k8s-deploy/.forgejo/workflows/deploy.yml`: тег `v*` -> импорт образов -> `kubectl apply`;
+- pipeline `ansible-k3s`: развёртывание кластера при коммите в main.
+
+![](./img/7.gif) ![](./img/12.gif)
+
 ---
 ## Что необходимо для сдачи задания?
 
@@ -159,4 +242,3 @@ flowchart LR
 5. Репозиторий с конфигурацией Kubernetes кластера.
 6. Ссылка на тестовое приложение и веб интерфейс Grafana с данными доступа.
 7. Все репозитории рекомендуется хранить на одном ресурсе (github, gitlab)
-
