@@ -7660,9 +7660,18 @@ docker-compose -f docker-compose-forgejo-runner.yml down \
 echo "8c6c827b3d66bea9c3cdea3dabb6d3c178d33815" \
 | docker login 10.8.0.1:3000 -u denskv --password-stdin
 
-# Добавление тегов скаченному образу под локальный Container Registry
-docker tag ghcr.io/catthehacker/ubuntu:act-latest \
-10.8.0.1:3000/diplom/ubuntu-act:latest
+# Предварительная сборка образа ubuntu-act с установкой ansible
+cat > Dockerfile.ubuntu-act <<'EOF'
+FROM ghcr.io/catthehacker/ubuntu:act-latest
+
+ENV PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+
+RUN python3 -m pip install --quiet --break-system-packages \
+--index-url https://mirrors.aliyun.com/pypi/simple/ \
+ansible
+EOF
+
+docker build -t 10.8.0.1:3000/diplom/ubuntu-act:latest -f Dockerfile.ubuntu-act .
 
 # Загрузка контейнера в локальный Container Registry
 docker push 10.8.0.1:3000/diplom/ubuntu-act:latest
@@ -7710,6 +7719,19 @@ Configure a credential helper to remove this warning. See
 https://docs.docker.com/go/credential-store/
 
 Login Succeeded
+
+[+] Building 260.7s (6/6) FINISHED                                                                                  docker:default
+ => [internal] load build definition from Dockerfile.ubuntu-act                                                               0.0s
+ => => transferring dockerfile: 277B                                                                                          0.0s
+ => [internal] load metadata for ghcr.io/catthehacker/ubuntu:act-latest                                                       0.0s
+ => [internal] load .dockerignore                                                                                             0.0s
+ => => transferring context: 2B                                                                                               0.0s
+ => CACHED [1/2] FROM ghcr.io/catthehacker/ubuntu:act-latest                                                                  0.0s
+ => [2/2] RUN python3 -m pip install --quiet --break-system-packages --index-url https://mirrors.aliyun.com/pypi/simple/ a  250.9s
+ => exporting to image                                                                                                        9.7s 
+ => => exporting layers                                                                                                       9.7s 
+ => => writing image sha256:29476c8e82218dbd42c032cd66ec69c6677794ddfe6efabb27b59e86201c5704                                  0.0s
+ => => naming to 10.8.0.1:3000/diplom/ubuntu-act:latest 
 
 The push refers to repository [10.8.0.1:3000/diplom/ubuntu-act]
 5f70bf18a086: Pushed 
@@ -10185,10 +10207,115 @@ branch 'main' set up to track 'origin/main'.
 
 ![](./FFOPS-40_diplom-skv_den/img/16.gif)
 
+```bash
+kubectl get po -A -o wide
+```
 
+<details>
+<summary>
+Вывод после деплоя
+</summary>
 
+```log
+NAMESPACE       NAME                                                     READY   STATUS      RESTARTS      AGE   IP             NODE       NOMINATED NODE   READINESS GATES
+ingress-nginx   ingress-nginx-controller-8464654b6c-d6qn8                1/1     Running     0             48m   10.20.38.70    worker-4   <none>           <none>
+kube-system     calico-kube-controllers-db57f7644-8pkgb                  1/1     Running     1 (27m ago)   48m   10.20.38.65    worker-4   <none>           <none>
+kube-system     calico-node-5fk5l                                        1/1     Running     0             48m   10.10.10.29    worker-1   <none>           <none>
+kube-system     calico-node-9c8wq                                        1/1     Running     0             48m   10.10.10.56    worker-3   <none>           <none>
+kube-system     calico-node-hn7fp                                        1/1     Running     0             48m   10.10.10.7     master-1   <none>           <none>
+kube-system     calico-node-mztb7                                        1/1     Running     0             48m   10.10.10.36    worker-4   <none>           <none>
+kube-system     coredns-577d995dff-ljq2b                                 1/1     Running     0             48m   10.20.226.65   worker-1   <none>           <none>
+kube-system     helm-install-gateway-api-crd-cs2p5                       0/1     Completed   0             48m   <none>         worker-4   <none>           <none>
+kube-system     local-path-provisioner-6858d854cf-k5thm                  1/1     Running     0             48m   10.20.38.69    worker-4   <none>           <none>
+monitoring      alertmanager-prometheus-stack-kube-prom-alertmanager-0   2/2     Running     0             47m   10.20.97.194   worker-3   <none>           <none>
+monitoring      prometheus-prometheus-stack-kube-prom-prometheus-0       2/2     Running     0             47m   10.20.226.67   worker-1   <none>           <none>
+monitoring      prometheus-stack-grafana-5c57d9bf98-t7877                3/3     Running     0             47m   10.20.39.2     master-1   <none>           <none>
+monitoring      prometheus-stack-kube-prom-operator-776c54c98b-tk9j6     1/1     Running     0             47m   10.20.226.66   worker-1   <none>           <none>
+monitoring      prometheus-stack-kube-state-metrics-7fc477795d-pd5g9     1/1     Running     4 (27m ago)   47m   10.20.97.193   worker-3   <none>           <none>
+monitoring      prometheus-stack-prometheus-node-exporter-b2mqr          1/1     Running     0             47m   10.10.10.36    worker-4   <none>           <none>
+monitoring      prometheus-stack-prometheus-node-exporter-bwhvl          1/1     Running     0             47m   10.10.10.7     master-1   <none>           <none>
+monitoring      prometheus-stack-prometheus-node-exporter-vr8hp          1/1     Running     0             47m   10.10.10.56    worker-3   <none>           <none>
+monitoring      prometheus-stack-prometheus-node-exporter-w4nz5          1/1     Running     0             47m   10.10.10.29    worker-1   <none>           <none>
+ts6             backend-57bd5fdcb7-9zhhf                                 1/1     Running     0             18m   10.20.97.198   worker-3   <none>           <none>
+ts6             frontend-7db94d9bc7-qm8gx                                1/1     Running     0             18m   10.20.38.73    worker-4   <none>           <none>
+ts6             sidecar-58cb4d8964-g5xjx                                 1/1     Running     0             18m   10.20.97.195   worker-3   <none>           <none>
+ts6             teamspeak6-788bb89f5-wbhbn                               1/1     Running     0             18m   10.20.38.74    worker-4   <none>           <none>
+```
 
+</details>
 
+```bash
+# Вывод лога для получения административных прав Teamspeak6
+kubectl logs -n ts6 teamspeak6-788bb89f5-wbhbn
+```
+
+<details>
+<summary>
+Вывод после деплоя
+</summary>
+
+```log
+2026-09-29 20:12:03.319765|INFO    |ServerLibPriv |   |TeamSpeak Server 6.0.0-beta13.1 (2026-09-22 12:32:10)
+2026-09-29 20:12:03.321276|INFO    |ServerLibPriv |   |SystemInformation: Linux 6.12.111+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.111-1 (2026-09-28) x86_64 Binary: 64bit x86_64
+2026-09-29 20:12:03.358795|INFO    |DatabaseQuery |   |dbPlugin name:    SQLite3 plugin, Version 3, (c)TeamSpeak Systems GmbH
+2026-09-29 20:12:03.361063|INFO    |DatabaseQuery |   |dbPlugin version: 3.53.3
+2026-09-29 20:12:03.397660|INFO    |DatabaseQuery |   |checking database integrity (SKIPPED)
+2026-09-29 20:12:03.422181|INFO    |SQL           |   |db_CreateTables() tables created
+
+------------------------------------------------------------------
+                      I M P O R T A N T                           
+------------------------------------------------------------------
+               Server Query Admin Account created                 
+         loginname= "serveradmin", password= "OECLvBj4"
+         apikey= "BADthgjRAABaqFcNtARHMnBjZiymSZviCrZXIDW"
+------------------------------------------------------------------
+
+2026-09-29 20:12:03.458394|INFO    |SQL           |   |updated permissions to version 25
+2026-09-29 20:12:03.460198|INFO    |SQL           |   |updated permissions to version 26
+2026-09-29 20:12:03.460572|WARNING |              |   |udp is configured to 16 threads, which brings the worker class to 16/4 on 1 cores
+2026-09-29 20:12:03.460652|WARNING |              |   |query is configured to 32 threads, which brings the worker class to 49/4 on 1 cores
+2026-09-29 20:12:03.464120|WARNING |Accounting    |   |Unable to open /var/tsserver/licensekey.dat
+2026-09-29 20:12:03.465570|INFO    |Accounting    |   |Licensing Information
+2026-09-29 20:12:03.465593|INFO    |Accounting    |   |licensed to       : TeamSpeak Systems GmbH
+2026-09-29 20:12:03.465603|INFO    |Accounting    |   |type              : No License
+2026-09-29 20:12:03.465620|INFO    |Accounting    |   |starting date     : Tue Sep  1 00:00:00 2026
+2026-09-29 20:12:03.465629|INFO    |Accounting    |   |ending date       : Tue Dec  1 00:00:00 2026
+2026-09-29 20:12:03.465637|INFO    |Accounting    |   |max virtualservers: 1
+2026-09-29 20:12:03.465644|INFO    |Accounting    |   |max slots         : 32
+2026-09-29 20:12:03.619360|INFO    |              |   |Precomputing puzzle, this may take some seconds...
+2026-09-29 20:12:09.184109|INFO    |              |   |Puzzle precompute time: 5564
+2026-09-29 20:12:09.184608|INFO    |FileManager   |   |listening on 0.0.0.0:30033, [::]:30033
+2026-09-29 20:12:09.185496|INFO    |VirtualSvrMgr |   |executing monthly interval
+2026-09-29 20:12:09.185653|INFO    |VirtualSvrMgr |   |reset virtualserver traffic statistics
+2026-09-29 20:12:09.189190|INFO    |Query         |   |Using a query thread pool size of 32
+2026-09-29 20:12:09.191032|INFO    |UDPServers    |   |Socket buffers limited by the kernel (receive 212992 of 4194304, send 212992 of 4194304 bytes). The server runs with the granted size. To fix this, set net.core.rmem_max and net.core.wmem_max accordingly
+2026-09-29 20:12:09.486180|INFO    |Transport     |   |listening on 0.0.0.0:9987
+2026-09-29 20:12:09.486759|WARNING |VirtualServer |1  |--------------------------------------------------------
+2026-09-29 20:12:09.486904|WARNING |VirtualServer |1  |ServerAdmin privilege key created, please use the line below
+2026-09-29 20:12:09.486921|WARNING |VirtualServer |1  |token=h5yxXcgyAyjSKwSEdHZvxEavs4ET7RKvtTHLlIrj
+2026-09-29 20:12:09.486932|WARNING |VirtualServer |1  |--------------------------------------------------------
+
+------------------------------------------------------------------
+                      I M P O R T A N T                           
+------------------------------------------------------------------
+      ServerAdmin privilege key created, please use it to gain 
+      serveradmin rights for your virtualserver. please
+      also check the doc/privilegekey_guide.txt for details.
+
+       token=h5yxXcgyAyjSKwSEdHZvxEavs4ET7RKvtTHLlIrj
+------------------------------------------------------------------
+
+2026-09-29 20:12:09.487084|INFO    |              |   |creating QUERY_SSH_RSA_HOST_KEY file: "/var/tsserver/ssh_host_rsa_key"
+2026-09-29 20:12:10.861621|INFO    |Query         |   |listening for ssh query on 0.0.0.0:10022, [::]:10022
+2026-09-29 20:12:10.861904|INFO    |Query         |   |listening for http query on 0.0.0.0:10080, [::]:10080
+2026-09-29 20:12:10.862233|INFO    |CIDRManager   |   |updated query_ip_allowlist ips: 127.0.0.1/32, ::1/128, 
+2026-09-29 20:12:10.863901|INFO    |              |   |threads: db_async 1, udp 16, manager_io 1, query 32, filetransfer 1, command 2, voice 2, ping 1, ack 1, init 1, mytsid_io 1, io_service_handler 1
+2026-09-29 20:12:10.863937|INFO    |              |   |threads: 60 total on 1 cores (cpu limited, 2 present) (packet 7/7, worker 49/4, blocking 2/4, reserved 2)
+2026-09-29 20:12:11.439302|INFO    |              |   |myTeamSpeak identifier revocation list was downloaded successfully - all related features are activated
+2026-09-29 20:13:03.704963|INFO    |Accounting    |   |Default license report sent successfully
+```
+
+</details>
 
 ## Команды под заметки
 

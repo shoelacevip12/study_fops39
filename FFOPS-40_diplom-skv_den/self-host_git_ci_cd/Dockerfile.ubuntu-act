@@ -1,0 +1,7 @@
+FROM ghcr.io/catthehacker/ubuntu:act-latest
+
+ENV PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+
+RUN python3 -m pip install --quiet --break-system-packages \
+--index-url https://mirrors.aliyun.com/pypi/simple/ \
+ansible

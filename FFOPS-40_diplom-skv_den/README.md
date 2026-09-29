@@ -22,8 +22,27 @@
 6. Настроить CD для автоматического развёртывания приложения.
 
 ---
-## Этапы выполнения:
 
+### Общая архитектурная схема реализация проекта
+
+![](./img/0.png)
+
+### Схема внешнего доступа (прямая публичная точка - NLB)
+
+```mermaid
+flowchart LR
+    A[Интернет] --> B[NLB 158.160.220.212]
+    B -->|80 tcp| F[NodePort 30082 frontend]
+    B -->|9987 udp| V[NodePort 30087 voice]
+    B -->|30033 tcp| FT[NodePort 30033 file transfer]
+    B -->|30080 tcp| G[Grafana NodePort 30080]
+    F --> FE[frontend pod]
+    FE -->|/api proxy| BE[backend svc 3001]
+    V --> TS[teamspeak6 pod]
+    FT --> TS
+```
+
+## Этапы выполнения:
 
 ### Создание облачной инфраструктуры
 

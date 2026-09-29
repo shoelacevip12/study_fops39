@@ -65,3 +65,22 @@
 ![](../img/demo_4.gif)
 
 </details>
+
+---
+
+<details>
+<summary>
+Демонстрация развернутого приложения и Grafana
+</summary>
+
+![](../img/demo_5.gif)
+
+---
+
+![](../img/demo_6.gif)
+
+---
+
+![](../img/demo_7.gif)
+
+</details>
